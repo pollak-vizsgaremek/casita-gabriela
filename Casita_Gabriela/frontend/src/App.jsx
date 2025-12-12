@@ -1,24 +1,30 @@
 import React from 'react';
-import { BrowserRouter as Router, Route, Routes, Link } from 'react-router-dom';
+import { Route, Routes } from 'react-router';
+import Navigation from './components/Navigation';
 import Home from './pages/Home';
 import About from './pages/About';
-import Registration from './pages/registration';
-import Login from './pages/login';
-import Contact from './pages/contact';
+import Registration from './pages/Registration';
+import Login from './pages/Login';
+import Contact from './pages/Contact';
 import Admin from './pages/Admin';
 import Room from './pages/Room';
+import './App.css'
+
+
 const App = () => {
     return (
-        <Router>
-            <nav>
-                <Link to="/">Home</Link>
-                <Link to="/about">About</Link>
-            </nav>
+        <>
+            <Navigation />
             <Routes>
                 <Route path="/" element={<Home />} />
                 <Route path="/about" element={<About />} />
+                <Route path="/contact" element={<Contact />} />
+                <Route path="/room" element={<Room />} />
+                <Route path="/admin" element={<Admin />} />
+                <Route path="/login" element={<Login />} />
+                <Route path="/registration" element={<Registration />} />
             </Routes>
-        </Router>
+        </>
     );
 };
 

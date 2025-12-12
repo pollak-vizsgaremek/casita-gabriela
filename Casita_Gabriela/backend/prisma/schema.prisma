@@ -59,7 +59,7 @@ model room_review {
 model users {
   id            Int       @id @default(autoincrement())
   name          String    @db.Text
-  password      String    @db.VarChar(15)
+  password      String    @db.VarChar(100)
   phone_number  String    @db.VarChar(20)
   birth_date    DateTime  @db.Date
   address       String    @db.VarChar(50)

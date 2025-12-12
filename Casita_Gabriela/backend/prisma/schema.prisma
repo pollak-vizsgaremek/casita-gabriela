@@ -1,9 +1,3 @@
-// This is your Prisma schema file,
-// learn more about it in the docs: https://pris.ly/d/prisma-schema
-
-// Looking for ways to speed up your queries, or scale easily with your serverless or edge functions?
-// Try Prisma Accelerate: https://pris.ly/cli/accelerate-init
-
 generator client {
   provider = "prisma-client-js"
   output   = "../generated/prisma"
@@ -12,4 +6,64 @@ generator client {
 datasource db {
   provider = "mysql"
   url      = env("DATABASE_URL")
+}
+
+model booking {
+  id             Int      @id @default(autoincrement())
+  arrival_date   DateTime @db.Date
+  departure_date DateTime @db.Date
+  people         Int
+  booking_date   DateTime @db.Date
+  status         String   @db.VarChar(50)
+  user_id        Int
+  room_id        Int
+  users          users    @relation(fields: [user_id], references: [id], onUpdate: Restrict, map: "booking_ibfk_1")
+  room           room     @relation(fields: [room_id], references: [id], onUpdate: Restrict, map: "booking_ibfk_2")
+
+  @@index([room_id], map: "room_id")
+  @@index([user_id], map: "user_id")
+}
+
+model form {
+  id           Int    @id @default(autoincrement())
+  name         String @db.Text
+  email        String @db.VarChar(50)
+  phone_number String @db.VarChar(20)
+  topic        String @db.VarChar(50)
+  description  String @db.VarChar(1000)
+}
+
+model room {
+  id             Int           @id @default(autoincrement())
+  name           String        @db.VarChar(30)
+  description    String        @db.VarChar(1000)
+  price          Int
+  ac_availablity Int
+  category       String        @db.VarChar(20)
+  space          Int
+  images         Bytes         @db.MediumBlob
+  booking        booking[]
+  room_review    room_review[]
+}
+
+model room_review {
+  id      Int    @id @default(autoincrement())
+  stars   Int
+  comment String @db.VarChar(200)
+  room_id Int
+  room    room   @relation(fields: [room_id], references: [id], onUpdate: Restrict, map: "room_review_ibfk_1")
+
+  @@index([room_id], map: "booking_id")
+}
+
+model users {
+  id            Int       @id @default(autoincrement())
+  name          String    @db.Text
+  password      String    @db.VarChar(15)
+  phone_number  String    @db.VarChar(20)
+  birth_date    DateTime  @db.Date
+  address       String    @db.VarChar(50)
+  identity_card String    @db.VarChar(50)
+  email         String    @db.VarChar(30)
+  booking       booking[]
 }

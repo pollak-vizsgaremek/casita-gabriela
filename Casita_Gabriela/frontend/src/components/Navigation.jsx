@@ -26,7 +26,7 @@ const Navigation = () => {
 
   return (
     <div>
-        <nav className='bg-linear-to-r from-[#7eff4f] to-[#C0FF95] w-dvw h-[10dvh] flex items-center px-4 shadow-md'>
+        <nav className='bg-linear-to-r border-b-2 border-[#515151] from-[#7eff4f] to-[#C0FF95] w-dvw h-[10dvh] flex items-center px-4 shadow-md'>
             <Link to={routes[0].route} className='h-full flex items-center'>
                 <img src="/C.png" alt="Home" className="h-7/10 w-auto" />
             </Link>

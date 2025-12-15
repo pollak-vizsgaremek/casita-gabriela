@@ -64,6 +64,6 @@ model users {
   birth_date    DateTime  @db.Date
   address       String    @db.VarChar(50)
   identity_card String    @db.VarChar(50)
-  email         String    @db.VarChar(30)
+  email         String    @unique(map: "unique_email") @db.VarChar(30)
   booking       booking[]
 }

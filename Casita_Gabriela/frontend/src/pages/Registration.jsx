@@ -46,7 +46,7 @@ const Registration = () => {
   return (
     <div className='flex items-center justify-center m-0 bg-gray-100 h-[90dvh] w-dvw'>
       <div className='flex flex-col'>
-        <div className='text-black bg-white shadow-md rounded-xl p-4 ml-8 w-[25dvw] h-[75dvh] flex flex-col items-center'>
+        <div className='text-black bg-white shadow-md rounded-xl p-4 ml-8 w-[25dvw] h-fill flex flex-col items-center'>
           <p className='text-black mb-4'> Regisztráció</p>
           <form className='w-full flex flex-col items-center' onSubmit={handleSubmit}>
             <input name="name" type='text' placeholder='Teljes név'

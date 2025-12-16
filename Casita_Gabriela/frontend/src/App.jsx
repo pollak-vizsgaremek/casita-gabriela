@@ -9,13 +9,16 @@ import Contact from './pages/Contact';
 import Admin from './pages/Admin';
 import Room from './pages/Room';
 import './App.css'
+import Layout from './Layout';
 
 
 const App = () => {
     return (
         <>
-            <Navigation />
             <Routes>
+                <Route element={<Layout />}>
+
+                
                 <Route path="/" element={<Home />} />
                 <Route path="/about" element={<About />} />
                 <Route path="/contact" element={<Contact />} />
@@ -23,6 +26,7 @@ const App = () => {
                 <Route path="/admin" element={<Admin />} />
                 <Route path="/login" element={<Login />} />
                 <Route path="/registration" element={<Registration />} />
+                </Route>
             </Routes>
         </>
     );

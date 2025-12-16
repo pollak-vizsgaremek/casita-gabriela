@@ -1,7 +1,35 @@
-import React from 'react';
-import { Link } from 'react-router';
+import React, { useState } from 'react';
+import { Link, useNavigate } from 'react-router';
+import axios from 'axios';
 
 const Login = () => {
+  const [form, setForm] = useState({ email: "", password: "" });
+  const [message, setMessage] = useState("");
+  const navigate = useNavigate();
+
+  const handleChange = (e) => {
+    setForm({ ...form, [e.target.name]: e.target.value });
+  };
+
+  const handleSubmit = async (e) => {
+    e.preventDefault();
+    try {
+      const res = await axios.post("http://localhost:6969/login", {
+        email: form.email,
+        password: form.password,
+      });
+      setMessage(res.data.message);
+
+      // token mentése
+      localStorage.setItem("token", res.data.token);
+
+      // redirect pl. dashboardra
+      navigate("/dashboard");
+    } catch (err) {
+      setMessage("Login failed. " + (err.response?.data?.error || ""));
+    }
+  };
+
   return (
     <div className='flex items-center justify-center m-0 h-[90dvh] w-dvw'>
      <div className='flex flex-col'>
@@ -32,4 +60,3 @@ const Login = () => {
 };
 
 export default Login;
-

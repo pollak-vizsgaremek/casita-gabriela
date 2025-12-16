@@ -44,9 +44,9 @@ const Registration = () => {
   };
 
   return (
-    <div className='flex items-center justify-center m-0 bg-gray-100 h-[90dvh] w-dvw'>
+    <div className='flex items-center justify-center m-0  h-[90dvh] w-dvw'>
       <div className='flex flex-col'>
-        <div className='text-black bg-white shadow-md rounded-xl p-4 ml-8 w-[25dvw] h-fill flex flex-col items-center'>
+        <div className='fade-in text-black bg-[#FFFFFF] shadow-md rounded-xl p-4 ml-8 w-[25dvw] h-fill flex flex-col items-center'>
           <p className='text-black mb-4'> Regisztráció</p>
           <form className='w-full flex flex-col items-center' onSubmit={handleSubmit}>
             <input name="name" type='text' placeholder='Teljes név'
@@ -73,13 +73,13 @@ const Registration = () => {
             <input name="identity_card" type='text' placeholder='Személyi igazolvány szám'
               className='mb-2 p-2 border border-gray-300 rounded w-full'
               value={form.identity_card} onChange={handleChange} />
-            <button type='submit' className='bg-blue-500 text-white px-4 py-2 rounded hover:bg-blue-700 mt-4'>
+            <button type='submit' className='bg-[#6FD98C] text-white px-4 py-2 rounded hover:-translate-y-px transition-all duration-200 hover:bg-[#5FCB80] hover:cursor-pointer mt-4'>
               Regisztráció
             </button>
           </form>
           {message && <p className="mt-4 text-sm text-green-600">{message}</p>}
           <p className='mt-4'>
-            Már van fiókod? <Link to="/login" className="text-blue-500 hover:underline">Jelentkezz be</Link>
+            Már van fiókod? <Link to="/login" className="text-red-500 hover:underline">Jelentkezz be</Link>
           </p>
         </div>
       </div>

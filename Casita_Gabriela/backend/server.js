@@ -9,7 +9,6 @@ dotenv.config(); // .env betöltése
 
 const JWT_SECRET = process.env.JWT_SECRET; // titkos kulcs .env-ből
 const app = express();
-
 const port = 6969;
 const prisma = new PrismaClient();
 
@@ -42,7 +41,6 @@ app.post("/register", async (req, res) => {
   }
 });
 
-// --- LOGIN JWT-vel ---
 app.post("/login", async (req, res) => {
   const { email, password } = req.body;
 
@@ -58,21 +56,23 @@ app.post("/login", async (req, res) => {
       return res.status(400).json({ error: "Hibás jelszó." });
     }
 
-    // JWT token generálás
+    // Role az adatbázisból
+    const role = user.isAdmin ? "admin" : "user";
+
     const token = jwt.sign(
-      { id: user.id, email: user.email },
+      { id: user.id, email: user.email, role },
       JWT_SECRET,
       { expiresIn: "1h" }
     );
 
-    res.json({ message: "Sikeres bejelentkezés!", token });
+    res.json({ message: "Sikeres bejelentkezés!", token, role });
   } catch (err) {
     console.error(err);
     res.status(500).json({ error: "Bejelentkezés sikertelen." });
   }
 });
 
-// --- PROTECTED ROUTE példa ---
+// --- PROTECTED példa ---
 app.get("/protected", (req, res) => {
   const authHeader = req.headers.authorization;
   if (!authHeader) return res.status(401).json({ error: "Token hiányzik." });
@@ -87,5 +87,5 @@ app.get("/protected", (req, res) => {
 });
 
 app.listen(port, () => {
-  console.log(`Backend is running on this port: ${port}`);
+  console.log(`Backend is running on port: ${port}`);
 });

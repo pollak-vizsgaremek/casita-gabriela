@@ -1,12 +1,13 @@
 @import "tailwindcss";
 
 :root {
-  font-family: system-ui, Avenir, Helvetica, Arial, sans-serif;
+  
   line-height: 1.5;
   font-weight: 400;
 
   color-scheme: light dark;
   color: rgba(255, 255, 255, 0.87);
+  overflow-x: hidden;
   
 
   font-synthesis: none;
@@ -16,6 +17,34 @@
 }
 body {
   background-color: #F1FBF4;
+}
+.blur {
+  background: transparent;
+  backdrop-filter: blur(10px);
+  border: 1px solid gray;
+  border-radius: 8px;
+}
+
+.spacer {
+  aspect-ratio: 960/300;
+  width: 100%;
+  background-repeat: no-repeat;
+  background-position: center;
+  background-size: cover;
+  z-index: -1;
+}
+
+.layer1 {
+  background-image: url('/layer1.svg');
+}
+.layerLeftorTop {
+  background-image: url('/layerLeft2.svg');
+}
+@media (max-width: 640px) {
+  .layerLeftorTop {
+    background-image: url('/layerTop2.svg');
+  }
+  
 }
 
 @keyframes fadeInUp {
@@ -29,6 +58,22 @@ body {
   }
 }
 .fade-in {
-  opacity: 0;                 /* prevents flash */
+  opacity: 0;                 
   animation: fadeInUp 0.5s ease-out forwards;
+}
+
+
+@keyframes fadeInMore {
+  from {
+    opacity: 0;
+    transform: translateX(40px);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(0);
+  }
+}
+.fade-inR {
+  opacity: 0;                 
+  animation: fadeInMore 0.5s ease-out forwards;
 }

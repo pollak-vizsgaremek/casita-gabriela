@@ -31,9 +31,10 @@ const Login = () => {
   };
 
   return (
-    <div className='flex items-center justify-center m-0 h-[90dvh] w-dvw'>
-     <div className='flex flex-col'>
-               <div className='fade-in text-black bg-white shadow-md rounded-xl p-4 ml-8 w-[25dvw] h-fill flex flex-col items-center'>
+    <div className='flex items-center justify-center m-0 h-[90dvh] w-dvw spacer layerLeftorTop'>
+     <div className='flex sm:flex-row-reverse flex-col-reverse'>
+                <div className='sm:w-[50dvw] w-dvw h-[50dvh] sm:h-dvh flex items-center justify-center sm:justify-start'>
+                    <div className='fade-inR text-black bg-white shadow-md rounded-xl p-4 sm:ml-8 w-[65dvw] min-w-[350px] sm:w-[30dvw] sm:min-w-[275px] h-fill flex flex-col items-center'>
                  <p className='text-black mb-4'>Bejelentkezés</p>
                  <form className='w-full flex flex-col items-center'>
                    <input
@@ -54,7 +55,15 @@ const Login = () => {
                    Még nincs fiókod? <Link to="/registration" className="text-red-500 hover:underline">Regisztrálj!</Link>
                  </p>
                </div>
-           </div>
+                </div>
+               
+               <div className='sm:w-[50dvw] w-dvw h-[50dvh] sm:h-dvh flex items-center  sm:justify-start justify-center'>
+                  <div className='text-shadow-lg/10 font-mono tracking-wide sm:pl-10 pl-0  text-[#F1FBF4] p-4 sm:ml-8 ml-0.5 w-[25dvw] text-4xl h-fill flex flex-col items-center text-center'>
+                A szobák kezeléséhez és további foglalásához jelentkezzen be a fiókjába!
+                </div>
+               </div>
+               
+        </div>
     </div>
   );
 };

@@ -44,7 +44,7 @@ const Registration = () => {
   };
 
   return (
-    <div className='flex items-center justify-center m-0  h-[90dvh] w-dvw'>
+    <div className='flex items-center justify-center m-0  h-[90dvh] w-dvw spacer layer1'>
       <div className='flex flex-col'>
         <div className='fade-in text-black bg-[#FFFFFF] shadow-md rounded-xl p-4 ml-8 w-[25dvw] h-fill flex flex-col items-center'>
           <p className='text-black mb-4'> Regisztráció</p>
@@ -82,7 +82,9 @@ const Registration = () => {
             Már van fiókod? <Link to="/login" className="text-red-500 hover:underline">Jelentkezz be</Link>
           </p>
         </div>
+        
       </div>
+      
     </div>
   );
 };

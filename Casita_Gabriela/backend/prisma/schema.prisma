@@ -65,5 +65,6 @@ model users {
   address       String    @db.VarChar(50)
   identity_card String    @db.VarChar(50)
   email         String    @unique(map: "unique_email") @db.VarChar(30)
+  isAdmin       Boolean?  @default(false)
   booking       booking[]
 }

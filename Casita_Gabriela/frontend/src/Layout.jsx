@@ -6,7 +6,9 @@ const Layout = () => {
   return (
     <>
     <Navigation />
-      <Outlet />
+      <div className="pt-[10dvh]">
+        <Outlet />
+      </div>
     </>
   )
 }

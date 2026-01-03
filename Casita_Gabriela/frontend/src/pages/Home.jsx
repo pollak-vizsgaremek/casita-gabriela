@@ -1,12 +1,28 @@
 import React from 'react'
+import Offer from '../components/Offer'
 
 const Home = () => {
   return (
-    <div>
-        <p class="text-blue-600 dark:text-sky-400">The quick brown fox...</p>
-<p class="text-blue-600/75 dark:text-sky-400/75">The quick brown fox...</p>
-<p class="text-blue-600/50 dark:text-sky-400/50">The quick brown fox...</p>
-<p class="text-blue-600/25 dark:text-sky-400/25">The quick brown fox...</p>
+    <div className='flex flex-col items-center justify-center m-0 h-fill w-dvw spacer layerHome'>
+      <div className='w-full h-[30dvh] flex items-end'>
+          <h1 className='text-shadow-lg/10 font-mono tracking-wide  text-[#F1FBF4]  w-dvw text-4xl h-fill flex flex-col items-center text-center '>Kiemelt ajánlataink:</h1>
+      </div>
+    
+      
+      <div className=' w-dvw h-fill flex flex-wrap  items-center justify-center gap-8 p-4 pt-[20dvh]'>
+
+     
+        <Offer />
+        <Offer />
+        <Offer />
+        <Offer />
+        <Offer />
+        <Offer />
+        <Offer />
+        <Offer />
+
+
+      </div>
     </div>
   )
 }

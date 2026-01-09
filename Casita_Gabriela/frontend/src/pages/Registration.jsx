@@ -50,30 +50,30 @@ const Registration = () => {
           <p className='text-black mb-4'> Regisztráció</p>
           <form className='w-full flex flex-col items-center' onSubmit={handleSubmit}>
             <input name="name" type='text' placeholder='Teljes név'
-              className='mb-2 p-2 border border-gray-300 rounded w-full'
+              className='mb-2 p-2 border h-8 border-gray-300 rounded w-full'
               value={form.name} onChange={handleChange} />
             <input name="email" type='email' placeholder='Email'
-              className='mb-2 p-2 border border-gray-300 rounded w-full'
+              className='mb-2 p-2 border h-8 border-gray-300 rounded w-full'
               value={form.email} onChange={handleChange} />
             <input name="password" type='password' placeholder='Jelszó'
-              className='mb-2 p-2 border border-gray-300 rounded w-full'
+              className='mb-2 p-2 border h-8 border-gray-300 rounded w-full'
               value={form.password} onChange={handleChange} />
             <input name="passwordRepeat" type='password' placeholder='Jelszó újra'
-              className='mb-2 p-2 border border-gray-300 rounded w-full'
+              className='mb-2 p-2 border h-8 border-gray-300 rounded w-full'
               value={form.passwordRepeat} onChange={handleChange} />
             <input name="phone_number" type='tel' placeholder='Telefonszám'
-              className='mb-2 p-2 border border-gray-300 rounded w-full'
+              className='mb-2 p-2 border h-8 border-gray-300 rounded w-full'
               value={form.phone_number} onChange={handleChange} />
             <input name="birth_date" type='date' placeholder='Születési dátum'
-              className='mb-2 p-2 border border-gray-300 rounded w-full'
+              className='mb-2 p-2 border h-8 border-gray-300 rounded w-full'
               value={form.birth_date} onChange={handleChange} />
             <textarea name="address" placeholder='Lakcím'
-              className='mb-2 p-2 border border-gray-300 rounded w-full'
+              className='mb-2 p-2 border h-11 border-gray-300 rounded w-full'
               value={form.address} onChange={handleChange} />
             <input name="identity_card" type='text' placeholder='Személyi igazolvány szám'
-              className='mb-2 p-2 border border-gray-300 rounded w-full'
+              className='mb-2 p-2 border h-8 border-gray-300 rounded w-full'
               value={form.identity_card} onChange={handleChange} />
-            <button type='submit' className='bg-[#6FD98C] text-white px-4 py-2 rounded hover:-translate-y-px transition-all duration-200 hover:bg-[#5FCB80] hover:cursor-pointer mt-4'>
+            <button type='submit' className='bg-[#6FD98C] text-white px-4 py-2 rounded hover:-translate-y-px transition-all duration-200 hover:bg-[#5FCB80] hover:cursor-pointer mt-2'>
               Regisztráció
             </button>
           </form>

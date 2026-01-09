@@ -38,7 +38,7 @@ const hideSideBar = () => {
 
   return (
     <div className='z-10 overflow-visible'>
-        <nav className=' bg-[#D9F5E3]  w-dvw h-[10dvh] flex items-center px-4 shadow-md  z-40 border-b-2 border-gray-200'>
+        <nav className=' bg-[#D9F5E3]  w-dvw h-[10dvh] flex items-center px-4 shadow-md  z-40 border-b-2 border-gray-200 fixed top-0'>
           
             <Link to={routes[0].route} className='h-full flex items-center'>
                 <img src="/C.png" alt="Home" className="h-7/10 w-auto" />

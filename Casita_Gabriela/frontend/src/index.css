@@ -37,8 +37,11 @@ body {
 .layer1 {
   background-image: url('/layer1.svg');
 }
+.layerHome {
+  background-image: url('/layerHome2.svg');
+}
 .layerLeftorTop {
-  background-image: url('/layerLeft2.svg');
+  background-image: url('/layer4.svg');
 }
 .icon {
   width: 40px;
@@ -83,7 +86,7 @@ body {
 }
 @media (max-width: 640px) {
   .layerLeftorTop {
-    background-image: url('/layerTop2.svg');
+    background-image: url('/layer3.svg');
   }
   .icon {
     display: flex;;

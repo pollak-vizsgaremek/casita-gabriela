@@ -11,7 +11,7 @@ const Offer = () => {
           <p className='font-bold text-lg mt-2 ml-1'>Példa 1</p>
         </div>
         <div className='w-full h-1/2 flex justify-end'>
-          <p className='font-semibold text-md mt-2 mr-2'>50.000 Ft/éj</p>
+          <p className='font-semibold text-md mt-2 mr-2'>50.000 Ft/fő/éj</p>
         </div>
       </div>
     </div>

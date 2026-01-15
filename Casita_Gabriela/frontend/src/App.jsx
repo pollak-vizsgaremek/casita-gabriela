@@ -10,7 +10,9 @@ import Admin from './pages/Admin';
 import Room from './pages/Room';
 import './App.css'
 import Layout from './Layout';
-
+import Aszf from './pages/Aszf';
+import Adatkezeles from './pages/Adatkezeles';
+import Impresszum from './pages/Impresszum';
 
 
 const App = () => {
@@ -28,7 +30,10 @@ const App = () => {
                 <Route path="/room/:id" element={<Room />} />
 
                 <Route path="/admin" element={<Admin />} />
-
+                
+                <Route path="/aszf" element={<Aszf />} />
+                <Route path="/adatkezeles" element={<Adatkezeles />} />
+                <Route path="/impresszum" element={<Impresszum />} />
 
                 </Route>
             </Routes>

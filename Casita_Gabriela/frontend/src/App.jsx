@@ -11,6 +11,8 @@ import Room from './pages/Room';
 import './App.css'
 import Layout from './Layout';
 
+
+
 const App = () => {
     return (
         <>
@@ -26,6 +28,7 @@ const App = () => {
                 <Route path="/room/:id" element={<Room />} />
 
                 <Route path="/admin" element={<Admin />} />
+
 
                 </Route>
             </Routes>

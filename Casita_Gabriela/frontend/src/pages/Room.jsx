@@ -1,12 +1,13 @@
 // src/pages/Room.jsx
 import React, { useMemo, useState } from 'react';
 import { useParams, useNavigate } from 'react-router';
+import Footer from '../components/Footer';
 
 const Room = () => {
   const { id } = useParams();
   const navigate = useNavigate();
 
-  // Később ez az adat backendből jön majd az id alapján
+  // Később backendből jön majd
   const room = {
     id,
     name: 'Első szoba',
@@ -53,7 +54,7 @@ const Room = () => {
       navigate('/login');
       return;
     }
-    // később itt lesz a fizetési folyamat indítása
+    // később fizetés
   };
 
   const formatPrice = (value) =>
@@ -61,8 +62,12 @@ const Room = () => {
 
   return (
     <div className="flex flex-col min-h-screen w-dvw bg-[#0b1f13] text-[#F1FBF4]">
+
+      {/* MAIN CONTENT */}
       <main className="flex-1 w-full max-w-6xl mx-auto px-4 py-10">
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-10">
+
+          {/* BAL OLDAL */}
           <div className="lg:col-span-2 flex flex-col gap-6">
             <h1 className="text-3xl font-mono tracking-wide text-[#F1FBF4]">
               {room.name}
@@ -83,9 +88,7 @@ const Room = () => {
                   type="button"
                   onClick={() => setSelectedImage(img)}
                   className={`w-20 h-16 rounded-md overflow-hidden border ${
-                    selectedImage === img
-                      ? 'border-[#6FD98C]'
-                      : 'border-transparent'
+                    selectedImage === img ? 'border-[#6FD98C]' : 'border-transparent'
                   }`}
                 >
                   <img
@@ -104,6 +107,7 @@ const Room = () => {
 
             <div className="bg-white text-black rounded-xl p-4 shadow-md flex flex-col gap-4">
               <h2 className="font-semibold text-lg">Legjobb vélemények</h2>
+
               {room.reviews.slice(0, 4).map((review) => (
                 <div key={review.id} className="border-b last:border-b-0 pb-3 last:pb-0">
                   <div className="flex items-center gap-2 mb-1">
@@ -116,6 +120,7 @@ const Room = () => {
                   <p className="text-sm text-gray-800">{review.comment}</p>
                 </div>
               ))}
+
               <div className="pt-2">
                 <button
                   type="button"
@@ -127,6 +132,7 @@ const Room = () => {
             </div>
           </div>
 
+          {/* JOBB OLDAL – Foglalás */}
           <div className="flex flex-col gap-6">
             <div className="bg-white text-black rounded-xl p-4 shadow-md">
               <h2 className="font-semibold text-lg mb-2">Értékelés</h2>
@@ -206,6 +212,7 @@ const Room = () => {
                     .
                   </span>
                 </label>
+
                 <label className="flex items-center gap-2">
                   <input
                     type="checkbox"
@@ -239,76 +246,8 @@ const Room = () => {
         </div>
       </main>
 
-      <footer className="w-full bg-[#06130b] text-[#F1FBF4] mt-10">
-        <div className="max-w-6xl mx-auto px-4 py-8 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
-          <div className="flex items-center">
-            <span className="text-2xl font-mono tracking-wide">CASA GABRIEL</span>
-          </div>
-
-          <div>
-            <h3 className="font-semibold mb-2 text-sm">Oldaltérkép</h3>
-            <ul className="text-xs space-y-1">
-              <li>
-                <a href="/" className="hover:underline">
-                  Főoldal
-                </a>
-              </li>
-              <li>
-                <a href="/about" className="hover:underline">
-                  Rólunk
-                </a>
-              </li>
-              <li>
-                <a href="/contact" className="hover:underline">
-                  Kapcsolat
-                </a>
-              </li>
-            </ul>
-          </div>
-
-          <div>
-            <h3 className="font-semibold mb-2 text-sm">Itt is elérsz minket</h3>
-            <div className="flex gap-3 text-xs">
-              <a href="#" className="hover:underline">
-                Facebook
-              </a>
-              <a href="#" className="hover:underline">
-                Instagram
-              </a>
-              <a href="#" className="hover:underline">
-                TikTok
-              </a>
-            </div>
-          </div>
-
-          <div>
-            <h3 className="font-semibold mb-2 text-sm">Jogi dokumentumok</h3>
-            <ul className="text-xs space-y-1">
-              <li>
-                <a href="/aszf" className="hover:underline">
-                  Általános Szerződési Feltételek
-                </a>
-              </li>
-              <li>
-                <a href="/adatkezeles" className="hover:underline">
-                  Adatkezelési Tájékoztató
-                </a>
-              </li>
-              <li>
-                <a href="/impresszum" className="hover:underline">
-                  Impresszum
-                </a>
-              </li>
-            </ul>
-          </div>
-        </div>
-
-        <div className="border-t border-[#12301c]">
-          <div className="max-w-6xl mx-auto px-4 py-3 text-xs text-center text-gray-400">
-            © Minden jog fenntartva - Casa Gabriel 2025
-          </div>
-        </div>
-      </footer>
+      {/* FOOTER KOMPONENS */}
+      <Footer />
     </div>
   );
 };

@@ -1,5 +1,7 @@
+// src/pages/Home.jsx
 import React from 'react'
 import Offer from '../components/Offer'
+import Footer from '../components/Footer'
 
 const Home = () => {
 
@@ -29,6 +31,9 @@ const Home = () => {
         ))}
 
       </div>
+
+      {/* FOOTER HOZZÁADVA */}
+      <Footer />
     </div>
   )
 }

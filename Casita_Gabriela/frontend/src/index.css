@@ -1,5 +1,11 @@
 @import "tailwindcss";
 
+html, body, #root {
+  height: 100%;
+  margin: 0;
+  padding: 0;
+}
+
 :root {
   
   line-height: 1.5;
@@ -33,6 +39,14 @@ body {
   background-size: cover;
   z-index: -1;
 }
+.spacer2 {
+  aspect-ratio: 540/960;
+  width: 100%;
+  background-repeat: no-repeat;
+  background-position: center;
+  background-size: cover;
+  z-index: -1;
+}
 
 .layer1 {
   background-image: url('/layer1.svg');
@@ -42,6 +56,9 @@ body {
 }
 .layerLeftorTop {
   background-image: url('/layer4.svg');
+}
+.layerAdmin {
+  background-image: url('/layoutAdmin3.svg');
 }
 .icon {
   width: 40px;
@@ -53,6 +70,17 @@ body {
   z-index: 50;
   display: none;
   margin: 15px;
+}
+.plus {
+  width: 80px;
+  height: 80px;
+  background-image: url('/plusSign2.png');
+  background-repeat: no-repeat;
+  background-position: center;
+  background-size: cover;
+  z-index: 50;
+  margin-bottom: 0px;
+  padding-bottom: 0px
 }
 .icon2 {
   width: 60px;
@@ -108,10 +136,12 @@ body {
     transform: translateY(0);
   }
 }
+
 .fade-in {
   opacity: 0;                 
   animation: fadeInUp 0.5s ease-out forwards;
 }
+
 
 
 @keyframes fadeInMore {
@@ -127,4 +157,7 @@ body {
 .fade-inR {
   opacity: 0;                 
   animation: fadeInMore 0.5s ease-out forwards;
+}
+.wrapper:hover .target {
+  transform: rotate(360deg);
 }

@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { Link } from 'react-router';
 import axios from 'axios';
+import Footer from '../components/Footer'
 
 const Registration = () => {
   const [form, setForm] = useState({
@@ -84,7 +85,7 @@ const Registration = () => {
         </div>
         
       </div>
-      
+      <Footer />
     </div>
   );
 };

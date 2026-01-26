@@ -45,9 +45,10 @@ const Registration = () => {
   };
 
   return (
-    <div className='flex items-center justify-center m-0  h-[90dvh] w-dvw spacer layer1'>
-      <div className='flex flex-col'>
-        <div className='fade-in text-black bg-[#FFFFFF] shadow-md rounded-xl p-4 ml-8 w-[25dvw] h-fill flex flex-col items-center'>
+    <div>
+      <div className='flex flex-col items-center justify-center m-0  min-h-screen w-dvw spacer layer1'>
+        <div className='flex flex-col'>
+        <div className='fade-in text-black bg-[#FFFFFF] shadow-md rounded-xl p-4 min-w-[350px] h-fill flex flex-col items-center'>
           <p className='text-black mb-4'> Regisztráció</p>
           <form className='w-full flex flex-col items-center' onSubmit={handleSubmit}>
             <input name="name" type='text' placeholder='Teljes név'
@@ -82,10 +83,13 @@ const Registration = () => {
           <p className='mt-4'>
             Már van fiókod? <Link to="/login" className="text-red-500 hover:underline">Jelentkezz be</Link>
           </p>
-        </div>
-        
+          </div>
+         </div>
       </div>
-      <Footer />
+      <div>
+        <Footer />
+      </div>
+      
     </div>
   );
 };

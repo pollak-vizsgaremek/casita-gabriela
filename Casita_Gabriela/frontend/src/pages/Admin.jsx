@@ -24,7 +24,7 @@ const Admin = () => {
       <div className='h-fill grid lg:grid-cols-3 sm:grid-cols-2 grid-cols-1 justify-items-center items-center gap-12 p-4 pt-[20dvh]'>
 
 
-        <div onClick={handleAddClick} className='bg-[#C0FF95] wrapper hover:cursor-pointer hover:rotate-1 transition-all duration-300 fade-in shadow-md/40 hover:shadow-2xl active:shadow-green-500 active:translate-y-3 rounded-xl w-72 h-72 flex flex-col items-center justify-center'>
+        <div onClick={handleAddClick} className='bg-[#C0FF95]  fade-in-Spin wrapper hover:cursor-pointer hover:rotate-1 transition-all duration-300 shadow-md/40 hover:shadow-2xl active:shadow-green-500 active:translate-y-3 rounded-xl w-72 h-72 flex flex-col items-center justify-center'>
            <p className='target text-green-800 text-[150px] pb-0 transition-all duration-500 h-fill w-full plus'></p>
            <p className='text-green-800 text-3xl pt-0 h-fill w-full text-center m-0 p-0'>Hozzáadás</p>
         </div>

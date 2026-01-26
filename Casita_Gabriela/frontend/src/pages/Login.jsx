@@ -32,8 +32,9 @@ const Login = () => {
   };
 
   return (
-    <div className='flex flex-col min-h-screen w-dvw spacer layerLeftorTop'>
-      <main className='flex items-center justify-center flex-1 m-0'>
+    <div className='p-0 m-0 gap-0'>
+      <div className='flex flex-col min-h-screen w-dvw spacer layerLeftorTop'>
+          <main className='flex items-center justify-center flex-1 m-0'>
         <div className='flex sm:flex-row-reverse flex-col-reverse'>
           <div className='sm:w-[50dvw] w-dvw h-[50dvh] sm:h-dvh flex items-center justify-center sm:justify-start'>
             <div className='fade-inR text-black bg-white shadow-md rounded-xl p-4 sm:ml-8 w-[65dvw] min-w-[350px] sm:w-[30dvw] sm:min-w-[275px] h-fill flex flex-col items-center'>
@@ -61,7 +62,11 @@ const Login = () => {
               </form>
               <p className='mt-4 text-red-500'>{message}</p>
               <p className='mt-4'>
-                Még nincs fiókod? <Link to="/admin" className="text-red-500 hover:underline">Regisztrálj!</Link>
+                Még nincs fiókod? <Link to="/registration" className="text-red-500 hover:underline">Regisztrálj!</Link>
+                
+              </p>
+              <p className='mt-4'>
+                Admin Ideiglenes hozzáférés: <Link to="/admin" className="text-red-500 hover:underline">Link</Link>
               </p>
             </div>
           </div>
@@ -74,7 +79,11 @@ const Login = () => {
           
         </div>
       </main>
-      <Footer />
+      </div>
+      <div>
+        <Footer />
+      </div>
+      
     </div>
   );
 };

@@ -9,7 +9,7 @@ import {
 
 const Footer = () => {
   return (
-    <footer className="w-full mt-10">
+    <footer className="w-full">
 
       {/* FELSŐ FOOTER – új zöld háttér */}
       <div className="w-full bg-[#C0FF95] text-[#1F1F1F]">

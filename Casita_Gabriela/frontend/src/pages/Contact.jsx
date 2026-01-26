@@ -44,7 +44,7 @@ const Contact = () => {
           {/* BAL OLDALI FORM */}
           <form
             onSubmit={handleSubmit}
-            className="flex flex-col gap-4 rounded-xl p-6 shadow-md"
+            className="flex flex-col gap-4 rounded-xl p-6 shadow-md fade-in"
             style={{ backgroundColor: "#FFFECE" }}
           >
             <input

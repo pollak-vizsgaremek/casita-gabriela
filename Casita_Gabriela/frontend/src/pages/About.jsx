@@ -5,7 +5,7 @@ import Footer from "../components/Footer";
 
 const About = () => {
   return (
-    <div className="flex flex-col min-h-screen w-dvw bg-white text-black">
+    <div className="flex flex-col  w-dvw  text-black spacer layerAdmin">
       <Navigation />
 
       <main className="flex-1 w-full max-w-6xl mx-auto px-4 py-10 space-y-16">
@@ -26,7 +26,7 @@ const About = () => {
           <img
             src="/about1.jpg"
             alt="Resort overview"
-            className="rounded-xl shadow-md w-full h-64 object-cover"
+            className="rounded-xl shadow-md w-full h-64 object-cover fade-inR"
           />
         </section>
 
@@ -35,7 +35,7 @@ const About = () => {
           <img
             src="/about2.jpg"
             alt="Pool and hotel"
-            className="rounded-xl shadow-md w-full h-64 object-cover"
+            className="rounded-xl shadow-md w-full h-64 object-cover fade-in-Left"
           />
           <div className="space-y-4">
             <h2 className="text-xl font-semibold">Miért minket válassz?</h2>
@@ -60,7 +60,7 @@ const About = () => {
           <img
             src="/about3.jpg"
             alt="Hotel room"
-            className="rounded-xl shadow-md w-full h-64 object-cover"
+            className="rounded-xl shadow-md w-full h-64 object-cover fade-inR"
           />
         </section>
       </main>

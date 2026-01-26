@@ -13,7 +13,8 @@ const port = 6969;
 const prisma = new PrismaClient();
 
 app.use(cors());
-app.use(express.json());
+app.use(express.json({ limit: '50mb' }));
+app.use(express.urlencoded({ limit: '50mb', extended: true }));
 
 // --- REGISZTRÁCIÓ ---
 app.post("/register", async (req, res) => {
@@ -83,6 +84,92 @@ app.get("/protected", (req, res) => {
     res.json({ message: "Protected adat", user: decoded });
   } catch (err) {
     res.status(401).json({ error: "Érvénytelen token." });
+  }
+});
+
+// --- GET ALL ROOMS ---
+app.get("/rooms", async (req, res) => {
+  try {
+    const rooms = await prisma.room.findMany({
+      include: {
+        booking: true,
+        room_review: true,
+      },
+    });
+    res.json(rooms);
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: "Failed to fetch rooms." });
+  }
+});
+
+// --- CREATE ROOM ---
+app.post("/rooms", async (req, res) => {
+  const { name, description, price, category, space, images } = req.body;
+
+  try {
+    // Validation
+    if (!name || !description || !price || !category || !space) {
+      return res.status(400).json({ error: "Minden mező kitöltése kötelező!" });
+    }
+
+    if (name.length > 30) {
+      return res.status(400).json({ error: "A szoba neve maximum 30 karakter lehet!" });
+    }
+
+    if (description.length > 1000) {
+      return res.status(400).json({ error: "A leírás maximum 1000 karakter lehet!" });
+    }
+
+    if (category.length > 20) {
+      return res.status(400).json({ error: "A típus maximum 20 karakter lehet!" });
+    }
+
+    const room = await prisma.room.create({
+      data: {
+        name,
+        description,
+        price: parseInt(price),
+        category,
+        space: parseInt(space),
+        ac_availablity: 0,
+        images: images ? Buffer.from(images, 'base64') : null,
+      },
+      include: {
+        booking: true,
+        room_review: true,
+      },
+    });
+
+    res.json({ message: "Room created successfully!", room });
+  } catch (err) {
+    console.error("Room creation error:", err.message);
+    console.error("Full error:", err);
+    res.status(400).json({ error: `Szoba létrehozás sikertelen: ${err.message}` });
+  }
+});
+
+// --- GET ROOM BY ID ---
+app.get("/rooms/:id", async (req, res) => {
+  const { id } = req.params;
+
+  try {
+    const room = await prisma.room.findUnique({
+      where: { id: parseInt(id) },
+      include: {
+        booking: true,
+        room_review: true,
+      },
+    });
+
+    if (!room) {
+      return res.status(404).json({ error: "Room not found." });
+    }
+
+    res.json(room);
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: "Failed to fetch room." });
   }
 });
 

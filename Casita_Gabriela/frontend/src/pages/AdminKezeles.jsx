@@ -1,7 +1,10 @@
-import React, { useState } from 'react'
+import React, { useState, useEffect } from 'react'
+import { useParams, useNavigate } from 'react-router'
 import api from '../services/api'
 
 const AdminKezeles = () => {
+  const { id } = useParams()
+  const navigate = useNavigate()
   const [formData, setFormData] = useState({
     title: '',
     description: '',
@@ -15,6 +18,45 @@ const AdminKezeles = () => {
   const [reservations, setReservations] = useState([])
   const [loading, setLoading] = useState(false)
   const [message, setMessage] = useState('')
+  const [isEditing, setIsEditing] = useState(false)
+  const [initialLoad, setInitialLoad] = useState(true)
+
+  // Load room data if editing
+  useEffect(() => {
+    if (id) {
+      fetchRoom()
+    } else {
+      setInitialLoad(false)
+    }
+  }, [id])
+
+  const fetchRoom = async () => {
+    try {
+      setLoading(true)
+      const response = await api.get(`/rooms/${id}`)
+      const room = response.data
+      
+      setFormData({
+        title: room.name || '',
+        description: room.description || '',
+        type: room.category || '',
+        capacity: room.space || '',
+        price: room.price || '',
+      })
+
+      if (room.images) {
+        setImagePreview(room.images)
+      }
+
+      setIsEditing(true)
+    } catch (err) {
+      console.error('Error fetching room:', err)
+      setMessage('Hiba a szoba betöltése során.')
+    } finally {
+      setLoading(false)
+      setInitialLoad(false)
+    }
+  }
 
   const handleInputChange = (e) => {
     const { name, value } = e.target
@@ -59,13 +101,18 @@ const AdminKezeles = () => {
     try {
       let imageBase64 = null
       
-      if (imagePreview) {
+      if (image) {
+        // For new file uploads, convert to base64
         if (imagePreview.includes(',')) {
           imageBase64 = imagePreview.split(',')[1]
         } else {
           imageBase64 = imagePreview
         }
+      } else if (imagePreview && imagePreview.includes(',')) {
+        // If it's already a data URL (from file input), extract the base64 part
+        imageBase64 = imagePreview.split(',')[1]
       }
+      // If imagePreview is already base64 from API (no comma), don't include in request
 
       const roomData = {
         name: formData.title,
@@ -73,32 +120,38 @@ const AdminKezeles = () => {
         price: parseInt(formData.price),
         category: formData.type,
         space: parseInt(formData.capacity),
-        images: imageBase64,
+      }
+
+      // Only add images to request if we have a new image to upload
+      if (imageBase64) {
+        roomData.images = imageBase64
       }
 
       console.log('Sending room data:', roomData)
 
-      const response = await api.post('/rooms', roomData)
-
-      setMessage('Szoba sikeresen létrehozva!')
-      
-      setFormData({
-        title: '',
-        description: '',
-        type: '',
-        capacity: '',
-        price: '',
-      })
-      setImage(null)
-      setImagePreview(null)
-
-      console.log('Room created:', response.data)
+      if (isEditing) {
+        await api.put(`/rooms/${id}`, roomData)
+        setMessage('Szoba sikeresen frissítve!')
+      } else {
+        await api.post('/rooms', roomData)
+        setMessage('Szoba sikeresen létrehozva!')
+        
+        setFormData({
+          title: '',
+          description: '',
+          type: '',
+          capacity: '',
+          price: '',
+        })
+        setImage(null)
+        setImagePreview(null)
+      }
     } catch (err) {
       console.error('Full error object:', err)
       console.error('Error response:', err.response)
       console.error('Error message:', err.message)
       
-      let errorMsg = 'Hiba a szoba létrehozása során. Próbálja újra!'
+      let errorMsg = 'Hiba a szoba mentése során. Próbálja újra!'
       
       if (err.response?.data?.error) {
         errorMsg = err.response.data.error
@@ -112,6 +165,48 @@ const AdminKezeles = () => {
     } finally {
       setLoading(false)
     }
+  }
+
+  const handleDelete = async () => {
+    if (!isEditing) return
+    
+    if (!window.confirm('Biztosan törölni szeretné ezt a szobát?')) {
+      return
+    }
+
+    setLoading(true)
+    setMessage('')
+
+    try {
+      await api.delete(`/rooms/${id}`)
+      setMessage('Szoba sikeresen törölve!')
+      
+      setTimeout(() => {
+        navigate('/Admin')
+      }, 1500)
+    } catch (err) {
+      console.error('Error deleting room:', err)
+      
+      let errorMsg = 'Hiba a szoba törlése során. Próbálja újra!'
+      
+      if (err.response?.data?.error) {
+        errorMsg = err.response.data.error
+      } else if (err.response?.data?.message) {
+        errorMsg = err.response.data.message
+      }
+      
+      setMessage(errorMsg)
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  if (initialLoad) {
+    return (
+      <div className='flex items-center justify-center min-h-screen w-dvw bg-[#0b1f13]'>
+        <p className='text-gray-500'>Betöltés...</p>
+      </div>
+    )
   }
 
   return (
@@ -190,8 +285,18 @@ const AdminKezeles = () => {
               disabled={loading}
               className='w-full mt-6 px-6 py-3 bg-blue-500 text-white font-semibold rounded-lg hover:bg-blue-600 transition disabled:bg-gray-400 disabled:cursor-not-allowed'
             >
-              {loading ? 'Feltöltés...' : 'Szoba Hozzáadása'}
+              {loading ? 'Mentés...' : (isEditing ? 'Szoba Frissítése' : 'Szoba Hozzáadása')}
             </button>
+
+            {isEditing && (
+              <button
+                onClick={handleDelete}
+                disabled={loading}
+                className='w-full mt-3 px-6 py-3 bg-red-500 text-white font-semibold rounded-lg hover:bg-red-600 transition disabled:bg-gray-400 disabled:cursor-not-allowed'
+              >
+                {loading ? 'Törlés...' : 'Szoba Törlése'}
+              </button>
+            )}
 
             {message && (
               <div className={`mt-4 p-3 rounded-lg text-center font-medium ${

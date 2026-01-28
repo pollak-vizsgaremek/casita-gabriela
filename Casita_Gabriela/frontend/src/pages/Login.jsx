@@ -65,9 +65,6 @@ const Login = () => {
                 Még nincs fiókod? <Link to="/registration" className="text-red-500 hover:underline">Regisztrálj!</Link>
                 
               </p>
-              <p className='mt-4'>
-                Admin Ideiglenes hozzáférés: <Link to="/admin" className="text-red-500 hover:underline">Link</Link>
-              </p>
             </div>
           </div>
 

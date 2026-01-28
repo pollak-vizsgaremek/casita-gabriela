@@ -1,37 +1,55 @@
 // src/pages/Room.jsx
-import React, { useMemo, useState } from 'react';
+import React, { useMemo, useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router';
 import Footer from '../components/Footer';
+import api from '../services/api';
 
 const Room = () => {
   const { id } = useParams();
   const navigate = useNavigate();
-
-  // Később backendből jön majd
-  const room = {
-    id,
-    name: 'Első szoba',
-    price: 129500,
-    description:
-      'A Tóparti Apartman Hajdúszoboszló szívében található, modern és ízlésesen berendezett szobákkal. Ingyenes Wi-Fi, légkondicionálás, saját fürdőszoba és kényelmes felszereltség várja a vendégeket.',
-    images: ['/blob.png', '/blob.png', '/blob.png', '/blob.png'],
-    averageRating: 4.8,
-    reviewsCount: 6,
-    reviews: [
-      { id: 1, stars: 5, comment: 'Nagyon szép, tiszta szoba, kedves személyzet.' },
-      { id: 2, stars: 5, comment: 'Kiváló elhelyezkedés, minden közel van.' },
-      { id: 3, stars: 4, comment: 'Kényelmes ágy, jó felszereltség.' },
-      { id: 4, stars: 5, comment: 'Remek ár-érték arány, biztosan visszatérünk.' },
-      { id: 5, stars: 4, comment: 'Csendes környezet, jó pihenési lehetőség.' },
-      { id: 6, stars: 5, comment: 'Minden elvárásunkat felülmúlta.' },
-    ],
-  };
-
-  const [selectedImage, setSelectedImage] = useState(room.images[0]);
+  const [room, setRoom] = useState(null);
+  const [loading, setLoading] = useState(true);
+  const [selectedImage, setSelectedImage] = useState(null);
   const [checkIn, setCheckIn] = useState('');
   const [checkOut, setCheckOut] = useState('');
   const [guests, setGuests] = useState(1);
   const [acceptedTerms, setAcceptedTerms] = useState(false);
+
+  useEffect(() => {
+    fetchRoom();
+  }, [id]);
+
+  const fetchRoom = async () => {
+    try {
+      setLoading(true);
+      const response = await api.get(`/rooms/${id}`);
+      console.log('Fetched room:', response.data);
+      const roomData = {
+        ...response.data,
+        name: response.data.name || 'Szoba',
+        description: response.data.description || 'Nincs leírás',
+        price: response.data.price || 0,
+        averageRating: 4.8,
+        reviewsCount: 6,
+        reviews: [
+          { id: 1, stars: 5, comment: 'Nagyon szép, tiszta szoba, kedves személyzet.' },
+          { id: 2, stars: 5, comment: 'Kiváló elhelyezkedés, minden közel van.' },
+          { id: 3, stars: 4, comment: 'Kényelmes ágy, jó felszereltség.' },
+          { id: 4, stars: 5, comment: 'Remek ár-érték arány, biztosan visszatérünk.' },
+          { id: 5, stars: 4, comment: 'Csendes környezet, jó pihenési lehetőség.' },
+          { id: 6, stars: 5, comment: 'Minden elvárásunkat felülmúlta.' },
+        ],
+        images: response.data.images ? [response.data.images] : ['/blob.png']
+      };
+      setRoom(roomData);
+      setSelectedImage(response.data.images || '/blob.png');
+    } catch (err) {
+      console.error('Error fetching room:', err);
+      setRoom(null);
+    } finally {
+      setLoading(false);
+    }
+  }
 
   const isLoggedIn = !!localStorage.getItem('token');
 
@@ -45,9 +63,9 @@ const Room = () => {
   }, [checkIn, checkOut]);
 
   const totalPrice = useMemo(() => {
-    if (!nights || !guests) return 0;
+    if (!nights || !guests || !room) return 0;
     return nights * guests * room.price;
-  }, [nights, guests, room.price]);
+  }, [nights, guests, room]);
 
   const handlePrimaryAction = () => {
     if (!isLoggedIn) {
@@ -59,6 +77,22 @@ const Room = () => {
 
   const formatPrice = (value) =>
     value.toLocaleString('hu-HU', { maximumFractionDigits: 0 });
+
+  if (loading) {
+    return (
+      <div className="flex flex-col min-h-screen w-dvw bg-[#0b1f13] text-[#F1FBF4] items-center justify-center">
+        <p className="text-gray-500">Szoba betöltése...</p>
+      </div>
+    );
+  }
+
+  if (!room) {
+    return (
+      <div className="flex flex-col min-h-screen w-dvw bg-[#0b1f13] text-[#F1FBF4] items-center justify-center">
+        <p className="text-red-500">Szoba nem található</p>
+      </div>
+    );
+  }
 
   return (
     <div className="flex flex-col min-h-screen w-dvw bg-[#0b1f13] text-[#F1FBF4]">

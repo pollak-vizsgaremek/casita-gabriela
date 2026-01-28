@@ -89,19 +89,17 @@ app.get("/protected", (req, res) => {
 
 // --- GET ALL ROOMS ---
 app.get("/rooms", async (req, res) => {
-  try {
-    const rooms = await prisma.room.findMany({
-      include: {
-        booking: true,
-        room_review: true,
-      },
-    });
-    res.json(rooms);
-  } catch (err) {
-    console.error(err);
-    res.status(500).json({ error: "Failed to fetch rooms." });
-  }
-});
+  const rooms = await prisma.room.findMany()
+
+  const formatted = rooms.map(room => ({
+    ...room,
+    images: room.images
+      ? `data:image/jpeg;base64,${Buffer.from(room.images).toString("base64")}`
+      : null
+  }))
+
+  res.json(formatted)
+})
 
 // --- CREATE ROOM ---
 app.post("/rooms", async (req, res) => {
@@ -166,7 +164,14 @@ app.get("/rooms/:id", async (req, res) => {
       return res.status(404).json({ error: "Room not found." });
     }
 
-    res.json(room);
+    const formatted = {
+      ...room,
+      images: room.images
+        ? `data:image/jpeg;base64,${Buffer.from(room.images).toString("base64")}`
+        : null
+    }
+
+    res.json(formatted);
   } catch (err) {
     console.error(err);
     res.status(500).json({ error: "Failed to fetch room." });

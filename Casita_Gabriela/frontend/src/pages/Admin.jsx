@@ -42,17 +42,13 @@ const Admin = () => {
           <p className='text-gray-500'>Szobák betöltése...</p>
         ) : (
           rooms.map(room => (
-            <Offer
-              key={room.id}
-              id={room.id}
-              name={room.name}
-              price={room.price}
-              image={
-                room.images
-                  ? `data:image/jpeg;base64,${room.images.toString('base64')}`
-                  : 'https://via.placeholder.com/300?text=Nincs+kép'
-              }
-            />
+           <Offer
+      key={room.id}
+      id={room.id}
+      name={room.name}
+      price={room.price}
+      image={room.images || 'https://via.placeholder.com/300?text=Nincs+kép'}
+    />
           ))
         )}
       </div>

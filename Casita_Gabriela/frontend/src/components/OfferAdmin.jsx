@@ -1,7 +1,7 @@
 import React from 'react';
 import { useNavigate } from 'react-router';
 
-const Offer = ({ id, name, price, image }) => {
+const OfferAdmin = ({ id, name, price, image }) => {
   const navigate = useNavigate();
 
   const handleClick = () => {

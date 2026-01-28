@@ -35,10 +35,10 @@ app.post("/register", async (req, res) => {
       },
     });
 
-    res.json({ message: "User registered successfully!", user });
+    res.json({ message: "Felhasználó sikeresen regisztrálva!", user });
   } catch (err) {
     console.error(err);
-    res.status(400).json({ error: "Registration failed. Email may already exist or invalid data." });
+    res.status(400).json({ error: "A regisztráció sikertelen. Az e-mail már létezhet vagy az adatok érvénytelenek." });
   }
 });
 
@@ -57,7 +57,7 @@ app.post("/login", async (req, res) => {
       return res.status(400).json({ error: "Hibás jelszó." });
     }
 
-    // Role az adatbázisból
+    // Szerepkör az adatbázisból
     const role = user.isAdmin ? "admin" : "user";
 
     const token = jwt.sign(
@@ -73,7 +73,7 @@ app.post("/login", async (req, res) => {
   }
 });
 
-// --- PROTECTED példa ---
+// --- VÉDETT ÚTVONAL PÉLDA ---
 app.get("/protected", (req, res) => {
   const authHeader = req.headers.authorization;
   if (!authHeader) return res.status(401).json({ error: "Token hiányzik." });
@@ -81,13 +81,13 @@ app.get("/protected", (req, res) => {
   const token = authHeader.split(" ")[1];
   try {
     const decoded = jwt.verify(token, JWT_SECRET);
-    res.json({ message: "Protected adat", user: decoded });
+    res.json({ message: "Védett adatok", user: decoded });
   } catch (err) {
     res.status(401).json({ error: "Érvénytelen token." });
   }
 });
 
-// --- GET ALL ROOMS ---
+// --- ÖSSZES SZOBA LEKÉRÉSE ---
 app.get("/rooms", async (req, res) => {
   const rooms = await prisma.room.findMany()
 
@@ -101,12 +101,12 @@ app.get("/rooms", async (req, res) => {
   res.json(formatted)
 })
 
-// --- CREATE ROOM ---
+// --- SZOBA LÉTREHOZÁSA ---
 app.post("/rooms", async (req, res) => {
   const { name, description, price, category, space, images } = req.body;
 
   try {
-    // Validation
+    // Validáció
     if (!name || !description || !price || !category || !space) {
       return res.status(400).json({ error: "Minden mező kitöltése kötelező!" });
     }
@@ -139,15 +139,15 @@ app.post("/rooms", async (req, res) => {
       },
     });
 
-    res.json({ message: "Room created successfully!", room });
+    res.json({ message: "Szoba sikeresen létrehozva!", room });
   } catch (err) {
-    console.error("Room creation error:", err.message);
-    console.error("Full error:", err);
+    console.error("Szoba létrehozási hiba:", err.message);
+    console.error("Teljes hiba:", err);
     res.status(400).json({ error: `Szoba létrehozás sikertelen: ${err.message}` });
   }
 });
 
-// --- GET ROOM BY ID ---
+// --- SZOBA LEKÉRÉSE ID ALAPJÁN ---
 app.get("/rooms/:id", async (req, res) => {
   const { id } = req.params;
 
@@ -161,7 +161,7 @@ app.get("/rooms/:id", async (req, res) => {
     });
 
     if (!room) {
-      return res.status(404).json({ error: "Room not found." });
+      return res.status(404).json({ error: "A szoba nem található." });
     }
 
     const formatted = {
@@ -174,7 +174,54 @@ app.get("/rooms/:id", async (req, res) => {
     res.json(formatted);
   } catch (err) {
     console.error(err);
-    res.status(500).json({ error: "Failed to fetch room." });
+    res.status(500).json({ error: "A szoba lekérése sikertelen." });
+  }
+});
+
+// --- SZOBA FRISSÍTÉSE ---
+app.put("/rooms/:id", async (req, res) => {
+  const { id } = req.params;
+  const { name, description, price, category, space, images } = req.body;
+
+  try {
+    const updateData = {
+      name,
+      description,
+      price,
+      category,
+      space,
+    };
+
+    // Csak akkor frissítse a képeket, ha meg van adva
+    if (images) {
+      updateData.images = Buffer.from(images, 'base64');
+    }
+
+    const room = await prisma.room.update({
+      where: { id: parseInt(id) },
+      data: updateData,
+    });
+
+    res.json({ message: "Szoba sikeresen frissítve!", room });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: "A szoba frissítése sikertelen." });
+  }
+});
+
+// --- SZOBA TÖRLÉSE ---
+app.delete("/rooms/:id", async (req, res) => {
+  const { id } = req.params;
+
+  try {
+    const room = await prisma.room.delete({
+      where: { id: parseInt(id) },
+    });
+
+    res.json({ message: "Szoba sikeresen törölve!", room });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: "A szoba törlése sikertelen." });
   }
 });
 

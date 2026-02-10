@@ -5,3 +5,7 @@
   text-align: left;
   overflow: visible;
 }
+@theme {
+  --breakpoint-lg: 1025px;
+  
+}

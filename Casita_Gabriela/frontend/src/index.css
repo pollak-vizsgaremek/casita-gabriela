@@ -6,6 +6,8 @@ html, body, #root {
   padding: 0;
 }
 
+
+
 :root {
   
   line-height: 1.5;
@@ -69,7 +71,7 @@ body {
   background-size: cover;
   z-index: 50;
   display: none;
-  margin: 15px;
+  
 }
 .plus {
   width: 80px;

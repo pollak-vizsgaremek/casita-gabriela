@@ -55,7 +55,7 @@ const Footer = () => {
       </div>
 
       {/* ALSÓ FOOTER – fekete háttér */}
-      <div className="bg-black text-white">
+      <div className="bg-black text-white mb-0 pb-0">
         <div className="max-w-6xl mx-auto px-4 py-3 text-xs text-center">
           © Minden jog fenntartva - Casa Gabriel 2025
         </div>

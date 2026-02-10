@@ -3,6 +3,8 @@ import { Link, useNavigate } from 'react-router';
 import axios from 'axios';
 import Footer from "../components/Footer";
 
+
+
 const Login = () => {
   const [form, setForm] = useState({ email: "", password: "" });
   const [message, setMessage] = useState("");
@@ -32,13 +34,17 @@ const Login = () => {
   };
 
   return (
-    <div className='p-0 m-0 gap-0'>
-      <video autoPlay loop muted playsInline className='video-background'>
+    <div className='p-0 m-0 gap-0 flex flex-col min-h-screen'>
+      <video autoPlay loop muted playsInline className='video-background absolute inset-0 hidden lg:block'>
         <source src='/catBack.mp4' type='video/mp4' />
       </video>
-      <div className='flex flex-col  w-dvw'>
+      <video autoPlay loop muted playsInline className='video-background absolute inset-0 lg:hidden block'>
+        <source src='/SceneResponsive.mp4' type='video/mp4' />
+      </video>
+      <div className='flex flex-col w-dvw flex-grow relative z-10'>
         <main className='flex items-center justify-center flex-1 m-0'>
-          <div className='fade-inR text-black m-30 bg-white shadow-md rounded-xl p-4 w-[65dvw] min-w-[350px] sm:w-[30dvw] sm:min-w-[275px] h-fill flex flex-col items-center'>
+          <div className='fade-in text-black  bg-white shadow-md rounded-xl p-4 min-w-[320px] sm:min-w-[400px] w-1/3 
+            h-fill min-h flex flex-col items-center mt-10 mb-10'>
               <p className='text-black mb-4'>Bejelentkezés</p>
               <form className='w-full flex flex-col items-center' onSubmit={handleSubmit}>
                 <input
@@ -69,7 +75,7 @@ const Login = () => {
           </div>
         </main>
       </div>
-      <div>
+      <div className='relative z-10'>
         <Footer />
       </div>
       

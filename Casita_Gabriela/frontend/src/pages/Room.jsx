@@ -80,7 +80,7 @@ const Room = () => {
 
   if (loading) {
     return (
-      <div className="flex flex-col min-h-screen w-dvw bg-[#0b1f13] text-[#F1FBF4] items-center justify-center">
+      <div className="flex flex-col min-h-screen w-dvw bg-[#0b1f13] text-[#F1FBF4] items-center justify-center spacer layerAdmin">
         <p className="text-gray-500">Szoba betöltése...</p>
       </div>
     );
@@ -88,14 +88,14 @@ const Room = () => {
 
   if (!room) {
     return (
-      <div className="flex flex-col min-h-screen w-dvw bg-[#0b1f13] text-[#F1FBF4] items-center justify-center">
+      <div className="flex flex-col min-h-screen w-dvw bg-[#0b1f13] text-[#F1FBF4] items-center justify-center spacer layerAdmin">
         <p className="text-red-500">Szoba nem található</p>
       </div>
     );
   }
 
   return (
-    <div className="flex flex-col min-h-screen w-dvw bg-[#0b1f13] text-[#F1FBF4]">
+    <div className="flex flex-col min-h-screen w-dvw bg-[#0b1f13] text-[#F1FBF4] spacer layerAdmin">
 
       {/* MAIN CONTENT */}
       <main className="flex-1 w-full max-w-6xl mx-auto px-4 py-10">
@@ -103,11 +103,11 @@ const Room = () => {
 
           {/* BAL OLDAL */}
           <div className="lg:col-span-2 flex flex-col gap-6">
-            <h1 className="text-3xl font-mono tracking-wide text-[#F1FBF4]">
+            <h1 className="text-3xl font-mono tracking-wide text-black">
               {room.name}
             </h1>
 
-            <div className="w-full bg-[#edf9f2] rounded-xl overflow-hidden">
+            <div className="w-full bg-[#FFFECE] rounded-xl overflow-hidden shadow-md/20 fade-in ">
               <img
                 src={selectedImage}
                 alt={room.name}
@@ -115,7 +115,7 @@ const Room = () => {
               />
             </div>
 
-            <div className="flex gap-3 flex-wrap">
+            <div className="flex gap-3 flex-wrap fade-in-Left">
               {room.images.map((img, index) => (
                 <button
                   key={index}
@@ -134,12 +134,12 @@ const Room = () => {
               ))}
             </div>
 
-            <div className="bg-white text-black rounded-xl p-4 shadow-md">
+            <div className="bg-[#FFFECE] text-black rounded-xl p-4 shadow-md fade-in-Left">
               <h2 className="font-semibold text-lg mb-2">Leírás</h2>
               <p className="text-sm leading-relaxed">{room.description}</p>
             </div>
 
-            <div className="bg-white text-black rounded-xl p-4 shadow-md flex flex-col gap-4">
+            <div className="bg-[#FFFECE] text-black rounded-xl p-4 shadow-md flex flex-col gap-4 fade-in-Left">
               <h2 className="font-semibold text-lg">Legjobb vélemények</h2>
 
               {room.reviews.slice(0, 4).map((review) => (
@@ -168,7 +168,7 @@ const Room = () => {
 
           {/* JOBB OLDAL – Foglalás */}
           <div className="flex flex-col gap-6">
-            <div className="bg-white text-black rounded-xl p-4 shadow-md">
+            <div className="bg-[#FFFECE] text-black rounded-xl p-4 shadow-md fade-inR">
               <h2 className="font-semibold text-lg mb-2">Értékelés</h2>
               <div className="flex items-baseline gap-3">
                 <span className="text-3xl font-bold text-[#6FD98C]">
@@ -184,7 +184,7 @@ const Room = () => {
               </div>
             </div>
 
-            <div className="bg-white text-black rounded-xl p-4 shadow-md flex flex-col gap-4">
+            <div className="bg-[#FFFECE] text-black rounded-xl p-4 shadow-md flex flex-col gap-4 fade-inR">
               <h2 className="font-semibold text-lg">Foglalás</h2>
 
               <div className="flex flex-col gap-2">
@@ -231,7 +231,7 @@ const Room = () => {
                 </span>
               </div>
 
-              <div className="flex flex-col gap-2 mt-3 text-xs text-gray-700">
+              <div className="flex flex-col gap-2 mt-3 text-xs text-gray-700 ">
                 <label className="flex items-center gap-2">
                   <input
                     type="checkbox"

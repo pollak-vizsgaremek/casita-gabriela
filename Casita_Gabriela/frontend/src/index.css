@@ -6,7 +6,12 @@ html, body, #root {
   padding: 0;
 }
 
-
+.bg-search {
+  background-image: url('/search.jpg');
+  background-repeat: no-repeat;
+  background-position: center;
+  background-size: cover;
+}
 
 :root {
   
@@ -142,6 +147,7 @@ body {
 .fade-in {
   opacity: 0;                 
   animation: fadeInUp 0.5s ease-out forwards;
+  animation-fill-mode: forwards;
 }
 
 @keyframes fadeInLeft {

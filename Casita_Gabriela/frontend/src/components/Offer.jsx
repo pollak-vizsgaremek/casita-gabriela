@@ -1,3 +1,4 @@
+/*
 import React from 'react';
 import { useNavigate } from 'react-router';
 
@@ -29,3 +30,4 @@ const Offer = ({ id, name, price, image }) => {
 };
 
 export default Offer;
+*/

@@ -4,23 +4,39 @@ import { useParams, useNavigate } from 'react-router';
 import Footer from '../components/Footer';
 import api from '../services/api';
 
-// Segéd: hónap első napja
+// konstansok
+const MS_PER_DAY = 24 * 60 * 60 * 1000;
+
+// Segédfüggvények: ISO string -> lokális Date (00:00), és nap-szám (midnight)
+const parseISOToLocalDate = (isoStr) => {
+  if (!isoStr) return null;
+  const [y, m, d] = isoStr.split('-').map(Number);
+  return new Date(y, m - 1, d);
+};
+
+const dateToDayNumber = (date) => {
+  const d = new Date(date.getFullYear(), date.getMonth(), date.getDate());
+  return d.getTime();
+};
+
+const isoFromDate = (date) => {
+  const y = date.getFullYear();
+  const m = String(date.getMonth() + 1).padStart(2, '0');
+  const d = String(date.getDate()).padStart(2, '0');
+  return `${y}-${m}-${d}`;
+};
+
+// Hónap segédek
 const startOfMonth = (d) => new Date(d.getFullYear(), d.getMonth(), 1);
-// Segéd: hónap utolsó napja
 const endOfMonth = (d) => new Date(d.getFullYear(), d.getMonth() + 1, 0);
-// Segéd: dátum ISO
-const iso = (d) => d.toISOString().slice(0, 10);
+const iso = (d) => isoFromDate(d);
 
 const MonthCalendar = ({ monthDate, bookings, onDayClick, selectedRange }) => {
-  // hónap első napja és napok száma
   const start = startOfMonth(monthDate);
   const last = endOfMonth(monthDate);
   const daysInMonth = last.getDate();
+  const startWeekday = (start.getDay() + 6) % 7; // hétfő kezdés
 
-  // hét napja az első cella eltolásához (hétfő kezdéshez: (getDay()+6)%7)
-  const startWeekday = (start.getDay() + 6) % 7;
-
-  // készítünk üres cellákat az első sorhoz
   const cells = [];
   for (let i = 0; i < startWeekday; i++) cells.push(null);
   for (let d = 1; d <= daysInMonth; d++) {
@@ -30,20 +46,25 @@ const MonthCalendar = ({ monthDate, bookings, onDayClick, selectedRange }) => {
 
   const isBooked = (date) => {
     if (!date) return false;
-    const d = new Date(date).setHours(0, 0, 0, 0);
+    const dayNum = dateToDayNumber(date);
     return bookings.some((b) => {
-      const s = new Date(b.arrival_date || b.arrivalDate).setHours(0, 0, 0, 0);
-      const e = new Date(b.departure_date || b.departureDate).setHours(0, 0, 0, 0);
-      return d >= s && d < e;
+      const startNum = dateToDayNumber(parseISOToLocalDate(b.arrival_date || b.arrivalDate));
+      const endNum = dateToDayNumber(parseISOToLocalDate(b.departure_date || b.departureDate));
+      // availability: start <= day < end  (departure exclusive)
+      return dayNum >= startNum && dayNum < endNum;
     });
   };
 
+  // Vizuális kijelölés: inclusive end (a felhasználó látja az end napot is zölden)
   const inSelectedRange = (date) => {
-    if (!selectedRange || !selectedRange.start || !selectedRange.end) return false;
-    const d = new Date(date).setHours(0, 0, 0, 0);
-    const s = new Date(selectedRange.start).setHours(0, 0, 0, 0);
-    const e = new Date(selectedRange.end).setHours(0, 0, 0, 0);
-    return d >= s && d <= e;
+    if (!date || !selectedRange || !selectedRange.start) return false;
+    const dNum = dateToDayNumber(date);
+    const sNum = dateToDayNumber(parseISOToLocalDate(selectedRange.start));
+    if (!selectedRange.end) {
+      return dNum === sNum;
+    }
+    const eNum = dateToDayNumber(parseISOToLocalDate(selectedRange.end));
+    return dNum >= sNum && dNum <= eNum; // inclusive end for visual
   };
 
   return (
@@ -69,6 +90,7 @@ const MonthCalendar = ({ monthDate, bookings, onDayClick, selectedRange }) => {
               className={`h-12 rounded-md flex flex-col items-center justify-center text-sm transition
                 ${booked ? 'bg-gray-200 text-gray-500 cursor-not-allowed' : selected ? 'bg-[#6FD98C] text-white' : 'bg-white text-gray-800 hover:bg-gray-100'}
               `}
+              title={date.toLocaleDateString()}
             >
               <div className="font-medium">{date.getDate()}</div>
               <div className="text-[10px] text-gray-500">{date.toLocaleString('hu-HU', { month: 'short' })}</div>
@@ -97,7 +119,7 @@ const Room = () => {
   const [acceptedAdat, setAcceptedAdat] = useState(false);
 
   const [calendarOpen, setCalendarOpen] = useState(false);
-  const [visibleMonth, setVisibleMonth] = useState(new Date()); // melyik hónap látszik a naptárban
+  const [visibleMonth, setVisibleMonth] = useState(new Date());
 
   const isLoggedIn = !!localStorage.getItem('token');
   const currentUserId = localStorage.getItem('user_id') ? Number(localStorage.getItem('user_id')) : null;
@@ -140,26 +162,27 @@ const Room = () => {
     }
   };
 
-  // tartomány átfedés ellenőrzése
+  // availability check: departure exclusive
   const isRangeUnavailable = (startStr, endStr) => {
     if (!startStr || !endStr) return false;
-    const start = new Date(startStr).setHours(0, 0, 0, 0);
-    const end = new Date(endStr).setHours(0, 0, 0, 0);
+    const start = dateToDayNumber(parseISOToLocalDate(startStr));
+    const end = dateToDayNumber(parseISOToLocalDate(endStr));
     if (end <= start) return true;
     return bookings.some((b) => {
-      const bStart = new Date(b.arrival_date || b.arrivalDate).setHours(0, 0, 0, 0);
-      const bEnd = new Date(b.departure_date || b.departureDate).setHours(0, 0, 0, 0);
+      const bStart = dateToDayNumber(parseISOToLocalDate(b.arrival_date || b.arrivalDate));
+      const bEnd = dateToDayNumber(parseISOToLocalDate(b.departure_date || b.departureDate));
+      // overlap if start < bEnd && end > bStart
       return start < bEnd && end > bStart;
     });
   };
 
+  // nights: integer days difference (no fractions)
   const nights = useMemo(() => {
     if (!checkIn || !checkOut) return 0;
-    const start = new Date(checkIn);
-    const end = new Date(checkOut);
-    const diff = end.getTime() - start.getTime();
-    const days = diff / (1000 * 60 * 60 * 24);
-    return days > 0 ? days : 0;
+    const start = dateToDayNumber(parseISOToLocalDate(checkIn));
+    const end = dateToDayNumber(parseISOToLocalDate(checkOut));
+    const diffDays = Math.round((end - start) / MS_PER_DAY);
+    return diffDays > 0 ? diffDays : 0;
   }, [checkIn, checkOut]);
 
   const totalPrice = useMemo(() => {
@@ -169,29 +192,39 @@ const Room = () => {
 
   const formatPrice = (value) => value.toLocaleString('hu-HU', { maximumFractionDigits: 0 });
 
-  // naptár nap kiválasztás logika (érkezés/távozás)
+  // naptár nap kiválasztás logika (lokális dátumokkal)
   const handleDayClick = (dayIso) => {
+    const clickedDate = parseISOToLocalDate(dayIso);
+    const clickedNum = dateToDayNumber(clickedDate);
+
     if (!checkIn || (checkIn && checkOut)) {
       setCheckIn(dayIso);
       setCheckOut('');
       return;
     }
-    // ha van checkIn, akkor beállítjuk checkOutnak, ha későbbi
-    if (new Date(dayIso) <= new Date(checkIn)) {
+
+    const startNum = dateToDayNumber(parseISOToLocalDate(checkIn));
+    if (clickedNum <= startNum) {
       setCheckIn(dayIso);
       setCheckOut('');
       return;
     }
-    // ellenőrizzük, hogy a tartomány átfed-e
-    if (isRangeUnavailable(checkIn, dayIso)) {
-      // nem állítjuk be, csak vizuálisan jelöljük a foglaltságot
+
+    // ellenőrizzük, hogy a tartomány átfed-e (departure exclusive)
+    const overlaps = bookings.some((b) => {
+      const bStart = dateToDayNumber(parseISOToLocalDate(b.arrival_date || b.arrivalDate));
+      const bEnd = dateToDayNumber(parseISOToLocalDate(b.departure_date || b.departureDate));
+      return startNum < bEnd && clickedNum >= bStart;
+    });
+
+    if (overlaps) {
       setCheckOut('');
       return;
     }
+
     setCheckOut(dayIso);
   };
 
-  // foglalás POST
   const handleBooking = async () => {
     if (!isLoggedIn) {
       navigate('/login');
@@ -201,7 +234,7 @@ const Room = () => {
       alert('Kérlek válassz érkezési és távozási dátumot.');
       return;
     }
-    if (new Date(checkOut) <= new Date(checkIn)) {
+    if (dateToDayNumber(parseISOToLocalDate(checkOut)) <= dateToDayNumber(parseISOToLocalDate(checkIn))) {
       alert('A távozási dátumnak később kell lennie, mint az érkezési dátumnak.');
       return;
     }
@@ -223,6 +256,14 @@ const Room = () => {
       user_id: currentUserId || null,
       room_id: Number(id),
     };
+
+    // debug: pontos URL és payload
+    try {
+      console.log('POST URL:', api.defaults?.baseURL ? `${api.defaults.baseURL}/bookings` : '/bookings');
+      console.log('Payload:', payload);
+    } catch (e) {
+      console.log('API debug error', e);
+    }
 
     try {
       const res = await api.post('/bookings', payload);
@@ -289,6 +330,27 @@ const Room = () => {
             <div className="bg-[#FFFECE] text-black rounded-xl p-4 shadow-md fade-in-Left">
               <h2 className="font-semibold text-lg mb-2">Leírás</h2>
               <p className="text-sm leading-relaxed">{room.description}</p>
+            </div>
+
+            <div className="bg-[#FFFECE] text-black rounded-xl p-4 shadow-md flex flex-col gap-4 fade-in-Left">
+              <h2 className="font-semibold text-lg">Legjobb vélemények</h2>
+              {(room.reviews || []).slice(0, 4).map((review) => (
+                <div key={review.id} className="border-b last:border-b-0 pb-3 last:pb-0">
+                  <div className="flex items-center gap-2 mb-1">
+                    <span className="text-yellow-500">
+                      {'★'.repeat(review.stars)}
+                      {'☆'.repeat(5 - review.stars)}
+                    </span>
+                    <span className="text-xs text-gray-600">{review.stars}/5</span>
+                  </div>
+                  <p className="text-sm text-gray-800">{review.comment}</p>
+                </div>
+              ))}
+              <div className="pt-2">
+                <button type="button" className="bg-[#6FD98C] text-white px-4 py-2 rounded hover:bg-[#5FCB80] transition-all duration-200 text-sm">
+                  Vélemény írása
+                </button>
+              </div>
             </div>
           </div>
 

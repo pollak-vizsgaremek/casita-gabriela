@@ -41,7 +41,7 @@ model room {
   ac_availablity Int
   category       String        @db.VarChar(20)
   space          Int
-  images         Bytes         @db.MediumBlob
+  images         String        @db.LongText
   booking        booking[]
   room_review    room_review[]
 }

@@ -15,6 +15,7 @@ import Aszf from './pages/Aszf';
 import Adatkezeles from './pages/Adatkezeles';
 import Impresszum from './pages/Impresszum';
 import AdminKezeles from './pages/AdminKezeles';
+import SearchResults from './pages/SearchResults';
 
 
 const App = () => {
@@ -30,6 +31,7 @@ const App = () => {
                 <Route path="/registration" element={<Registration />} />
 
                 <Route path="/room/:id" element={<Room />} />
+                <Route path="/search" element={<SearchResults />} />
 
                 <Route path="/admin" element={<Admin />} />
                 <Route path="/AdminKezeles" element={<AdminKezeles />} />

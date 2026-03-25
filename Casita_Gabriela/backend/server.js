@@ -144,14 +144,39 @@ app.post('/login', async (req, res) => {
     if (!validPassword) return res.status(400).json({ error: 'Hibás jelszó.' });
 
     const role = user.isAdmin ? 'admin' : 'user';
-    const token = jwt.sign({ id: user.id, email: user.email, role }, JWT_SECRET, { expiresIn: '1h' });
+    const token = jwt.sign(
+      { id: user.id, email: user.email, role },
+      JWT_SECRET,
+      { expiresIn: '1h' }
+    );
 
-    res.json({ message: 'Sikeres bejelentkezés!', token, role });
+    const safeUser = {
+      id: user.id,
+      email: user.email,
+      name: user.name,
+      isAdmin: user.isAdmin,
+    };
+
+    console.log('LOGIN OK – sending to frontend:', {
+      message: 'Sikeres bejelentkezés!',
+      token,
+      role,
+      user: safeUser,
+    });
+
+    res.json({
+      message: 'Sikeres bejelentkezés!',
+      token,
+      role,
+      user: safeUser,
+    });
+
   } catch (err) {
     console.error('LOGIN ERROR:', err);
     res.status(500).json({ error: 'Bejelentkezés sikertelen.' });
   }
 });
+
 
 /* ---------- Rooms ---------- */
 

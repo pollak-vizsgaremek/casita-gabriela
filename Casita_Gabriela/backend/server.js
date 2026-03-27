@@ -36,12 +36,10 @@ const normalizeImagesFromDb = (imagesField) => {
   if (!imagesField) return [];
   try {
     if (Array.isArray(imagesField)) return imagesField;
-
     if (Buffer.isBuffer(imagesField)) {
       const b64 = imagesField.toString('base64');
       return [`data:image/jpeg;base64,${b64}`];
     }
-
     if (typeof imagesField === 'string') {
       try {
         const parsed = JSON.parse(imagesField);
@@ -51,7 +49,6 @@ const normalizeImagesFromDb = (imagesField) => {
         return [imagesField];
       }
     }
-
     return [];
   } catch (err) {
     console.error('normalizeImagesFromDb error:', err);
@@ -98,11 +95,8 @@ app.post('/upload-images', upload.array('images', 20), async (req, res) => {
     if (!req.files || req.files.length === 0) {
       return res.status(400).json({ error: 'Nincs feltöltött fájl.' });
     }
-
     const baseUrl = `${req.protocol}://${req.get('host')}`;
-
     const paths = req.files.map((f) => `${baseUrl}/public/${f.filename}`);
-
     res.json({ paths });
   } catch (err) {
     console.error('UPLOAD IMAGES ERROR:', err);
@@ -139,44 +133,37 @@ app.post('/login', async (req, res) => {
   try {
     const user = await prisma.users.findUnique({ where: { email } });
     if (!user) return res.status(400).json({ error: 'Nincs ilyen felhasználó.' });
-
     const validPassword = await bcrypt.compare(password, user.password);
     if (!validPassword) return res.status(400).json({ error: 'Hibás jelszó.' });
-
     const role = user.isAdmin ? 'admin' : 'user';
     const token = jwt.sign(
       { id: user.id, email: user.email, role },
       JWT_SECRET,
       { expiresIn: '1h' }
     );
-
     const safeUser = {
       id: user.id,
       email: user.email,
       name: user.name,
       isAdmin: user.isAdmin,
     };
-
     console.log('LOGIN OK – sending to frontend:', {
       message: 'Sikeres bejelentkezés!',
       token,
       role,
       user: safeUser,
     });
-
     res.json({
       message: 'Sikeres bejelentkezés!',
       token,
       role,
       user: safeUser,
     });
-
   } catch (err) {
     console.error('LOGIN ERROR:', err);
     res.status(500).json({ error: 'Bejelentkezés sikertelen.' });
   }
 });
-
 
 /* ---------- Rooms ---------- */
 
@@ -185,12 +172,10 @@ app.get('/rooms', async (req, res) => {
     const rooms = await prisma.room.findMany({
       include: { booking: true, room_review: true },
     });
-
     const formatted = rooms.map((room) => ({
       ...room,
       images: normalizeImagesFromDb(room.images),
     }));
-
     res.json(formatted);
   } catch (err) {
     console.error('GET /rooms error:', err);
@@ -200,14 +185,11 @@ app.get('/rooms', async (req, res) => {
 
 app.post('/rooms', async (req, res) => {
   const { name, description, price, category, space, images } = req.body;
-
   try {
     if (!name || !description || !price || !category || !space) {
       return res.status(400).json({ error: 'Minden mező kitöltése kötelező!' });
     }
-
     const imagesToSave = normalizeImagesForSave(images);
-
     const room = await prisma.room.create({
       data: {
         name,
@@ -220,9 +202,7 @@ app.post('/rooms', async (req, res) => {
       },
       include: { booking: true, room_review: true },
     });
-
     const formatted = { ...room, images: normalizeImagesFromDb(room.images) };
-
     res.json({ message: 'Szoba sikeresen létrehozva!', room: formatted });
   } catch (err) {
     console.error('POST /rooms error:', err);
@@ -233,17 +213,13 @@ app.post('/rooms', async (req, res) => {
 app.get('/rooms/:id', async (req, res) => {
   const id = parseId(req.params.id);
   if (!id) return res.status(400).json({ error: 'Érvénytelen id.' });
-
   try {
     const room = await prisma.room.findUnique({
       where: { id },
       include: { booking: true, room_review: true },
     });
-
     if (!room) return res.status(404).json({ error: 'Szoba nem található.' });
-
     const formatted = { ...room, images: normalizeImagesFromDb(room.images) };
-
     res.json(formatted);
   } catch (err) {
     console.error('GET /rooms/:id error:', err);
@@ -254,15 +230,11 @@ app.get('/rooms/:id', async (req, res) => {
 app.put('/rooms/:id', async (req, res) => {
   const id = parseId(req.params.id);
   if (!id) return res.status(400).json({ error: 'Érvénytelen id.' });
-
   const { name, description, price, category, space, images } = req.body;
-
   try {
     const existing = await prisma.room.findUnique({ where: { id } });
     if (!existing) return res.status(404).json({ error: 'Szoba nem található.' });
-
     const imagesToSave = normalizeImagesForSave(images);
-
     const updated = await prisma.room.update({
       where: { id },
       data: {
@@ -275,9 +247,7 @@ app.put('/rooms/:id', async (req, res) => {
       },
       include: { booking: true, room_review: true },
     });
-
     const formatted = { ...updated, images: normalizeImagesFromDb(updated.images) };
-
     res.json({ message: 'Szoba sikeresen frissítve!', room: formatted });
   } catch (err) {
     console.error('PUT /rooms/:id error:', err);
@@ -288,13 +258,10 @@ app.put('/rooms/:id', async (req, res) => {
 app.delete('/rooms/:id', async (req, res) => {
   const id = parseId(req.params.id);
   if (!id) return res.status(400).json({ error: 'Érvénytelen id.' });
-
   try {
     const existing = await prisma.room.findUnique({ where: { id } });
     if (!existing) return res.status(404).json({ error: 'Szoba nem található.' });
-
     await prisma.room.delete({ where: { id } });
-
     res.json({ message: 'Szoba sikeresen törölve!' });
   } catch (err) {
     console.error('DELETE /rooms/:id error:', err);
@@ -312,9 +279,11 @@ app.get('/bookings', async (req, res) => {
       if (rid) where.room_id = rid;
     }
 
+    // A schema.prisma szerint nincs created_at mező a booking modellen.
+    // Rendezéshez használjuk a booking_date mezőt (létezik a sémában).
     const bookings = await prisma.booking.findMany({
       where,
-      orderBy: { created_at: 'desc' },
+      orderBy: { booking_date: 'desc' },
     });
 
     res.json(bookings);
@@ -327,16 +296,13 @@ app.get('/bookings', async (req, res) => {
 app.put('/bookings/:id', async (req, res) => {
   const id = parseId(req.params.id);
   if (!id) return res.status(400).json({ error: 'Érvénytelen id.' });
-
   try {
     const data = {};
     if (req.body.status) data.status = req.body.status;
-
     const updated = await prisma.booking.update({
       where: { id },
       data,
     });
-
     res.json({ message: 'Foglalás frissítve', booking: updated });
   } catch (err) {
     console.error('PUT /bookings/:id error:', err);
@@ -354,9 +320,11 @@ app.get('/room_reviews', async (req, res) => {
       if (rid) where.room_id = rid;
     }
 
+    // A room_review modellben nincs created_at mező a sémában.
+    // Rendezéshez használjuk az id mezőt (legújabbak elöl).
     const reviews = await prisma.room_review.findMany({
       where,
-      orderBy: { created_at: 'desc' },
+      orderBy: { id: 'desc' },
     });
 
     res.json(reviews);

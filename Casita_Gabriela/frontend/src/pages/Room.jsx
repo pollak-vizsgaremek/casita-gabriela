@@ -1,12 +1,18 @@
 // src/pages/Room.jsx
-// Room component — updated so lightbox controls (X, prev, next) are always in front of the image.
-// Prev/Next are fixed to the screen edges (left/right center), Close (X) is fixed top-right.
-// Buttons have very high z-index and pointer-events enabled so they never get occluded by the image.
+// Teljes, javított Room komponens
+// Változások és javítások:
+// - Foglalás POST: megpróbáljuk a helyes /booking végpontot, ha 404-et kapunk, fallbackként megpróbáljuk /bookings-t is.
+// - Ha hiba történik, a felhasználónak dizájnos toast jelenik meg jobb alsó sarokban (ErrorToast).
+// - A hiba részleteit konzolra írjuk (frontend terminál), és megpróbáljuk elküldeni a hibajelentést a backendnek a /client-error végpontra (ha létezik) — ez csak kísérlet, ha nincs ilyen végpont, a hívás eldobódik.
+// - Megtartottam a korábbi naptár/logika/animáció és gomb-elrendezés módosításokat.
+// - Általános hibakezelés és olvasható toast üzenetek.
 
-import React, { useEffect, useMemo, useRef, useState } from "react";
+import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useParams, useNavigate } from "react-router";
+import axios from "axios";
 import Footer from "../components/Footer";
-import api from "../services/api";
+
+const BACKEND_BASE = "http://localhost:6969"; // módosítsd, ha a backend más URL-en fut
 
 const MS_PER_DAY = 24 * 60 * 60 * 1000;
 
@@ -32,8 +38,45 @@ const startOfMonth = (d) => new Date(d.getFullYear(), d.getMonth(), 1);
 const endOfMonth = (d) => new Date(d.getFullYear(), d.getMonth() + 1, 0);
 const iso = (d) => isoFromDate(d);
 
-/* ---------- MonthCalendar (unchanged) ---------- */
-const MonthCalendar = ({ monthDate, bookings = [], onDayClick, selectedRange, disabled = false }) => {
+/* ---------- Simple Error Toast system ---------- */
+const ErrorToast = ({ toasts, removeToast }) => {
+  return (
+    <div className="fixed right-4 bottom-4 z-50 flex flex-col gap-3 items-end">
+      {toasts.map((t) => (
+        <div
+          key={t.id}
+          className="max-w-sm w-full bg-white/95 text-black rounded-lg shadow-lg border border-gray-200 overflow-hidden"
+          role="alert"
+        >
+          <div className="p-3 flex items-start gap-3">
+            <div className="flex-shrink-0">
+              <svg className="h-6 w-6 text-red-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 9v2m0 4h.01M21 12A9 9 0 1112 3a9 9 0 019 9z" />
+              </svg>
+            </div>
+            <div className="flex-1">
+              <div className="font-semibold text-sm">{t.title || "Hiba"}</div>
+              <div className="text-xs text-gray-700 mt-1 whitespace-pre-wrap">{t.message}</div>
+              <div className="text-[11px] text-gray-500 mt-2">HTTP: {t.status || "??"}</div>
+            </div>
+            <div className="ml-3">
+              <button
+                onClick={() => removeToast(t.id)}
+                className="text-gray-500 hover:text-gray-700 p-1 rounded"
+                aria-label="Bezár"
+              >
+                ✕
+              </button>
+            </div>
+          </div>
+        </div>
+      ))}
+    </div>
+  );
+};
+
+/* ---------- MonthCalendar (supports minDate to disable past days) ---------- */
+const MonthCalendar = ({ monthDate, bookings = [], onDayClick, selectedRange, disabled = false, minDate = null }) => {
   const start = startOfMonth(monthDate);
   const last = endOfMonth(monthDate);
   const daysInMonth = last.getDate();
@@ -64,6 +107,11 @@ const MonthCalendar = ({ monthDate, bookings = [], onDayClick, selectedRange, di
     return dNum >= sNum && dNum <= eNum;
   };
 
+  const isBeforeMin = (date) => {
+    if (!minDate || !date) return false;
+    return dateToDayNumber(date) < dateToDayNumber(minDate);
+  };
+
   return (
     <div className="w-full">
       <div className="grid grid-cols-7 gap-1 text-xs text-center mb-2">
@@ -78,15 +126,17 @@ const MonthCalendar = ({ monthDate, bookings = [], onDayClick, selectedRange, di
           const dayIso = iso(date);
           const booked = isBooked(date);
           const selected = inSelectedRange(date);
+          const beforeMin = isBeforeMin(date);
+          const isDisabled = booked || disabled || beforeMin;
+          const baseClass = beforeMin ? "bg-gray-100 text-gray-400 cursor-not-allowed" : booked ? "bg-gray-200 text-gray-500 cursor-not-allowed" : selected ? "bg-[#6FD98C] text-white" : "bg-white text-gray-800 hover:bg-gray-100";
+
           return (
             <button
               key={dayIso}
               type="button"
-              onClick={() => !booked && !disabled && onDayClick(dayIso)}
-              disabled={booked || disabled}
-              className={`h-12 rounded-md flex flex-col items-center justify-center text-sm transition
-                ${booked ? "bg-gray-200 text-gray-500 cursor-not-allowed" : selected ? "bg-[#6FD98C] text-white" : "bg-white text-gray-800 hover:bg-gray-100"}
-              `}
+              onClick={() => !isDisabled && onDayClick(dayIso)}
+              disabled={isDisabled}
+              className={`h-12 rounded-md flex flex-col items-center justify-center text-sm transition ${baseClass}`}
               title={date.toLocaleDateString()}
             >
               <div className="font-medium">{date.getDate()}</div>
@@ -126,7 +176,7 @@ const Room = () => {
   const [lbTopKey, setLbTopKey] = useState(0);
   const [lbTopVisible, setLbTopVisible] = useState(false);
 
-  // drag state for preview and lightbox (kept simple)
+  // drag state for preview and lightbox
   const previewDrag = useRef({ active: false, startX: 0, currentX: 0, threshold: 60 });
   const lbDrag = useRef({ active: false, startX: 0, currentX: 0, threshold: 60 });
 
@@ -135,8 +185,9 @@ const Room = () => {
   const [guests, setGuests] = useState(1);
   const [acceptedAszf, setAcceptedAszf] = useState(false);
   const [acceptedAdat, setAcceptedAdat] = useState(false);
-  const [calendarOpen, setCalendarOpen] = useState(false);
-  const [visibleMonth, setVisibleMonth] = useState(new Date());
+
+  // visibleMonth alapból a mai hónap
+  const [visibleMonth, setVisibleMonth] = useState(() => new Date());
 
   const isLoggedIn = !!localStorage.getItem("token");
   const currentUserId = localStorage.getItem("user_id") ? Number(localStorage.getItem("user_id")) : null;
@@ -144,23 +195,48 @@ const Room = () => {
   const animTimeoutRef = useRef(null);
   const mountedRef = useRef(false);
 
+  // page load animation control
+  const [pageLoaded, setPageLoaded] = useState(false);
+
+  // toasts
+  const [toasts, setToasts] = useState([]);
+
   useEffect(() => {
     mountedRef.current = true;
     fetchRoom();
     fetchBookings();
     const interval = setInterval(() => fetchBookings(), 5000);
+
+    const t = setTimeout(() => setPageLoaded(true), 80);
+
     return () => {
       mountedRef.current = false;
       clearInterval(interval);
+      clearTimeout(t);
       if (animTimeoutRef.current) clearTimeout(animTimeoutRef.current);
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [id]);
 
+  const pushToast = (title, message, status = null, ttl = 6000) => {
+    const id = Date.now() + Math.random().toString(36).slice(2, 9);
+    const toast = { id, title, message, status };
+    setToasts((s) => [...s, toast]);
+    // auto remove
+    setTimeout(() => {
+      setToasts((s) => s.filter((t) => t.id !== id));
+    }, ttl);
+  };
+
+  const removeToast = (id) => {
+    setToasts((s) => s.filter((t) => t.id !== id));
+  };
+
+  // fetch room using full backend URL
   const fetchRoom = async () => {
     try {
       setLoading(true);
-      const res = await api.get(`/rooms/${id}`);
+      const res = await axios.get(`${BACKEND_BASE}/rooms/${id}`);
       const data = res.data;
       const roomData = {
         ...data,
@@ -195,6 +271,7 @@ const Room = () => {
       }
     } catch (err) {
       console.error("Error fetching room:", err);
+      pushToast("Hiba a szoba betöltésekor", String(err?.message || err), err?.response?.status || null);
       if (mountedRef.current) setRoom(null);
       setInitialImageLoaded(true);
     } finally {
@@ -202,18 +279,20 @@ const Room = () => {
     }
   };
 
+  // fetch bookings using full backend URL
   const fetchBookings = async () => {
     try {
-      const res = await api.get(`/bookings?room_id=${id}`);
+      const res = await axios.get(`${BACKEND_BASE}/bookings?room_id=${id}`);
       if (!mountedRef.current) return;
       setBookings(Array.isArray(res.data) ? res.data : []);
     } catch (err) {
       console.error("Error fetching bookings:", err);
+      pushToast("Hiba a foglalások lekérésekor", String(err?.message || err), err?.response?.status || null);
       if (mountedRef.current) setBookings([]);
     }
   };
 
-  const prefetchImage = (src, index) => {
+  const prefetchImage = useCallback((src, index) => {
     if (!src) return;
     if (loadedMap[index]) return;
     const img = new Image();
@@ -226,7 +305,7 @@ const Room = () => {
       if (!mountedRef.current) return;
       setLoadedMap((m) => ({ ...m, [index]: true }));
     };
-  };
+  }, [loadedMap]);
 
   // preview crossfade
   const changeImage = (newIndex) => {
@@ -252,12 +331,20 @@ const Room = () => {
     });
   };
 
-  // Lightbox logic
+  // Lightbox logic (memoized)
+  const lightboxChange = useCallback((newIndex) => {
+    if (!room) return;
+    setLbTopKey((k) => k + 1);
+    setLbTopIndex(newIndex);
+    setLbTopVisible(false);
+    prefetchImage(room.images?.[newIndex], newIndex);
+  }, [room, prefetchImage]);
+
   const openLightbox = (index) => {
     setLbBottomIndex(index);
     setLightboxOpen(true);
     document.body.style.overflow = "hidden";
-    prefetchImage(room.images?.[index], index);
+    prefetchImage(room?.images?.[index], index);
   };
   const closeLightbox = () => {
     setLightboxOpen(false);
@@ -265,13 +352,7 @@ const Room = () => {
     setLbTopIndex(null);
     setLbTopVisible(false);
   };
-  const lightboxChange = (newIndex) => {
-    if (!room) return;
-    setLbTopKey((k) => k + 1);
-    setLbTopIndex(newIndex);
-    setLbTopVisible(false);
-    prefetchImage(room.images?.[newIndex], newIndex);
-  };
+
   const onLbTopLoaded = (index) => {
     if (!mountedRef.current) return;
     requestAnimationFrame(() => {
@@ -295,7 +376,7 @@ const Room = () => {
     };
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
-  }, [lightboxOpen, lbBottomIndex, room]);
+  }, [lightboxOpen, lbBottomIndex, room, lightboxChange]);
 
   const isRangeUnavailable = (startStr, endStr) => {
     if (!startStr || !endStr) return false;
@@ -324,8 +405,20 @@ const Room = () => {
 
   const formatPrice = (value) => value.toLocaleString("hu-HU", { maximumFractionDigits: 0 });
 
+  // minDate: ma (nem lehet korábbi napot választani)
+  const today = useMemo(() => {
+    const d = new Date();
+    return new Date(d.getFullYear(), d.getMonth(), d.getDate());
+  }, []);
+
   const handleDayClick = (dayIso) => {
+    // ne engedjük a minDate előtti napokat
     const clickedDate = parseISOToLocalDate(dayIso);
+    if (!clickedDate) return;
+    if (dateToDayNumber(clickedDate) < dateToDayNumber(today)) {
+      return;
+    }
+
     const clickedNum = dateToDayNumber(clickedDate);
     if (!checkIn || (checkIn && checkOut)) {
       setCheckIn(dayIso);
@@ -350,25 +443,41 @@ const Room = () => {
     setCheckOut(dayIso);
   };
 
+  const clearSelection = () => {
+    setCheckIn("");
+    setCheckOut("");
+  };
+
+  // helper: try to send client-side error report to backend (best-effort)
+  const sendClientErrorReport = async (payload) => {
+    try {
+      await axios.post(`${BACKEND_BASE}/client-error`, payload, { headers: { "Content-Type": "application/json" } });
+    } catch (err) {
+      // ignore — backend may not have this endpoint
+      console.debug("Client error report failed (ok to ignore):", err?.message || err);
+    }
+  };
+
+  // handleBooking: try /booking then fallback to /bookings; show toasts and log details
   const handleBooking = async () => {
     if (!isLoggedIn) {
       navigate("/login");
       return;
     }
     if (!checkIn || !checkOut) {
-      alert("Kérlek válassz érkezési és távozási dátumot.");
+      pushToast("Hiányzó dátum", "Kérlek válassz érkezési és távozási dátumot.");
       return;
     }
     if (dateToDayNumber(parseISOToLocalDate(checkOut)) <= dateToDayNumber(parseISOToLocalDate(checkIn))) {
-      alert("A távozási dátumnak később kell lennie, mint az érkezési dátumnak.");
+      pushToast("Dátum hiba", "A távozási dátumnak később kell lennie, mint az érkezési dátumnak.");
       return;
     }
     if (isRangeUnavailable(checkIn, checkOut)) {
-      alert("A kiválasztott időszakban a szoba nem elérhető. Kérlek válassz másik időpontot.");
+      pushToast("Ütközés", "A kiválasztott időszakban a szoba nem elérhető. Válassz másik időpontot.");
       return;
     }
     if (!acceptedAszf || !acceptedAdat) {
-      alert("Kérlek fogadd el az ÁSZF-et és az Adatkezelési Tájékoztatót.");
+      pushToast("Elfogadás szükséges", "Kérlek fogadd el az ÁSZF-et és az Adatkezelési Tájékoztatót.");
       return;
     }
     const payload = {
@@ -380,40 +489,98 @@ const Room = () => {
       user_id: currentUserId || null,
       room_id: Number(id),
     };
-    try {
-      const res = await api.post("/bookings", payload);
-      console.log("Booking response:", res.status, res.data);
-      alert("Foglalás sikeresen leadva. A foglalás státusza: függőben.");
-      fetchBookings();
-      setCheckIn("");
-      setCheckOut("");
-      setGuests(1);
-      setAcceptedAszf(false);
-      setAcceptedAdat(false);
-      setCalendarOpen(false);
-    } catch (err) {
-      console.error("Booking error full:", err);
-      const status = err?.response?.status;
-      const serverMsg = err?.response?.data || err?.message;
-      alert(`Hiba történt a foglalás során (HTTP ${status || "??"}): ${JSON.stringify(serverMsg)}`);
+
+    // endpoints to try in order
+    const endpoints = ["/booking", "/bookings"];
+    let lastError = null;
+
+    for (const ep of endpoints) {
+      try {
+        const url = `${BACKEND_BASE}${ep}`;
+        const res = await axios.post(url, payload, {
+          headers: { "Content-Type": "application/json" },
+        });
+
+        // success
+        console.log("Booking response:", url, res.status, res.data);
+        pushToast("Sikeres foglalás", "Foglalás sikeresen leadva. A foglalás státusza: függőben.", res.status);
+        fetchBookings();
+        clearSelection();
+        setGuests(1);
+        setAcceptedAszf(false);
+        setAcceptedAdat(false);
+        return;
+      } catch (err) {
+        lastError = { err, endpoint: ep };
+        console.warn(`Booking attempt to ${ep} failed:`, err?.response?.status, err?.response?.data || err?.message || err);
+        // if 404, try next endpoint; otherwise break and show error
+        const status = err?.response?.status;
+        if (status && status !== 404) {
+          break;
+        }
+        // else continue to next endpoint
+      }
     }
+
+    // If we reach here, all attempts failed
+    const err = lastError?.err;
+    const tried = endpoints.join(", ");
+    const status = err?.response?.status || null;
+    const serverData = err?.response?.data;
+
+    // Build readable message
+    let message = "";
+    if (typeof serverData === "string") {
+      // short preview if HTML
+      if (serverData.includes("Cannot POST")) {
+        message = `A szerver nem találja a végpontot (Cannot POST). Próbáltuk: ${tried}. Ellenőrizd a backend útvonalat és a baseURL-t.`;
+      } else {
+        message = serverData.slice(0, 800);
+      }
+    } else if (typeof serverData === "object") {
+      message = JSON.stringify(serverData);
+    } else {
+      message = err?.message || "Ismeretlen hiba történt.";
+    }
+
+    // show toast
+    pushToast("Foglalás hiba", message, status);
+
+    // log to frontend console (developer sees this)
+    console.error("Booking final error:", { status, serverData, tried, payload });
+
+    // try to send client-side error report to backend (best-effort)
+    sendClientErrorReport({
+      type: "booking_error",
+      triedEndpoints: endpoints,
+      status,
+      serverData: typeof serverData === "string" ? serverData : serverData,
+      payload,
+      timestamp: new Date().toISOString(),
+    });
   };
 
-  // --- Pointer / drag handlers for preview (kept minimal) ---
+  // --- Pointer / drag handlers for preview ---
   const onPreviewPointerDown = (e) => {
     const pointerX = e.clientX ?? (e.touches && e.touches[0]?.clientX) ?? 0;
     previewDrag.current.active = true;
     previewDrag.current.startX = pointerX;
     previewDrag.current.currentX = pointerX;
     if (e.target.setPointerCapture && e.pointerId) {
-      try { e.target.setPointerCapture(e.pointerId); } catch {}
+      try {
+        e.target.setPointerCapture(e.pointerId);
+      } catch (err) {
+        console.debug("pointer capture not available", err);
+      }
     }
   };
+
   const onPreviewPointerMove = (e) => {
     if (!previewDrag.current.active) return;
     const pointerX = e.clientX ?? (e.touches && e.touches[0]?.clientX) ?? previewDrag.current.currentX;
     previewDrag.current.currentX = pointerX;
   };
+
   const onPreviewPointerUp = () => {
     if (!previewDrag.current.active) return;
     previewDrag.current.active = false;
@@ -435,14 +602,20 @@ const Room = () => {
     lbDrag.current.startX = pointerX;
     lbDrag.current.currentX = pointerX;
     if (e.target.setPointerCapture && e.pointerId) {
-      try { e.target.setPointerCapture(e.pointerId); } catch {}
+      try {
+        e.target.setPointerCapture(e.pointerId);
+      } catch (err) {
+        console.debug("pointer capture not available", err);
+      }
     }
   };
+
   const onLbPointerMove = (e) => {
     if (!lbDrag.current.active) return;
     const pointerX = e.clientX ?? (e.touches && e.touches[0]?.clientX) ?? lbDrag.current.currentX;
     lbDrag.current.currentX = pointerX;
   };
+
   const onLbPointerUp = () => {
     if (!lbDrag.current.active) return;
     lbDrag.current.active = false;
@@ -455,7 +628,6 @@ const Room = () => {
     }
   };
 
-  // If still loading initial data or first image, show original loading screen
   if (loading || !initialImageLoaded) {
     return (
       <div className="flex items-center justify-center min-h-screen w-dvw bg-[#0b1f13] text-[#F1FBF4]">
@@ -475,56 +647,30 @@ const Room = () => {
   const images = room.images && room.images.length > 0 ? room.images : ["/blob.png"];
 
   return (
-    <div className="flex flex-col min-h-screen w-dvw bg-[#0b1f13] text-[#F1FBF4] spacer layerAdmin">
-      <main className="flex-1 w-full max-w-6xl mx-auto px-4 py-10">
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-10">
-          <div className="lg:col-span-2 flex flex-col gap-6">
-            <h1 className="text-3xl font-mono tracking-wide text-black">{room.name}</h1>
+    <>
+      <div className={`flex flex-col min-h-screen w-dvw bg-[#0b1f13] text-[#F1FBF4] spacer layerAdmin transition-all duration-500 ${pageLoaded ? 'opacity-100' : 'opacity-0'}`}>
+        <main className="flex-1 w-full max-w-6xl mx-auto px-4 py-10">
+          <div className="grid grid-cols-1 lg:grid-cols-3 gap-10">
+            <div className="lg:col-span-2 flex flex-col gap-6">
+              <h1 className={`text-3xl font-mono tracking-wide text-black transform transition-all duration-500 ${pageLoaded ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-2'}`}>{room.name}</h1>
 
-            {/* Preview: magasabb (h-96), crossfade két réteggel */}
-            <div className="w-full bg-[#FFFECE] rounded-xl overflow-hidden shadow-md/20 relative">
-              <div
-                ref={imageContainerRef}
-                className="relative w-full h-96 bg-[#f6f6f6] flex items-center justify-center touch-none"
-                onPointerDown={onPreviewPointerDown}
-                onPointerMove={onPreviewPointerMove}
-                onPointerUp={onPreviewPointerUp}
-                onPointerCancel={onPreviewPointerUp}
-                onTouchStart={onPreviewPointerDown}
-                onTouchMove={onPreviewPointerMove}
-                onTouchEnd={onPreviewPointerUp}
-                style={{ zIndex: 100, position: "relative", userSelect: "none" }}
-              >
-                {/* Bottom (véglegesített) */}
-                <img
-                  key={`bottom-${bottomIndex}`}
-                  src={images[bottomIndex]}
-                  alt={`${room.name} ${bottomIndex + 1}`}
-                  draggable={false}
-                  style={{
-                    position: "absolute",
-                    inset: 0,
-                    width: "100%",
-                    height: "100%",
-                    objectFit: "cover",
-                    transform: "translateZ(0)",
-                    backfaceVisibility: "hidden",
-                    WebkitBackfaceVisibility: "hidden",
-                    zIndex: 100,
-                    transition: "opacity 320ms ease",
-                    opacity: topIndex !== null && topVisible ? 0 : 1,
-                  }}
-                  onLoad={() => {
-                    setLoadedMap((m) => ({ ...m, [bottomIndex]: true }));
-                  }}
-                />
-
-                {/* Top (pending) */}
-                {topIndex !== null && (
+              <div className={`w-full bg-[#FFFECE] rounded-xl overflow-hidden shadow-md/20 relative transform transition-all duration-600 ${pageLoaded ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-3'}`}>
+                <div
+                  ref={imageContainerRef}
+                  className="relative w-full h-96 bg-[#f6f6f6] flex items-center justify-center touch-none"
+                  onPointerDown={onPreviewPointerDown}
+                  onPointerMove={onPreviewPointerMove}
+                  onPointerUp={onPreviewPointerUp}
+                  onPointerCancel={onPreviewPointerUp}
+                  onTouchStart={onPreviewPointerDown}
+                  onTouchMove={onPreviewPointerMove}
+                  onTouchEnd={onPreviewPointerUp}
+                  style={{ zIndex: 100, position: "relative", userSelect: "none" }}
+                >
                   <img
-                    key={`top-${topIndex}-${topKey}`}
-                    src={images[topIndex]}
-                    alt={`${room.name} ${topIndex + 1}`}
+                    key={`bottom-${bottomIndex}`}
+                    src={images[bottomIndex]}
+                    alt={`${room.name} ${bottomIndex + 1}`}
                     draggable={false}
                     style={{
                       position: "absolute",
@@ -535,182 +681,226 @@ const Room = () => {
                       transform: "translateZ(0)",
                       backfaceVisibility: "hidden",
                       WebkitBackfaceVisibility: "hidden",
-                      zIndex: 110,
+                      zIndex: 100,
                       transition: "opacity 320ms ease",
-                      opacity: topVisible ? 1 : 0,
+                      opacity: topIndex !== null && topVisible ? 0 : 1,
                     }}
-                    onLoad={() => onTopLoaded(topIndex)}
+                    onLoad={() => {
+                      setLoadedMap((m) => ({ ...m, [bottomIndex]: true }));
+                    }}
                   />
-                )}
 
-                {/* Fullscreen ikon */}
-                <div className="absolute top-3 right-3 pointer-events-auto" style={{ zIndex: 120 }}>
-                  <button
-                    type="button"
-                    onClick={() => openLightbox(bottomIndex)}
-                    className="bg-white/95 text-black rounded-full p-2 shadow hover:scale-105 transform transition"
-                    title="Nagyítás"
-                  >
-                    <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M8 3H5a2 2 0 00-2 2v3m0 8v3a2 2 0 002 2h3m8-16h3a2 2 0 012 2v3M16 21h3a2 2 0 002-2v-3" />
-                    </svg>
+                  {topIndex !== null && (
+                    <img
+                      key={`top-${topIndex}-${topKey}`}
+                      src={images[topIndex]}
+                      alt={`${room.name} ${topIndex + 1}`}
+                      draggable={false}
+                      style={{
+                        position: "absolute",
+                        inset: 0,
+                        width: "100%",
+                        height: "100%",
+                        objectFit: "cover",
+                        transform: "translateZ(0)",
+                        backfaceVisibility: "hidden",
+                        WebkitBackfaceVisibility: "hidden",
+                        zIndex: 110,
+                        transition: "opacity 320ms ease",
+                        opacity: topVisible ? 1 : 0,
+                      }}
+                      onLoad={() => onTopLoaded(topIndex)}
+                    />
+                  )}
+
+                  <div className="absolute top-3 right-3 pointer-events-auto" style={{ zIndex: 120 }}>
+                    <button
+                      type="button"
+                      onClick={() => openLightbox(bottomIndex)}
+                      className="bg-white/95 text-black rounded-full p-2 shadow hover:scale-105 transform transition"
+                      title="Nagyítás"
+                    >
+                      <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M8 3H5a2 2 0 00-2 2v3m0 8v3a2 2 0 002 2h3m8-16h3a2 2 0 012 2v3M16 21h3a2 2 0 002-2v-3" />
+                      </svg>
+                    </button>
+                  </div>
+                </div>
+              </div>
+
+              <div className="flex gap-3 flex-wrap">
+                {images.map((img, index) => {
+                  const active = index === activeThumbIndex;
+                  const delay = `${index * 40}ms`;
+                  return (
+                    <button
+                      key={index}
+                      type="button"
+                      onClick={() => changeImage(index)}
+                      onDoubleClick={() => openLightbox(index)}
+                      className={`w-20 h-16 rounded-md overflow-hidden border transform transition-all duration-200 ${active ? "border-[#6FD98C]" : "border-transparent"}`}
+                      style={{
+                        transform: active ? "scale(1.06)" : undefined,
+                        transition: "transform 120ms ease, opacity 360ms ease",
+                        opacity: pageLoaded ? 1 : 0,
+                        transitionDelay: pageLoaded ? delay : "0ms",
+                      }}
+                    >
+                      <img src={img} alt={`${room.name} kép ${index + 1}`} className="w-full h-full object-cover" draggable={false} />
+                    </button>
+                  );
+                })}
+              </div>
+
+              <div className={`bg-[#FFFECE] text-black rounded-xl p-4 shadow-md transform transition-all duration-500 ${pageLoaded ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-2'}`} style={{ transitionDelay: pageLoaded ? '160ms' : '0ms' }}>
+                <h2 className="font-semibold text-lg mb-2">Leírás</h2>
+                <p className="text-sm leading-relaxed">{room.description}</p>
+              </div>
+
+              <div className={`bg-[#FFFECE] text-black rounded-xl p-4 shadow-md flex flex-col gap-4 transform transition-all duration-500 ${pageLoaded ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-2'}`} style={{ transitionDelay: pageLoaded ? '200ms' : '0ms' }}>
+                <h2 className="font-semibold text-lg">Legjobb vélemények</h2>
+                {(room.reviews || []).slice(0, 4).map((review) => (
+                  <div key={review.id} className="border-b last:border-b-0 pb-3 last:pb-0">
+                    <div className="flex items-center gap-2 mb-1">
+                      <span className="text-yellow-500">
+                        {"★".repeat(review.stars)}
+                        {"☆".repeat(5 - review.stars)}
+                      </span>
+                      <span className="text-xs text-gray-600">{review.stars}/5</span>
+                    </div>
+                    <p className="text-sm text-gray-800">{review.comment}</p>
+                  </div>
+                ))}
+                <div className="pt-2">
+                  <button type="button" className="bg-[#6FD98C] text-white px-4 py-2 rounded hover:bg-[#5FCB80] transition-all duration-200 text-sm">
+                    Vélemény írása
                   </button>
                 </div>
               </div>
             </div>
 
-            {/* Thumbnails */}
-            <div className="flex gap-3 flex-wrap">
-              {images.map((img, index) => {
-                const active = index === activeThumbIndex;
-                return (
-                  <button
-                    key={index}
-                    type="button"
-                    onClick={() => changeImage(index)}
-                    onDoubleClick={() => openLightbox(index)}
-                    className={`w-20 h-16 rounded-md overflow-hidden border transform transition-all duration-200 ${active ? "border-[#6FD98C]" : "border-transparent"}`}
-                    style={{
-                      transform: active ? "scale(1.06)" : undefined,
-                      transition: "transform 120ms ease",
-                    }}
-                  >
-                    <img src={img} alt={`${room.name} kép ${index + 1}`} className="w-full h-full object-cover" draggable={false} />
-                  </button>
-                );
-              })}
-            </div>
+            <div className="flex flex-col gap-6">
+              {/* Booking card */}
+              <div className={`bg-[#FFFECE] text-black rounded-xl p-4 shadow-md transform transition-all duration-500 ${pageLoaded ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-2'}`} style={{ transitionDelay: pageLoaded ? '220ms' : '0ms' }}>
+                <h2 className="font-semibold text-lg">Foglalás</h2>
 
-            {/* Description */}
-            <div className="bg-[#FFFECE] text-black rounded-xl p-4 shadow-md">
-              <h2 className="font-semibold text-lg mb-2">Leírás</h2>
-              <p className="text-sm leading-relaxed">{room.description}</p>
-            </div>
-
-            {/* Reviews */}
-            <div className="bg-[#FFFECE] text-black rounded-xl p-4 shadow-md flex flex-col gap-4">
-              <h2 className="font-semibold text-lg">Legjobb vélemények</h2>
-              {(room.reviews || []).slice(0, 4).map((review) => (
-                <div key={review.id} className="border-b last:border-b-0 pb-3 last:pb-0">
-                  <div className="flex items-center gap-2 mb-1">
-                    <span className="text-yellow-500">
-                      {"★".repeat(review.stars)}
-                      {"☆".repeat(5 - review.stars)}
-                    </span>
-                    <span className="text-xs text-gray-600">{review.stars}/5</span>
+                <div className="mt-4">
+                  <div className="flex gap-2 items-center mb-3">
+                    <div className="flex flex-col">
+                      <label className="text-xs text-gray-600">Érkezés</label>
+                      <div className="text-sm font-medium">{checkIn || "-"}</div>
+                    </div>
+                    <div className="flex flex-col">
+                      <label className="text-xs text-gray-600">Távozás</label>
+                      <div className="text-sm font-medium">{checkOut || "-"}</div>
+                    </div>
                   </div>
-                  <p className="text-sm text-gray-800">{review.comment}</p>
+
+                  {/* Naptár fehér dobozban, felül középen hónap/év, alul Előző (bal), Következő (közép), Törlés (jobb) */}
+                  <div className="mt-3 bg-white text-black rounded-lg shadow p-4">
+                    {/* Top: középen a hónap/év */}
+                    <div className="flex items-center justify-center mb-3">
+                      <div className="font-medium text-sm">
+                        {visibleMonth.toLocaleString("hu-HU", { year: "numeric", month: "long" })}
+                      </div>
+                    </div>
+
+                    <MonthCalendar
+                      monthDate={visibleMonth}
+                      bookings={bookings}
+                      onDayClick={handleDayClick}
+                      selectedRange={{ start: checkIn, end: checkOut }}
+                      disabled={false}
+                      minDate={today}
+                    />
+
+                    {/* Bottom: Előző (bal), Következő (közép), Törlés (jobb) */}
+                    <div className="mt-4 flex items-center">
+                      <div className="flex-1 flex justify-start">
+                        <button
+                          type="button"
+                          onClick={() => setVisibleMonth(new Date(visibleMonth.getFullYear(), visibleMonth.getMonth() - 1, 1))}
+                          className="px-3 py-2 border rounded bg-white hover:bg-gray-50"
+                        >
+                          Előző
+                        </button>
+                      </div>
+
+                      <div className="flex-1 flex justify-center">
+                        <button
+                          type="button"
+                          onClick={() => setVisibleMonth(new Date(visibleMonth.getFullYear(), visibleMonth.getMonth() + 1, 1))}
+                          className="px-3 py-2 border rounded bg-white hover:bg-gray-50"
+                        >
+                          Következő
+                        </button>
+                      </div>
+
+                      <div className="flex-1 flex justify-end">
+                        <button
+                          type="button"
+                          onClick={clearSelection}
+                          className="px-3 py-2 border rounded bg-white hover:bg-gray-50 text-red-600 font-medium"
+                        >
+                          Törlés
+                        </button>
+                      </div>
+                    </div>
+                  </div>
                 </div>
-              ))}
-              <div className="pt-2">
-                <button type="button" className="bg-[#6FD98C] text-white px-4 py-2 rounded hover:bg-[#5FCB80] transition-all duration-200 text-sm">
-                  Vélemény írása
+
+                {isRangeUnavailable(checkIn, checkOut) && <p className="text-sm text-red-600 mt-2">A kiválasztott időszak átfed egy meglévő foglalással. Válassz másik időpontot.</p>}
+
+                <div className="flex flex-col gap-2 mt-3">
+                  <label className="text-sm font-medium">Személyek száma</label>
+                  <select value={guests} onChange={(e) => setGuests(Number(e.target.value))} className="border border-gray-300 rounded px-2 py-1 text-sm">
+                    {Array.from({ length: room.space || 1 }, (_, i) => i + 1).map((n) => (
+                      <option key={n} value={n}>{n} személy</option>
+                    ))}
+                  </select>
+                </div>
+
+                <div className="flex flex-col gap-2 mt-3 text-xs text-gray-700">
+                  <label className="flex items-center gap-2">
+                    <input type="checkbox" checked={acceptedAszf} onChange={(e) => setAcceptedAszf(e.target.checked)} />
+                    <span>Elfogadom az <a href="/aszf" className="text-blue-600 underline">ÁSZF-et</a>.</span>
+                  </label>
+                  <label className="flex items-center gap-2">
+                    <input type="checkbox" checked={acceptedAdat} onChange={(e) => setAcceptedAdat(e.target.checked)} />
+                    <span>Elfogadom az <a href="/adatkezeles" className="text-blue-600 underline">Adatkezelési Tájékoztatót</a>.</span>
+                  </label>
+                </div>
+
+                <button
+                  type="button"
+                  disabled={!acceptedAszf || !acceptedAdat || !nights || isRangeUnavailable(checkIn, checkOut)}
+                  onClick={handleBooking}
+                  className={`mt-3 w-full px-4 py-2 rounded text-sm font-semibold ${!acceptedAszf || !acceptedAdat || !nights || isRangeUnavailable(checkIn, checkOut) ? "bg-gray-300 text-gray-500 cursor-not-allowed" : "bg-[#6FD98C] text-white hover:bg-[#5FCB80]"}`}
+                >
+                  {isLoggedIn ? "Foglalás leadása" : "Bejelentkezés a foglaláshoz"}
                 </button>
+
+                <div className="mt-3 flex items-center justify-between text-sm text-gray-700">
+                  <span>{nights > 0 ? `${nights} éj, ${guests} fő` : "Válassz dátumot"}</span>
+                  <span className="font-semibold text-[#0b1f13]">{totalPrice > 0 ? `${formatPrice(totalPrice)} Ft` : ""}</span>
+                </div>
               </div>
             </div>
           </div>
+        </main>
 
-          {/* Right column (booking) */}
-          <div className="flex flex-col gap-6">
-            <div className="bg-[#FFFECE] text-black rounded-xl p-4 shadow-md">
-              <h2 className="font-semibold text-lg">Foglalás</h2>
-              <div className="mt-2">
-                <div className="flex gap-2 items-center">
-                  <div className="flex flex-col">
-                    <label className="text-xs text-gray-600">Érkezés</label>
-                    <div className="text-sm font-medium">{checkIn || "-"}</div>
-                  </div>
-                  <div className="flex flex-col">
-                    <label className="text-xs text-gray-600">Távozás</label>
-                    <div className="text-sm font-medium">{checkOut || "-"}</div>
-                  </div>
-                </div>
+        <Footer />
+      </div>
 
-                <div className="mt-3">
-                  <button type="button" onClick={() => setCalendarOpen((s) => !s)} className="px-3 py-2 bg-blue-500 text-white rounded-md hover:bg-blue-600">
-                    {calendarOpen ? "Naptár bezárása" : "Naptár megnyitása"}
-                  </button>
-                </div>
+      {/* Error toasts (jobb alsó sarok) */}
+      <ErrorToast toasts={toasts} removeToast={removeToast} />
 
-                {calendarOpen && (
-                  <div className="mt-4 p-4 bg-white text-black rounded-lg shadow">
-                    <div className="flex items-center justify-between mb-3">
-                      <button type="button" onClick={() => setVisibleMonth(new Date(visibleMonth.getFullYear(), visibleMonth.getMonth() - 1, 1))} className="px-2 py-1 border rounded">
-                        Előző
-                      </button>
-                      <div className="font-medium">{visibleMonth.toLocaleString("hu-HU", { month: "long", year: "numeric" })}</div>
-                      <button type="button" onClick={() => setVisibleMonth(new Date(visibleMonth.getFullYear(), visibleMonth.getMonth() + 1, 1))} className="px-2 py-1 border rounded">
-                        Következő
-                      </button>
-                    </div>
-
-                    <MonthCalendar monthDate={visibleMonth} bookings={bookings} onDayClick={handleDayClick} selectedRange={{ start: checkIn, end: checkOut }} />
-
-                    <div className="mt-3 flex gap-2 justify-end">
-                      <button type="button" onClick={() => { setCheckIn(""); setCheckOut(""); }} className="px-3 py-2 border rounded">Törlés</button>
-                      <button type="button" onClick={() => setCalendarOpen(false)} className="px-3 py-2 border rounded">Bezár</button>
-                    </div>
-                  </div>
-                )}
-              </div>
-
-              {isRangeUnavailable(checkIn, checkOut) && <p className="text-sm text-red-600 mt-2">A kiválasztott időszak átfed egy meglévő foglalással. Válassz másik időpontot.</p>}
-
-              <div className="flex flex-col gap-2 mt-3">
-                <label className="text-sm font-medium">Személyek száma</label>
-                <select value={guests} onChange={(e) => setGuests(Number(e.target.value))} className="border border-gray-300 rounded px-2 py-1 text-sm">
-                  {Array.from({ length: room.space || 1 }, (_, i) => i + 1).map((n) => (
-                    <option key={n} value={n}>{n} személy</option>
-                  ))}
-                </select>
-              </div>
-
-              <div className="flex flex-col gap-2 mt-3 text-xs text-gray-700">
-                <label className="flex items-center gap-2">
-                  <input type="checkbox" checked={acceptedAszf} onChange={(e) => setAcceptedAszf(e.target.checked)} />
-                  <span>Elfogadom az <a href="/aszf" className="text-blue-600 underline">ÁSZF-et</a>.</span>
-                </label>
-                <label className="flex items-center gap-2">
-                  <input type="checkbox" checked={acceptedAdat} onChange={(e) => setAcceptedAdat(e.target.checked)} />
-                  <span>Elfogadom az <a href="/adatkezeles" className="text-blue-600 underline">Adatkezelési Tájékoztatót</a>.</span>
-                </label>
-              </div>
-
-              <button
-                type="button"
-                disabled={!acceptedAszf || !acceptedAdat || !nights || isRangeUnavailable(checkIn, checkOut)}
-                onClick={handleBooking}
-                className={`mt-3 w-full px-4 py-2 rounded text-sm font-semibold ${!acceptedAszf || !acceptedAdat || !nights || isRangeUnavailable(checkIn, checkOut) ? "bg-gray-300 text-gray-500 cursor-not-allowed" : "bg-[#6FD98C] text-white hover:bg-[#5FCB80]"}`}
-              >
-                {isLoggedIn ? "Foglalás leadása" : "Bejelentkezés a foglaláshoz"}
-              </button>
-
-              <div className="mt-3 flex items-center justify-between text-sm text-gray-700">
-                <span>{nights > 0 ? `${nights} éj, ${guests} fő` : "Válassz dátumot"}</span>
-                <span className="font-semibold text-[#0b1f13]">{totalPrice > 0 ? `${formatPrice(totalPrice)} Ft` : ""}</span>
-              </div>
-            </div>
-          </div>
-        </div>
-      </main>
-
-      <Footer />
-
-      {/* Lightbox: backdrop + modal */}
+      {/* Lightbox */}
       {lightboxOpen && (
         <>
-          {/* backdrop */}
-          <div
-            className="fixed inset-0 z-[900] bg-black/70"
-            onClick={closeLightbox}
-            aria-hidden="true"
-          />
+          <div className="fixed inset-0 z-900 bg-black/70" onClick={closeLightbox} aria-hidden="true" />
 
-          {/* modal container (centered) */}
-          <div
-            className="fixed inset-0 z-[910] flex items-center justify-center pointer-events-none"
-            aria-hidden="false"
-          >
+          <div className="fixed inset-0 z-910 flex items-center justify-center pointer-events-none" aria-hidden="false">
             <div
               className="relative w-full max-w-6xl mx-4 h-[90vh] bg-transparent rounded overflow-hidden pointer-events-auto"
               onClick={(e) => e.stopPropagation()}
@@ -723,7 +913,6 @@ const Room = () => {
               onTouchEnd={onLbPointerUp}
               style={{ touchAction: "pan-y" }}
             >
-              {/* Bottom (végleges) lightbox kép: magasság kitöltése */}
               <img
                 key={`lb-bottom-${lbBottomIndex}`}
                 src={images[lbBottomIndex]}
@@ -734,17 +923,16 @@ const Room = () => {
                   left: "50%",
                   top: "50%",
                   transform: "translate(-50%, -50%)",
-                  height: "100%", // kitölti a modal magasságát
+                  height: "100%",
                   width: "auto",
                   objectFit: "contain",
                   transition: "opacity 320ms ease",
                   opacity: lbTopIndex !== null && lbTopVisible ? 0 : 1,
-                  zIndex: 920, // image z-index lower than controls
+                  zIndex: 920,
                 }}
                 onLoad={() => setLoadedMap((m) => ({ ...m, [lbBottomIndex]: true }))}
               />
 
-              {/* Top (pending) lightbox kép */}
               {lbTopIndex !== null && (
                 <img
                   key={`lb-top-${lbTopIndex}-${lbTopKey}`}
@@ -769,17 +957,10 @@ const Room = () => {
             </div>
           </div>
 
-          {/* Controls: fixed and always above the image (very high z-index) */}
-          {/* Close X - fixed top-right of viewport */}
           <button
             onClick={closeLightbox}
             aria-label="Bezár"
-            style={{
-              position: "fixed",
-              top: 16,
-              right: 16,
-              zIndex: 99999,
-            }}
+            style={{ position: "fixed", top: 16, right: 16, zIndex: 99999 }}
             className="bg-white/95 text-black rounded-full p-3 shadow-lg hover:scale-105 transform transition"
           >
             <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -787,17 +968,10 @@ const Room = () => {
             </svg>
           </button>
 
-          {/* Prev - fixed left center */}
           <button
             onClick={() => lightboxChange((lbBottomIndex - 1 + images.length) % images.length)}
             aria-label="Előző"
-            style={{
-              position: "fixed",
-              left: 12,
-              top: "50%",
-              transform: "translateY(-50%)",
-              zIndex: 99998,
-            }}
+            style={{ position: "fixed", left: 12, top: "50%", transform: "translateY(-50%)", zIndex: 99998 }}
             className="bg-white/90 text-black rounded-full p-3 shadow-lg hover:scale-105 transform transition"
           >
             <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -805,17 +979,10 @@ const Room = () => {
             </svg>
           </button>
 
-          {/* Next - fixed right center */}
           <button
             onClick={() => lightboxChange((lbBottomIndex + 1) % images.length)}
             aria-label="Következő"
-            style={{
-              position: "fixed",
-              right: 12,
-              top: "50%",
-              transform: "translateY(-50%)",
-              zIndex: 99998,
-            }}
+            style={{ position: "fixed", right: 12, top: "50%", transform: "translateY(-50%)", zIndex: 99998 }}
             className="bg-white/90 text-black rounded-full p-3 shadow-lg hover:scale-105 transform transition"
           >
             <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -824,7 +991,7 @@ const Room = () => {
           </button>
         </>
       )}
-    </div>
+    </>
   );
 };
 

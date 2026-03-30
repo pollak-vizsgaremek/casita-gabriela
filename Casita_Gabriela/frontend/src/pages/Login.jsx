@@ -59,7 +59,7 @@ const Login = () => {
         <source src='/SceneResponsive.mp4' type='video/mp4' />
       </video>
 
-      <div className='flex flex-col w-dvw flex-grow relative z-10'>
+      <div className='flex flex-col w-dvw grow relative z-10'>
         <main className='flex items-center justify-center flex-1 m-0'>
           <div className='fade-in text-black bg-white shadow-md rounded-xl p-4 min-w-[320px] sm:min-w-[400px] w-1/3 h-fill min-h flex flex-col items-center mt-10 mb-10'>
             <p className='text-black mb-4'>Bejelentkezés</p>

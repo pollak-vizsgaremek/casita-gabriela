@@ -24,10 +24,36 @@ const Contact = () => {
   const handleChange = (e) =>
     setForm({ ...form, [e.target.name]: e.target.value });
 
-  const handleSubmit = (e) => {
-    e.preventDefault();
-    // később backend POST /contact
-  };
+  const handleSubmit = async (e) => {
+  e.preventDefault();
+
+  try {
+    const res = await fetch("http://localhost:6969/contact", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify(form),
+    });
+
+    const data = await res.json();
+
+    if (!res.ok) throw new Error(data.error);
+
+    alert("Üzenet elküldve!");
+    setForm({
+      name: "",
+      email: "",
+      phone: "",
+      subject: "",
+      message: "",
+    });
+
+  } catch (err) {
+    console.error(err);
+    alert("Hiba történt!");
+  }
+};
 
   return (
     <div className="flex flex-col min-h-screen w-dvw bg-white text-black spacer layer1">

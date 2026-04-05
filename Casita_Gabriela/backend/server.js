@@ -9,6 +9,7 @@ import dotenv from 'dotenv';
 import multer from 'multer';
 import path from 'path';
 import fs from 'fs';
+import nodemailer from "nodemailer";
 
 dotenv.config();
 
@@ -332,6 +333,209 @@ app.get('/room_reviews', async (req, res) => {
     console.error('GET /room_reviews error:', err);
     res.status(500).json({ error: 'Hiba az értékelések lekérésekor.' });
   }
+});
+
+
+//Contact
+app.post('/contact', async (req, res) => {
+  const { name, email, phone, subject, message } = req.body;
+
+  if (!name || !email || !phone || !subject || !message) {
+    return res.status(400).json({ error: "Minden mező kötelező!" });
+  }
+
+  try {
+    
+    await prisma.form.create({
+      data: {
+        name,
+        email,
+        phone_number: phone,
+        topic: subject,
+        description: message,
+      },
+    });
+
+    
+    const transporter = nodemailer.createTransport({
+      service: "gmail",
+      auth: {
+        user: process.env.EMAIL_USER,
+        pass: process.env.EMAIL_PASS,
+      },
+    });
+
+    
+    const mailOptions = {
+  from: `"Casa Gabriel" <${process.env.EMAIL_USER}>`,
+  to: "repedsarku06@gmail.com",
+  subject: `Új kapcsolatfelvétel: ${subject}`,
+  html: `
+  <div style="
+    font-family: Arial, sans-serif;
+    background-color: #f6f7fb;
+    padding: 30px;
+  ">
+    <div style="
+      max-width: 600px;
+      margin: auto;
+      background: white;
+      border-radius: 12px;
+      overflow: hidden;
+      box-shadow: 0 10px 25px rgba(0,0,0,0.08);
+    ">
+
+      <!-- HEADER -->
+      <div style="
+        background: linear-gradient(135deg, #ff4b2b, #ff416c);
+        color: white;
+        padding: 20px;
+        text-align: center;
+      ">
+        <h2 style="margin: 0;"> Új kapcsolatfelvétel</h2>
+        <p style="margin: 5px 0 0; font-size: 14px; opacity: 0.9;">
+          Casa Gabriel
+        </p>
+      </div>
+
+      <!-- BODY -->
+      <div style="padding: 25px; color: #333;">
+        
+        <div style="margin-bottom: 15px;">
+          <strong> Név:</strong><br/>
+          ${name}
+        </div>
+
+        <div style="margin-bottom: 15px;">
+          <strong> Email:</strong><br/>
+          ${email}
+        </div>
+
+        <div style="margin-bottom: 15px;">
+          <strong> Telefon:</strong><br/>
+          ${phone}
+        </div>
+
+        <div style="margin-bottom: 15px;">
+          <strong> Tárgy:</strong><br/>
+          ${subject}
+        </div>
+
+        <div style="
+          margin-top: 20px;
+          padding: 15px;
+          background: #f9f9f9;
+          border-left: 4px solid #ff416c;
+          border-radius: 6px;
+        ">
+          <strong> Üzenet:</strong><br/><br/>
+          ${message}
+        </div>
+
+      </div>
+
+      <!-- FOOTER -->
+      <div style="
+        text-align: center;
+        padding: 15px;
+        font-size: 12px;
+        color: #888;
+      ">
+        Casa Gabriel • Automatikus értesítés
+      </div>
+
+    </div>
+  </div>
+  `,
+};
+
+   
+    await transporter.sendMail(mailOptions);
+
+    await transporter.sendMail({
+  from: `"Casa Gabriel" <${process.env.EMAIL_USER}>`,
+  to: email,
+  subject: "Köszönjük az üzeneted! ",
+  html: `
+  <div style="
+    font-family: Arial, sans-serif;
+    background-color: #f6f7fb;
+    padding: 30px;
+  ">
+    <div style="
+      max-width: 600px;
+      margin: auto;
+      background: white;
+      border-radius: 12px;
+      overflow: hidden;
+      box-shadow: 0 10px 25px rgba(0,0,0,0.08);
+    ">
+
+      <!-- HEADER -->
+      <div style="
+        background: linear-gradient(135deg, #6fd98c, #3bb78f);
+        color: white;
+        padding: 20px;
+        text-align: center;
+      ">
+        <h2 style="margin: 0;"> Üzeneted megkaptuk</h2>
+        <p style="margin: 5px 0 0; font-size: 14px; opacity: 0.9;">
+          Casa Gabriel
+        </p>
+      </div>
+
+      <!-- BODY -->
+      <div style="padding: 25px; color: #333;">
+
+        <p>Kedves <strong>${name}</strong>!</p>
+
+        <p>Köszönjük, hogy felvetted velünk a kapcsolatot.</p>
+
+        <p>Üzenetedet megkaptuk, és hamarosan válaszolunk.</p>
+
+        <div style="
+          margin-top: 20px;
+          padding: 15px;
+          background: #f9f9f9;
+          border-left: 4px solid #3bb78f;
+          border-radius: 6px;
+        ">
+          <strong> Tárgy:</strong> ${subject}
+          <br/><br/>
+          <strong> Üzenet:</strong><br/>
+          ${message}
+        </div>
+
+        <p style="margin-top: 25px;">
+          Üdvözlettel,<br/>
+          <strong>Casa Gabriel</strong>
+        </p>
+
+      </div>
+
+      <!-- FOOTER -->
+      <div style="
+        text-align: center;
+        padding: 15px;
+        font-size: 12px;
+        color: #888;
+      ">
+        Ez egy automatikus visszaigazoló email, ne válaszoljon rá.
+      </div>
+
+    </div>
+  </div>
+  `,
+});
+
+    res.json({ message: "Üzenet sikeresen elküldve!" });
+
+  } catch (err) {
+    console.error("CONTACT ERROR:", err);
+    res.status(500).json({ error: "Hiba az üzenet küldésekor." });
+  }
+
+
 });
 
 /* ---------- Start server ---------- */

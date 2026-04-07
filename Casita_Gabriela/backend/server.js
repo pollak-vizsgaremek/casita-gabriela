@@ -368,7 +368,7 @@ app.post('/contact', async (req, res) => {
     
     const mailOptions = {
   from: `"Casa Gabriel" <${process.env.EMAIL_USER}>`,
-  to: "repedsarku06@gmail.com",
+  to: "casitagabriela.mailer@gmail.com",
   subject: `Új kapcsolatfelvétel: ${subject}`,
   html: `
   <div style="

@@ -13,7 +13,7 @@ model booking {
   arrival_date   DateTime @db.Date
   departure_date DateTime @db.Date
   people         Int
-  booking_date   DateTime @db.Date
+  booking_date   DateTime @db.DateTime(0)
   status         String   @db.VarChar(50)
   user_id        Int
   room_id        Int

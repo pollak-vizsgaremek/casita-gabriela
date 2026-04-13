@@ -3,7 +3,7 @@ import { useNavigate } from 'react-router'
 import OfferAdminEdit from '../components/OfferAdminEdit'
 import api from '../services/api'
 import Sidebar from '../components/Sidebar'
-import { useLocation } from 'react-router-dom'
+import { useLocation } from 'react-router'
 
 const Admin = () => {
   const navigate = useNavigate()

@@ -42,6 +42,7 @@ model room {
   category       String        @db.VarChar(20)
   space          Int
   images         String        @db.LongText
+  isHighlighted Boolean @default(false)
   booking        booking[]
   room_review    room_review[]
 }

@@ -161,31 +161,36 @@ app.get('/rooms', async (req, res) => {
 });
 
 app.post('/rooms', async (req, res) => {
-  const { name, description, price, category, space, images } = req.body;
   try {
-    if (!name || !description || !price || !category || !space) {
-      return res.status(400).json({ error: 'Minden mező kitöltése kötelező!' });
-    }
-    const imagesToSave = normalizeImagesForSave(images);
+    const {
+      name,
+      description,
+      price,
+      category,
+      space,
+      images,
+      isHighlighted
+    } = req.body;
+
     const room = await prisma.room.create({
       data: {
         name,
         description,
-        price: parseInt(price, 10),
+        price: Number(price),
         category,
-        space: parseInt(space, 10),
-        ac_availablity: 0,
-        images: imagesToSave ? JSON.stringify(imagesToSave) : null,
-      },
-      include: { booking: true, room_review: true },
+        space: Number(space),
+        images: images ? JSON.stringify(images) : null,
+        isHighlighted: Boolean(isHighlighted)   // ÚJ
+      }
     });
-    const formatted = { ...room, images: normalizeImagesFromDb(room.images) };
-    res.json({ message: 'Szoba sikeresen létrehozva!', room: formatted });
+
+    res.json({ room });
   } catch (err) {
     console.error('POST /rooms error:', err);
-    res.status(400).json({ error: `Szoba létrehozás sikertelen: ${err.message}` });
+    res.status(500).json({ error: 'Hiba történt a szoba létrehozásakor.' });
   }
 });
+
 
 app.get('/rooms/:id', async (req, res) => {
   const id = parseId(req.params.id);
@@ -202,30 +207,36 @@ app.get('/rooms/:id', async (req, res) => {
 });
 
 app.put('/rooms/:id', async (req, res) => {
-  const id = parseId(req.params.id);
-  if (!id) return res.status(400).json({ error: 'Érvénytelen id.' });
-  const { name, description, price, category, space, images } = req.body;
   try {
-    const existing = await prisma.room.findUnique({ where: { id } });
-    if (!existing) return res.status(404).json({ error: 'Szoba nem található.' });
-    const imagesToSave = normalizeImagesForSave(images);
+    const { id } = req.params;
+
+    const {
+      name,
+      description,
+      price,
+      category,
+      space,
+      images,
+      isHighlighted
+    } = req.body;
+
     const updated = await prisma.room.update({
-      where: { id },
+      where: { id: Number(id) },
       data: {
-        name: name ?? existing.name,
-        description: description ?? existing.description,
-        price: price !== undefined ? parseInt(price, 10) : existing.price,
-        category: category ?? existing.category,
-        space: space !== undefined ? parseInt(space, 10) : existing.space,
-        images: imagesToSave ? JSON.stringify(imagesToSave) : existing.images,
-      },
-      include: { booking: true, room_review: true },
+        name,
+        description,
+        price: Number(price),
+        category,
+        space: Number(space),
+        images: images ? JSON.stringify(images) : null,
+        isHighlighted: Boolean(isHighlighted)   // ÚJ
+      }
     });
-    const formatted = { ...updated, images: normalizeImagesFromDb(updated.images) };
-    res.json({ message: 'Szoba sikeresen frissítve!', room: formatted });
+
+    res.json(updated);
   } catch (err) {
     console.error('PUT /rooms/:id error:', err);
-    res.status(400).json({ error: `Szoba frissítés sikertelen: ${err.message}` });
+    res.status(500).json({ error: 'Hiba történt a szoba frissítésekor.' });
   }
 });
 

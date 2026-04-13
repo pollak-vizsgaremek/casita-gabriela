@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react'
 import OfferAdmin from '../components/OfferAdmin'
 import Footer from '../components/Footer'
@@ -9,7 +8,6 @@ import { useNavigate } from "react-router"
 const Home = () => {
   const [rooms, setRooms] = useState([])
   const [loading, setLoading] = useState(true)
-
 
   const [category, setCategory] = useState('')
   const [arrival, setArrival] = useState('')
@@ -25,6 +23,11 @@ const Home = () => {
         staggerChildren: 0.15
       }
     }
+  }
+
+  const cardVariants = {
+    hidden: { opacity: 0, y: 20 },
+    visible: { opacity: 1, y: 0 }
   }
 
   useEffect(() => {
@@ -43,97 +46,116 @@ const Home = () => {
     }
   }
 
-
   const handleSearch = (e) => {
     e.preventDefault()
 
     const params = new URLSearchParams()
 
-  if (category) params.append("category", category)
-  if (arrival) params.append("arrival", arrival)
-  if (departure) params.append("departure", departure)
-  if (people) params.append("people", people)
+    if (category) params.append("category", category)
+    if (arrival) params.append("arrival", arrival)
+    if (departure) params.append("departure", departure)
+    if (people) params.append("people", people)
 
     navigate(`/search?${params.toString()}`)
   }
 
   return (
-    <div className='flex flex-col items-center justify-center m-0 h-fill w-dvw spacer layerAdmin'>
+    <div className='flex flex-col items-center w-full min-h-screen 
+      bg-gradient-to-br from-gray-50 via-white to-gray-100 relative overflow-hidden'>
 
-      <div className='w-dvw h-[200px] bg-[#FFFECE]/80 flex flex-col items-center justify-center shadow-md/20 bg-search bg-blend-multiply'>
-        <h1 className='text-white text-4xl text-center p-4'>
-          Találd meg a számodra megfelelő szobát!
-        </h1>
-
-        <form onSubmit={handleSearch} className='bg-gray-400/80 rounded-md shadow-md mb-4'>
-
-          <input
-            type="text"
-            placeholder='Szoba típusa...'
-            value={category}
-            onChange={(e) => setCategory(e.target.value)}
-            className='bg-gray-200 text-gray-900 p-2 m-1 rounded-md'
-          />
-
-          <input
-            type="date"
-            value={arrival}
-            onChange={(e) => setArrival(e.target.value)}
-            className='bg-gray-200 text-gray-900 p-2 m-1 rounded-md'
-          />
-
-          <input
-            type="date"
-            value={departure}
-            onChange={(e) => setDeparture(e.target.value)}
-            className='bg-gray-200 text-gray-900 p-2 m-1 rounded-md'
-          />
-
-          <input
-            type="number"
-            placeholder='Létszám...'
-            value={people}
-            onChange={(e) => setPeople(e.target.value)}
-            className='bg-gray-200 text-gray-900 p-2 m-1 rounded-md'
-          />
-
-          <button className='bg-red-400 text-white p-2 m-1 rounded-md'>
-            Keresés
-          </button>
-        </form>
-
+      <div className='w-full h-[280px] relative flex items-center justify-center bg-search bg-cover bg-center'>
         
-      </div>
+        <div className='absolute inset-0 bg-black/40'></div>
 
-      <div className='w-full h-[180px] flex items-end'> 
-        <div className='w-dvw flex items-center justify-center gap-4 px-6'> 
-          <hr className='flex-1 border-t-2 border-[#4f4f4f]/70' /> 
-          <h1 className='text-shadow-lg/10 font-mono text-[#4f4f4f] text-4xl text-center whitespace-nowrap'>KIEMELT AJÁNLATOK</h1> 
-          <hr className='flex-1 border-t-2 border-[#4f4f4f]/70' /> 
-        </div> 
-      </div>
+        <div className='relative z-10 text-center text-white px-4'>
+          <h1 className='text-4xl md:text-5xl font-bold mb-3'>
+            Találd meg a tökéletes szobát
+          </h1>
 
-   
-      <motion.div
-        variants={containerVariants}
-        initial="hidden"
-        animate={loading ? "hidden" : "visible"}
-        className='flex flex-wrap justify-center gap-8 p-4'
-      >
-        {loading ? (
-          <p>Szobák betöltése...</p>
-        ) : (
-          rooms.map(room => (
-            <OfferAdmin
-              key={room.id}
-              id={room.id}
-              name={room.name}
-              price={room.price}
-              image={Array.isArray(room.images) ? room.images[0] : ''}
+          <p className='text-sm md:text-lg opacity-90 mb-5'>
+            Gyors, egyszerű és modern foglalás
+          </p>
+
+          <form 
+            onSubmit={handleSearch}
+            className='bg-white/80 backdrop-blur-md text-gray-800 rounded-xl shadow-xl p-4 grid grid-cols-2 md:grid-cols-5 gap-3 max-w-4xl mx-auto'
+          >
+            <input
+              type="text"
+              placeholder='Szoba típusa'
+              value={category}
+              onChange={(e) => setCategory(e.target.value)}
+              className='p-2 rounded-md border focus:outline-none focus:ring-2 focus:ring-red-400'
             />
-          ))
-        )}
-      </motion.div>
+
+            <input
+              type="date"
+              value={arrival}
+              onChange={(e) => setArrival(e.target.value)}
+              className='p-2 rounded-md border focus:outline-none focus:ring-2 focus:ring-red-400'
+            />
+
+            <input
+              type="date"
+              value={departure}
+              onChange={(e) => setDeparture(e.target.value)}
+              className='p-2 rounded-md border focus:outline-none focus:ring-2 focus:ring-red-400'
+            />
+
+            <input
+              type="number"
+              placeholder='Létszám'
+              value={people}
+              onChange={(e) => setPeople(e.target.value)}
+              className='p-2 rounded-md border focus:outline-none focus:ring-2 focus:ring-red-400'
+            />
+
+            <button className='bg-red-500 hover:bg-red-600 text-white rounded-md px-4 py-2 transition font-semibold'>
+              Keresés
+            </button>
+          </form>
+        </div>
+      </div>
+
+
+      <div className='w-full max-w-6xl px-6 mt-12 mb-6'>
+        <h2 className='text-3xl font-semibold text-gray-800'>
+          Kiemelt ajánlatok
+        </h2>
+        <div className='w-20 h-1 bg-red-500 mt-2 rounded'></div>
+      </div>
+
+
+      
+        
+        <motion.div
+          variants={containerVariants}
+          initial="hidden"
+          animate={loading ? "hidden" : "visible"}
+          className='flex flex-wrap justify-center gap-8'
+        >
+          {loading ? (
+            <p className='text-gray-600'>Szobák betöltése...</p>
+          ) : (
+            rooms.map(room => (
+              <motion.div
+                key={room.id}
+                variants={cardVariants}
+                whileHover={{ scale: 1.05 }}
+                className='transition-shadow hover:shadow-2xl rounded-xl'
+              >
+                <OfferAdmin
+                  id={room.id}
+                  name={room.name}
+                  price={room.price}
+                  image={Array.isArray(room.images) ? room.images[0] : ''}
+                />
+              </motion.div>
+            ))
+          )}
+        </motion.div>
+
+      
 
       <Footer />
     </div>

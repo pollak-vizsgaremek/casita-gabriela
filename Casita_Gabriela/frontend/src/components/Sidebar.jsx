@@ -1,5 +1,5 @@
 import React from 'react'
-import { NavLink } from 'react-router'
+import { NavLink } from 'react-router-dom'
 
 const Sidebar = ({ isOpen, onClose }) => {
   const items = [
@@ -27,22 +27,48 @@ const Sidebar = ({ isOpen, onClose }) => {
 
   return (
     <aside
-      className={`bg-white text-black shadow-md z-40 transform transition-transform duration-200
-        ${isOpen ? 'translate-x-0' : '-translate-x-full'} md:translate-x-0 md:static md:shadow-none w-64 fixed md:relative inset-y-0 left-0`}
+      className={`
+        bg-white text-black shadow-md z-40 transform transition-transform duration-200
+        ${isOpen ? 'translate-x-0' : '-translate-x-full'}
+        md:translate-x-0 md:static md:shadow-none
+        w-64 fixed md:relative
+      `}
+      style={{
+        top: '10dvh',                 // NAVBAR ALATTI KEZDÉS
+        height: 'calc(100dvh - 10dvh)' // TELJES MAGASSÁG NAVBAR NÉLKÜL
+      }}
       onClick={(e) => e.stopPropagation()}
     >
       <div className="h-full flex flex-col">
-        <div className="px-4 py-4 border-b">
-          <div className="text-lg font-semibold">Admin</div>
-          <div className="text-xs text-gray-500 mt-1">Vezérlőpult</div>
+
+        {/* HEADER + X ICON */}
+        <div className="px-4 py-4 border-b flex items-center justify-between bg-white">
+          <div>
+            <div className="text-lg font-semibold">Admin</div>
+            <div className="text-xs text-gray-500 mt-1">Vezérlőpult</div>
+          </div>
+
+          <button
+            onClick={onClose}
+            className="md:hidden p-2 rounded hover:bg-gray-100 transition"
+            aria-label="Sidebar bezárása"
+          >
+            <svg xmlns="http://www.w3.org/2000/svg"
+              className="h-6 w-6 text-gray-700"
+              fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2"
+                d="M6 18L18 6M6 6l12 12" />
+            </svg>
+          </button>
         </div>
 
+        {/* NAVIGATION */}
         <nav className="flex-1 overflow-auto p-2">
           {items.map((it) => (
             <NavLink
               key={it.to}
               to={it.to}
-              end={it.to === '/admin'} // ensure /admin is active only on exact
+              end={it.to === '/admin'}
               className={({ isActive }) =>
                 `flex items-center gap-3 px-3 py-2 rounded-md mb-1 transition-colors
                  ${isActive ? 'bg-[#E6F9E9] text-green-800 font-medium' : 'text-gray-700 hover:bg-gray-100'}`
@@ -55,9 +81,6 @@ const Sidebar = ({ isOpen, onClose }) => {
           ))}
         </nav>
 
-        <div className="p-3 border-t text-xs text-gray-500">
-          <div>Beállítások és statisztikák</div>
-        </div>
       </div>
     </aside>
   )

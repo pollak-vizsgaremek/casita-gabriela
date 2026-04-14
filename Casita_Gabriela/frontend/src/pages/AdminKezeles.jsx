@@ -1,7 +1,7 @@
 // src/pages/AdminKezeles.jsx
 
 import React, { useState, useEffect, useRef } from 'react';
-import { useParams, useNavigate } from 'react-router';
+import { useParams, useNavigate } from 'react-router-dom';
 import api from '../services/api';
 
 const AdminKezeles = () => {
@@ -14,6 +14,7 @@ const AdminKezeles = () => {
     type: '',
     capacity: '',
     price: '',
+    isHighlighted: false, // ÚJ
   });
 
   const [categories, setCategories] = useState([]);
@@ -50,7 +51,6 @@ const AdminKezeles = () => {
 
   useEffect(() => {
     loadCategories();
-
     if (id) {
       fetchRoom();
     } else {
@@ -75,6 +75,7 @@ const AdminKezeles = () => {
     };
 
     const onDragOver = (e) => e.preventDefault();
+
     const onDrop = (e) => {
       e.preventDefault();
       dragCounter.current = 0;
@@ -114,7 +115,6 @@ const AdminKezeles = () => {
       setMessage('');
       const response = await api.get(`/rooms/${id}`);
       const room = response.data;
-
       const parsedImages = parseImagesFromServer(room.images);
 
       setFormData({
@@ -123,6 +123,7 @@ const AdminKezeles = () => {
         type: room.category || '',
         capacity: room.space || '',
         price: room.price || '',
+        isHighlighted: room.isHighlighted ?? false, // ÚJ: betöltés
       });
 
       if (parsedImages.length > 0) {
@@ -177,8 +178,11 @@ const AdminKezeles = () => {
   };
 
   const handleInputChange = (e) => {
-    const { name, value } = e.target;
-    setFormData((prev) => ({ ...prev, [name]: value }));
+    const { name, type, checked, value } = e.target;
+    setFormData((prev) => ({
+      ...prev,
+      [name]: type === 'checkbox' ? checked : value,
+    }));
   };
 
   const handleMainDrop = (e) => {
@@ -225,7 +229,6 @@ const AdminKezeles = () => {
       reader.readAsDataURL(file);
       return obj;
     });
-
     setExtraImages((prev) => [...prev, ...newExtras]);
   };
 
@@ -271,12 +274,13 @@ const AdminKezeles = () => {
 
   const collectImagesForSave = async () => {
     const imagesToSave = [];
-
     if (mainImageFile) {
       const paths = await uploadFilesToServer([mainImageFile]);
       if (paths.length) imagesToSave.push(paths[0]);
     } else if (mainImagePreview) {
-      imagesToSave.push(mainImagePreview.startsWith(window.location.origin) ? mainImagePreview.replace(window.location.origin, '') : mainImagePreview);
+      imagesToSave.push(
+        mainImagePreview.startsWith(window.location.origin) ? mainImagePreview.replace(window.location.origin, '') : mainImagePreview
+      );
     }
 
     for (const ex of extraImages) {
@@ -311,6 +315,7 @@ const AdminKezeles = () => {
         category: formData.type,
         space: parseInt(formData.capacity, 10),
         images: imagesPaths.length ? imagesPaths : null,
+        isHighlighted: formData.isHighlighted, // ÚJ: küldjük a backendnek
       };
 
       if (isEditing && id) {
@@ -323,6 +328,7 @@ const AdminKezeles = () => {
           type: fresh.data.category || '',
           capacity: fresh.data.space || '',
           price: fresh.data.price || '',
+          isHighlighted: fresh.data.isHighlighted ?? false, // frissítés után is beállítjuk
         });
         setMainImagePreview(parsed[0] || null);
         setExtraImages(parsed.slice(1).map((p, idx) => ({ id: `db-${idx}`, file: null, preview: p })));
@@ -342,6 +348,7 @@ const AdminKezeles = () => {
                 type: fresh.data.category || '',
                 capacity: fresh.data.space || '',
                 price: fresh.data.price || '',
+                isHighlighted: fresh.data.isHighlighted ?? false,
               });
               setMainImagePreview(parsed[0] || null);
               setExtraImages(parsed.slice(1).map((p, idx) => ({ id: `db-${idx}`, file: null, preview: p })));
@@ -352,7 +359,7 @@ const AdminKezeles = () => {
             }
           }, 300);
         } else {
-          setFormData({ title: '', description: '', type: '', capacity: '', price: '' });
+          setFormData({ title: '', description: '', type: '', capacity: '', price: '', isHighlighted: false });
           setMainImageFile(null);
           setMainImagePreview(null);
           setExtraImages([]);
@@ -382,7 +389,7 @@ const AdminKezeles = () => {
     try {
       await api.delete(`/rooms/${id}`);
       setMessage('Sikeresen törölted a szobát!');
-      setFormData({ title: '', description: '', type: '', capacity: '', price: '' });
+      setFormData({ title: '', description: '', type: '', capacity: '', price: '', isHighlighted: false });
       setMainImageFile(null);
       setMainImagePreview(null);
       setExtraImages([]);
@@ -431,8 +438,6 @@ const AdminKezeles = () => {
           height: 52px;
           transition: transform 160ms ease, box-shadow 160ms ease, background-color 160ms ease;
         }
-
-        /* Hover / focus effect: stronger intensity (not large blur), slight lift */
         .floating-btn:hover,
         .floating-btn:focus {
           transform: translateY(-4px) scale(1.02);
@@ -440,59 +445,20 @@ const AdminKezeles = () => {
           background: #ffffff;
           outline: none;
         }
-
-        /* Keyboard focus visible ring for accessibility */
         .floating-btn:focus-visible {
           box-shadow: 0 10px 18px rgba(2,6,23,0.28), 0 0 0 4px rgba(59,130,246,0.12);
         }
-
         @media (max-width: 420px) {
           .floating-btn { width: 46px; height: 46px; }
         }
-
-        /* Description textarea sizing */
         .desc-area { height: 18rem; min-height: 10rem; max-height: 28rem; }
-        @media (max-width: 767px) {
-          .desc-area { height: 12rem; }
-        }
-
-        /* Main image: keep aspect, avoid vertical stretching */
-        .main-image {
-          width: 100%;
-          height: auto;
-          max-height: 20rem;
-          object-fit: cover;
-          display: block;
-          border-radius: 0.5rem;
-        }
-        @media (max-width: 420px) {
-          .main-image { max-height: 24rem; }
-        }
-
-        .thumb-image {
-          width: 100%;
-          height: 100%;
-          object-fit: cover;
-          display: block;
-        }
-
-        /* Mobile: widen yellow cards visually so inner controls fit */
+        @media (max-width: 767px) { .desc-area { height: 12rem; } }
+        .main-image { width: 100%; height: auto; max-height: 20rem; object-fit: cover; display: block; border-radius: 0.5rem; }
+        @media (max-width: 420px) { .main-image { max-height: 24rem; } }
+        .thumb-image { width: 100%; height: 100%; object-fit: cover; display: block; }
         @media (max-width: 640px) {
-          .yellow-card {
-            width: calc(100% + 2rem);
-            margin-left: -1rem;
-            margin-right: -1rem;
-            padding-left: 1.25rem;
-            padding-right: 1.25rem;
-            border-radius: 0.5rem;
-          }
-          .inner-white {
-            width: calc(100% + 1.5rem);
-            margin-left: -0.75rem;
-            margin-right: -0.75rem;
-            padding-left: 0.75rem;
-            padding-right: 0.75rem;
-          }
+          .yellow-card { width: calc(100% + 2rem); margin-left: -1rem; margin-right: -1rem; padding-left: 1.25rem; padding-right: 1.25rem; border-radius: 0.5rem; }
+          .inner-white { width: calc(100% + 1.5rem); margin-left: -0.75rem; margin-right: -0.75rem; padding-left: 0.75rem; padding-right: 0.75rem; }
         }
       `}</style>
 
@@ -609,6 +575,21 @@ const AdminKezeles = () => {
                       style={{ color: '#111827' }}
                     />
                   </div>
+                </div>
+
+                {/* Kiemelt checkbox */}
+                <div className="flex items-center gap-2 mt-4">
+                  <input
+                    type="checkbox"
+                    name="isHighlighted"
+                    checked={formData.isHighlighted}
+                    onChange={handleInputChange}
+                    className="w-4 h-4 text-blue-600 border-gray-300 rounded"
+                    id="isHighlightedCheckbox"
+                  />
+                  <label htmlFor="isHighlightedCheckbox" className="text-sm font-semibold text-gray-700">
+                    Kiemelt szoba
+                  </label>
                 </div>
 
                 <div className="flex flex-col gap-2">

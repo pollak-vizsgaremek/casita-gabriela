@@ -48,13 +48,13 @@ const BookingRow = ({ b, onApprove, onReject, onChangeStatus }) => {
           <>
             <button
               onClick={() => onApprove(b)}
-              className="px-3 py-1 bg-green-600 text-white rounded text-sm hover:bg-green-700"
+              className="px-3 py-1 bg-green-600 text-white rounded text-sm hover:cursor-pointer hover:bg-green-700"
             >
               Jóváhagy
             </button>
             <button
               onClick={() => onReject(b)}
-              className="px-3 py-1 bg-red-600 text-white rounded text-sm hover:bg-red-700"
+              className="px-3 py-1 bg-red-600 text-white rounded text-sm hover:cursor-pointer hover:bg-red-700"
             >
               Elutasít
             </button>
@@ -86,7 +86,7 @@ const BookingRow = ({ b, onApprove, onReject, onChangeStatus }) => {
   );
 };
 
-const CollapsibleGroup = ({ title, count, openByDefault = false, children }) => {
+const CollapsibleGroup = ({ title, count, openByDefault = false, children, titleClass = '' }) => {
   const [open, setOpen] = useState(openByDefault);
   return (
     <div className="mb-4">
@@ -95,7 +95,7 @@ const CollapsibleGroup = ({ title, count, openByDefault = false, children }) => 
         className="w-full flex items-center justify-between bg-gray-100 px-4 py-2 rounded-md"
         aria-expanded={open}
       >
-        <div className="text-sm font-semibold">{title} <span className="text-gray-500 ml-2">({count})</span></div>
+        <div className={`text-sm font-semibold ${titleClass}`}>{title} <span className="text-gray-500 ml-2">({count})</span></div>
         <div className="text-gray-600">{open ? '▲' : '▼'}</div>
       </button>
       {open && <div className="mt-3 space-y-3">{children}</div>}
@@ -203,17 +203,17 @@ const Foglalasok = () => {
 
         <main className="px-5 pt-5">
           <div className="flex items-center justify-between mb-6">
-            <h2 className="text-2xl font-semibold">Foglalások</h2>
+            <h2 className="text-2xl font-semibold text-gray-500">Foglalások</h2>
             <div className="flex items-center gap-2">
               <button
                 onClick={fetchBookings}
-                className="px-3 py-2 bg-blue-500 text-white rounded hover:bg-blue-600"
+                className="px-3 py-2 bg-blue-500 text-white rounded hover:cursor-pointer hover:bg-blue-600"
               >
                 Frissít
               </button>
               <button
                 onClick={() => navigate('/admin')}
-                className="px-3 py-2 bg-gray-100 rounded hover:bg-gray-200"
+                className="px-3 py-2 bg-gray-100 text-gray-500 hover:cursor-pointer rounded hover:bg-gray-200"
               >
                 Vissza a szobákhoz
               </button>
@@ -226,7 +226,7 @@ const Foglalasok = () => {
             <div className="space-y-6">
               {/* Pending first */}
               <div>
-                <h3 className="text-lg font-semibold mb-3">Jóváhagyásra váró</h3>
+                <h3 className="text-lg font-semibold mb-3 text-gray-500">Jóváhagyásra váró</h3>
                 {pending.length === 0 ? (
                   <div className="text-gray-500">Nincs jóváhagyásra váró foglalás.</div>
                 ) : (
@@ -246,7 +246,7 @@ const Foglalasok = () => {
               </div>
 
               {/* Approved (collapsible) */}
-              <CollapsibleGroup title="Jóváhagyottak" count={approved.length} openByDefault={false}>
+              <CollapsibleGroup title="Jóváhagyottak"  count={approved.length} openByDefault={false} titleClass='text-gray-700'>
                 {approved.length === 0 ? (
                   <div className="text-gray-500">Nincs jóváhagyott foglalás.</div>
                 ) : (
@@ -264,7 +264,7 @@ const Foglalasok = () => {
               </CollapsibleGroup>
 
               {/* Rejected (collapsible) */}
-              <CollapsibleGroup title="Elutasítottak" count={rejected.length} openByDefault={false}>
+              <CollapsibleGroup title="Elutasítottak" count={rejected.length} openByDefault={false} titleClass='text-gray-700'>
                 {rejected.length === 0 ? (
                   <div className="text-gray-500">Nincs elutasított foglalás.</div>
                 ) : (

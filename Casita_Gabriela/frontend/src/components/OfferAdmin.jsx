@@ -1,7 +1,7 @@
 import React from 'react'
 import { useNavigate } from 'react-router'
 
-const OfferAdmin = ({ id, name, price, image }) => {
+const OfferAdmin = ({ id, name, price, image, reviews = [] }) => {
   const navigate = useNavigate()
 
   const handleClick = () => {
@@ -23,7 +23,7 @@ const OfferAdmin = ({ id, name, price, image }) => {
         <div className='absolute inset-0 bg-gradient-to-t from-black/60 via-black/10 to-transparent'></div>
 
         <div className='absolute bottom-2 right-2 bg-white/90 backdrop-blur-md text-red-500 text-sm font-semibold px-3 py-1 rounded-lg shadow'>
-          {price} Ft / éj
+          {typeof price === 'number' ? new Intl.NumberFormat('hu-HU').format(price) : price} Ft/fő/éj
         </div>
       </div>
 
@@ -32,9 +32,21 @@ const OfferAdmin = ({ id, name, price, image }) => {
           {name}
         </h3>
 
-        <p className='text-xs text-gray-500'>
-          ÁFÁ-t tartalmazza
-        </p>
+        {reviews && reviews.length ? (
+          <div className="flex items-center gap-2">
+            <div className="text-yellow-500 text-sm">
+              {(() => {
+                const avgRounded = Math.round(reviews.reduce((s, r) => s + (r.stars || 0), 0) / reviews.length)
+                return "★".repeat(avgRounded) + "☆".repeat(5 - avgRounded)
+              })()}
+            </div>
+            <div className="text-xs text-gray-600">{(Math.round((reviews.reduce((s, r) => s + (r.stars || 0), 0) / reviews.length) * 10) / 10)}/5</div>
+          </div>
+        ) : (
+          <div className="text-xs text-gray-500">Nincsenek vélemények</div>
+        )}
+
+        <p className='text-xs text-gray-500'>ÁFÁ-t tartalmazza</p>
       </div>
     </div>
   )

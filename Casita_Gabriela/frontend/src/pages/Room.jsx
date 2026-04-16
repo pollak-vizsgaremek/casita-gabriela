@@ -190,10 +190,16 @@ const Room = () => {
   const [visibleMonth, setVisibleMonth] = useState(() => new Date());
   const isLoggedIn = !!localStorage.getItem("token");
   const currentUserId = localStorage.getItem("user_id") ? Number(localStorage.getItem("user_id")) : null;
+  const currentUser = localStorage.getItem("user") ? JSON.parse(localStorage.getItem("user")) : null;
+  const isFirstTimeUser = currentUser?.isFirstTimeUser === true;
   const animTimeoutRef = useRef(null);
   const mountedRef = useRef(false);
   const [pageLoaded, setPageLoaded] = useState(false);
   const [toasts, setToasts] = useState([]);
+  const [showReviewForm, setShowReviewForm] = useState(false);
+  const [reviewStars, setReviewStars] = useState(0);
+  const [reviewComment, setReviewComment] = useState("");
+  const [reviewSubmitting, setReviewSubmitting] = useState(false);
   const genErrorCode = (prefix) => `${prefix}_${Date.now().toString(36).slice(-6)}`;
 
   useEffect(() => {
@@ -466,6 +472,11 @@ const Room = () => {
     return nights * guests * room.price;
   }, [nights, guests, room]);
 
+  const discountedPrice = useMemo(() => {
+    if (!totalPrice) return 0;
+    return isFirstTimeUser ? Math.round(totalPrice * 0.85) : totalPrice;
+  }, [totalPrice, isFirstTimeUser]);
+
   const formatPrice = (value) => value.toLocaleString("hu-HU", { maximumFractionDigits: 0 });
 
   const today = useMemo(() => {
@@ -541,8 +552,8 @@ const Room = () => {
     if (rangeStatus.pending) {
       const ERR = genErrorCode("ERR_BOOKING_PENDING");
       console.warn(ERR, "Attempt to book range with pending overlap", { checkIn, checkOut });
-      pushToast("Függőben lévő foglalás", `A kiválasztott időszakra már van függő foglalás. (Kód: ${ERR})`);
-      return;
+      pushToast("Függőben lévő foglalás", `A kiválasztott időszakra már van egy függő foglalás — folytathatod a foglalást, de ez csak egy figyelmeztetés. (Kód: ${ERR})`);
+     
     }
     if (!acceptedAszf || !acceptedAdat) {
       pushToast("Elfogadás szükséges", "Kérlek fogadd el az ÁSZF-et és az Adatkezelési Tájékoztatót.");
@@ -563,7 +574,7 @@ const Room = () => {
       const ERR_POST = genErrorCode("ERR_BOOKING_POST");
       try {
         const url = `${BACKEND_BASE}${ep}`;
-        const res = await axios.post(url, payload, { headers: { "Content-Type": "application/json" } });
+            const res = await axios.post(url, payload, { headers: { "Content-Type": "application/json" } });
         setSuccessMessage("Foglalás sikeresen leadva!");
         setTimeout(() => setSuccessMessage(""), 4000);
         fetchBookings();
@@ -571,6 +582,17 @@ const Room = () => {
         setGuests(1);
         setAcceptedAszf(false);
         setAcceptedAdat(false);
+            // If booking applied first-time discount, update local cached user
+            try {
+              const respPrice = res?.data?.price;
+              if (respPrice && respPrice.discountApplied && currentUser) {
+                const updated = { ...currentUser, isFirstTimeUser: false };
+                localStorage.setItem('user', JSON.stringify(updated));
+                window.dispatchEvent(new CustomEvent('authChanged', { detail: { user: updated, token: localStorage.getItem('token') } }));
+              }
+            } catch (e) {
+              console.debug('Updating local first-time flag failed', e);
+            }
         return;
       } catch (err) {
         lastError = { err, endpoint: ep, code: ERR_POST };
@@ -698,6 +720,23 @@ const Room = () => {
           <div className="grid grid-cols-1 lg:grid-cols-3 gap-10">
             <div className="lg:col-span-2 flex flex-col gap-6">
               <h1 className={`text-3xl font-mono tracking-wide text-black transform transition-all duration-500 ${pageLoaded ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-2'}`}>{room.name}</h1>
+              <div className="flex items-center gap-3 mt-2">
+                {room.reviews && room.reviews.length ? (
+                  <>
+                    <div className="text-yellow-500">
+                      {(() => {
+                        const reviews = room.reviews || [];
+                        const avgRounded = Math.round(reviews.reduce((s, r) => s + (r.stars || 0), 0) / reviews.length);
+                        return "★".repeat(avgRounded) + "☆".repeat(5 - avgRounded)
+                      })()}
+                    </div>
+                    <div className="text-sm text-gray-700 font-medium">{(Math.round((room.reviews.reduce((s, r) => s + (r.stars || 0), 0) / room.reviews.length) * 10) / 10)}/5</div>
+                    <div className="text-sm text-gray-600">({room.reviews.length} vélemény)</div>
+                  </>
+                ) : (
+                  <div className="text-sm text-gray-500">Nincsenek vélemények</div>
+                )}
+              </div>
               <div className={`w-full bg-[#FFFECE] rounded-xl overflow-hidden shadow-md/20 relative transform transition-all duration-600 ${pageLoaded ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-3'}`}>
                 <div
                   ref={imageContainerRef}
@@ -811,9 +850,92 @@ const Room = () => {
                   </div>
                 ))}
                 <div className="pt-2">
-                  <button type="button" className="bg-[#6FD98C] text-white px-4 py-2 rounded hover:bg-[#5FCB80] transition-all duration-200 text-sm">
-                    Vélemény írása
-                  </button>
+                  {!showReviewForm ? (
+                    <button
+                      type="button"
+                      onClick={() => {
+                        if (!isLoggedIn) {
+                          pushToast('Bejelentkezés szükséges', 'A vélemény írásáshoz be kell jelentkezned.');
+                          return;
+                        }
+                        setReviewStars(0);
+                        setReviewComment("");
+                        setShowReviewForm(true);
+                      }}
+                      className="bg-[#6FD98C] text-white px-4 py-2 rounded hover:bg-[#5FCB80] transition-all duration-200 text-sm"
+                    >
+                      Vélemény írása
+                    </button>
+                  ) : (
+                    <div className="flex flex-col gap-2">
+                      <div className="flex items-center gap-2">
+                        {[1,2,3,4,5].map((s) => {
+                          const filled = reviewStars >= s;
+                          return (
+                            <button
+                              key={s}
+                              type="button"
+                              onClick={() => setReviewStars(s)}
+                              aria-label={`${s} csillag`}
+                              className={`text-3xl leading-none ${filled ? 'text-yellow-400' : 'text-gray-300'} focus:outline-none`}
+                            >
+                              {filled ? '★' : '☆'}
+                            </button>
+                          );
+                        })}
+                      </div>
+                      <textarea
+                        value={reviewComment}
+                        onChange={(e) => setReviewComment(e.target.value)}
+                        className="w-full p-2 rounded border"
+                        rows={3}
+                        maxLength={200}
+                        placeholder="Írd ide a véleményed (max 200 karakter)"
+                      />
+                      <div className="flex gap-2">
+                        <button
+                          type="button"
+                          disabled={reviewSubmitting}
+                          onClick={async () => {
+                            if (!reviewComment.trim()) {
+                              pushToast('Hiba', 'A vélemény szövege nem lehet üres.');
+                              return;
+                            }
+                            try {
+                              setReviewSubmitting(true);
+                              await axios.post(`${BACKEND_BASE}/room_reviews`, {
+                                room_id: room.id,
+                                stars: reviewStars,
+                                comment: reviewComment,
+                              }, {
+                                headers: { Authorization: `Bearer ${localStorage.getItem('token')}` }
+                              });
+                              setReviewComment('');
+                              setReviewStars(5);
+                              setShowReviewForm(false);
+                              pushToast('Köszönjük', 'Véleményed rögzítve lett.');
+                              await fetchRoom();
+                            } catch (err) {
+                              console.error('POST review error', err);
+                              pushToast('Hiba', 'Nem sikerült rögzíteni a véleményt.');
+                            } finally {
+                              setReviewSubmitting(false);
+                            }
+                          }}
+                          className="bg-blue-600 text-white px-3 py-1 rounded disabled:opacity-60"
+                        >
+                          Küldés
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => setShowReviewForm(false)}
+                          className="bg-gray-200 text-black px-3 py-1 rounded"
+                        >
+                          Mégse
+                        </button>
+                      </div>
+                    </div>
+                  )}
                 </div>
               </div>
             </div>
@@ -900,7 +1022,17 @@ const Room = () => {
                   </div>
                   <div className="flex-1 text-right">
                     <div className="text-sm">Éjszakák: <strong>{nights}</strong></div>
-                    <div className="text-lg font-semibold">{formatPrice(totalPrice)} Ft</div>
+                    <div className="text-lg font-semibold">
+                      {isFirstTimeUser && totalPrice > 0 ? (
+                        <div className="flex flex-col items-end">
+                          <div className="text-sm text-gray-500 line-through">{formatPrice(totalPrice)} Ft</div>
+                          <div className="text-lg font-semibold text-red-600">{formatPrice(discountedPrice)} Ft</div>
+                          <div className="text-xs text-green-700">15% kedvezmény első foglalásod alkalmával</div>
+                        </div>
+                      ) : (
+                        <div>{formatPrice(totalPrice)} Ft</div>
+                      )}
+                    </div>
                   </div>
                 </div>
 

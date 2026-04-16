@@ -557,15 +557,22 @@ const AdminKezeles = () => {
 
                   <div>
                     <label className="block text-xs font-semibold text-gray-700 mb-2">Férőhely</label>
-                    <input
-                      type="number"
-                      name="capacity"
-                      value={formData.capacity}
-                      onChange={handleInputChange}
-                      className="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 text-gray-900 bg-white placeholder-gray-400"
-                      placeholder="Pl. 2"
-                      style={{ color: '#111827' }}
-                    />
+                      <input
+                        type="number"
+                        name="capacity"
+                        min={1}
+                        value={formData.capacity}
+                        onChange={(e) => {
+                          const v = e.target.value === '' ? '' : Math.max(1, Number(e.target.value || 0));
+                          handleInputChange({ target: { name: 'capacity', type: 'number', value: v } });
+                        }}
+                        onKeyDown={(e) => {
+                          if (e.key === '-' || e.key === 'e' || e.key === '+' ) e.preventDefault();
+                        }}
+                        className="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 text-gray-900 bg-white placeholder-gray-400"
+                        placeholder="Pl. 2"
+                        style={{ color: '#111827' }}
+                      />
                   </div>
 
                   <div>
@@ -573,8 +580,15 @@ const AdminKezeles = () => {
                     <input
                       type="number"
                       name="price"
+                      min={1}
                       value={formData.price}
-                      onChange={handleInputChange}
+                      onChange={(e) => {
+                        const v = e.target.value === '' ? '' : Math.max(1, Number(e.target.value || 0));
+                        handleInputChange({ target: { name: 'price', type: 'number', value: v } });
+                      }}
+                      onKeyDown={(e) => {
+                        if (e.key === '-' || e.key === 'e' || e.key === '+' ) e.preventDefault();
+                      }}
                       className="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 text-gray-900 bg-white placeholder-gray-400"
                       placeholder="Pl. 100"
                       style={{ color: '#111827' }}

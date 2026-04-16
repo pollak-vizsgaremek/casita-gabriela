@@ -2,8 +2,9 @@ import React, { useState, useEffect } from 'react'
 import OfferAdmin from '../components/OfferAdmin'
 import Footer from '../components/Footer'
 import api from '../services/api'
-import { motion } from "framer-motion"
+import { motion, useScroll, useTransform } from "framer-motion"
 import { useNavigate } from "react-router"
+import searchImg from '/public/search.jpg'
 
 const Home = () => {
   const [rooms, setRooms] = useState([])
@@ -15,6 +16,15 @@ const Home = () => {
   const [people, setPeople] = useState('')
 
   const navigate = useNavigate()
+
+  const currentUser = localStorage.getItem('user') 
+    ? JSON.parse(localStorage.getItem('user')) 
+    : null;
+
+  const isFirstTimeUser = currentUser?.isFirstTimeUser === true;
+
+  const { scrollY } = useScroll()
+  const y = useTransform(scrollY, [0, 300], [0, 220]) 
 
   const containerVariants = {
     hidden: {},
@@ -67,11 +77,22 @@ const Home = () => {
     <div className='flex flex-col items-center w-full min-h-screen 
       bg-gradient-to-br from-gray-50 via-white to-gray-100 relative overflow-hidden'>
 
-      <div className='w-full h-[280px] relative flex items-center justify-center bg-search bg-cover bg-center'>
-        
-        <div className='absolute inset-0 bg-black/40'></div>
+      {/* HERO */}
+      <div className='w-full h-[300px] relative flex items-center justify-center overflow-hidden'>
 
-        <div className='relative z-10 text-center text-white px-4'>
+        {/* IMAGE */}
+        <motion.img
+          src={searchImg}
+          alt="search background"
+          style={{ y }}
+          className="absolute inset-0 w-full h-[120%] object-cover z-0"
+        />
+
+        {/* OVERLAY */}
+        <div className='absolute inset-0 bg-black/40 z-10'></div>
+
+        {/* CONTENT */}
+        <div className='relative z-20 text-center text-white px-4'>
           <h1 className='text-4xl md:text-5xl font-bold mb-3'>
             Találd meg a tökéletes szobát
           </h1>
@@ -108,9 +129,14 @@ const Home = () => {
 
             <input
               type="number"
+              min={1}
               placeholder='Létszám'
               value={people}
               onChange={(e) => setPeople(e.target.value)}
+              onKeyDown={(e) => { 
+                if (e.key === '-' || e.key === 'e' || e.key === '+') 
+                  e.preventDefault(); 
+              }}
               className='p-2 rounded-md border focus:outline-none focus:ring-2 focus:ring-red-400'
             />
 
@@ -121,17 +147,41 @@ const Home = () => {
         </div>
       </div>
 
-
-
+      {/* CONTENT */}
       <div className='w-full max-w-6xl px-6 mt-12 mb-6 mx-auto'>
-        <h2 className='text-3xl font-semibold text-gray-800'>Kiemelt szobák</h2>
+        <div className='m-6 p-6 bg-[#FFFECE] border border-gray-100 rounded-2xl shadow-lg flex flex-col md:flex-row items-start md:items-center justify-between gap-4'>
+          <div className='flex items-start md:items-center gap-4'>
+            <div className='bg-white text-red-600 p-3 rounded-lg text-2xl font-extrabold'>15%</div>
+            <div>
+              <div className='text-2xl font-semibold text-gray-900'>
+                15% kedvezmény az első foglalásodra
+              </div>
+              <div className='text-sm text-gray-600 mt-1'>
+                {isFirstTimeUser
+                  ? 'A kedvezmény automatikusan érvényesül a fizetésnél — nincs teendőd.'
+                  : 'A kedvezményt csak az első foglalásra lehet igénybe venni.'}
+              </div>
+            </div>
+          </div>
+
+          <div className={`text-sm font-medium mt-2 md:mt-0 ${
+            isFirstTimeUser ? 'text-green-700' : 'text-gray-500'
+          }`}>
+            {isFirstTimeUser ? 'Automatikusan alkalmazva' : 'Nem elérhető'}
+          </div>
+        </div>
+
+        <h2 className='text-3xl font-semibold text-gray-800'>
+          Kiemelt szobák
+        </h2>
         <div className='w-20 h-1 bg-red-500 mt-2 rounded'></div>
+
         <div className='mt-6'>
           <motion.div
             variants={containerVariants}
             initial="hidden"
             animate={loading ? "hidden" : "visible"}
-            className='flex flex-wrap justify-start items-start gap-8'
+            className='flex flex-wrap gap-8'
           >
             {loading ? (
               <p className='text-gray-600'>Szobák betöltése...</p>
@@ -142,7 +192,7 @@ const Home = () => {
                   <motion.div
                     key={`highlight-${room.id}`}
                     variants={cardVariants}
-                    whileHover={{ scale: 1.03 }}
+                    whileHover={{ scale: 1.05 }}
                     className='transition-shadow hover:shadow-2xl rounded-xl'
                   >
                     <OfferAdmin
@@ -150,6 +200,7 @@ const Home = () => {
                       name={room.name}
                       price={room.price}
                       image={Array.isArray(room.images) ? room.images[0] : ''}
+                      reviews={room.reviews || []}
                     />
                   </motion.div>
                 ))
@@ -158,41 +209,40 @@ const Home = () => {
         </div>
       </div>
 
-    
       <div className='w-full max-w-6xl px-6 mt-8 mb-12 mx-auto'>
-        <h3 className='text-2xl font-semibold text-gray-700'>További szobák</h3>
+        <h3 className='text-2xl font-semibold text-gray-700'>
+          További szobák
+        </h3>
         <div className='w-16 h-1 bg-gray-300 mt-2 rounded'></div>
+
         <div className='mt-6'>
           <motion.div
             variants={containerVariants}
             initial="hidden"
             animate={loading ? "hidden" : "visible"}
-            className='flex flex-wrap justify-start items-start gap-8'
+            className='flex flex-wrap gap-8'
           >
-            {loading ? null : (
-              rooms
-                .filter(r => !r.isHighlighted)
-                .map(room => (
-                  <motion.div
-                    key={`other-${room.id}`}
-                    variants={cardVariants}
-                    whileHover={{ scale: 1.02 }}
-                    className='transition-shadow hover:shadow-lg rounded-xl'
-                  >
-                    <OfferAdmin
-                      id={room.id}
-                      name={room.name}
-                      price={room.price}
-                      image={Array.isArray(room.images) ? room.images[0] : ''}
-                    />
-                  </motion.div>
-                ))
-            )}
+            {!loading && rooms
+              .filter(r => !r.isHighlighted)
+              .map(room => (
+                <motion.div
+                  key={`other-${room.id}`}
+                  variants={cardVariants}
+                  whileHover={{ scale: 1.03 }}
+                  className='transition-shadow hover:shadow-lg rounded-xl'
+                >
+                  <OfferAdmin
+                    id={room.id}
+                    name={room.name}
+                    price={room.price}
+                    image={Array.isArray(room.images) ? room.images[0] : ''}
+                    reviews={room.reviews || []}
+                  />
+                </motion.div>
+              ))}
           </motion.div>
         </div>
       </div>
-
-      
 
       <Footer />
     </div>

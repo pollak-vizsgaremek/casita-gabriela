@@ -150,9 +150,11 @@ const SearchResults = () => {
 
           <input
             type="number"
+            min={1}
             placeholder='Létszám...'
             value={people}
             onChange={(e) => setPeople(e.target.value)}
+            onKeyDown={(e) => { if (e.key === '-' || e.key === 'e' || e.key === '+') e.preventDefault(); }}
             className='bg-gray-200 text-gray-900 p-2 m-1 rounded-md'
           />
 
@@ -193,6 +195,7 @@ const SearchResults = () => {
                 name={room.name}
                 price={room.price}
                 image={Array.isArray(room.images) ? room.images[0] : ''}
+                reviews={room.reviews || []}
               />
             </motion.div>
           ))

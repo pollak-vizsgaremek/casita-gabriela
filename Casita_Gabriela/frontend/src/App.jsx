@@ -8,6 +8,7 @@ import Registration from './pages/Registration';
 import Login from './pages/Login';
 import Contact from './pages/Contact';
 import Admin from './pages/Admin';
+import ProtectedRoute from './components/ProtectedRoute';
 import Room from './pages/Room';
 import './App.css'
 import Layout from './Layout';
@@ -39,20 +40,20 @@ const App = () => {
                     <Route path="/search" element={<SearchResults />} />
 
                     {/* ADMIN OLDALAK */}
-                    <Route path="/admin" element={<Admin />} />
+                    <Route path="/admin" element={<ProtectedRoute><Admin /></ProtectedRoute>} />
 
                     {/* Szoba szerkesztés */}
-                    <Route path="/AdminKezeles" element={<AdminKezeles />} />
-                    <Route path="/AdminKezeles/:id" element={<AdminKezeles />} />
+                    <Route path="/AdminKezeles" element={<ProtectedRoute><AdminKezeles /></ProtectedRoute>} />
+                    <Route path="/AdminKezeles/:id" element={<ProtectedRoute><AdminKezeles /></ProtectedRoute>} />
 
                     {/* Foglalások kezelése */}
-                    <Route path="/admin/bookings" element={<Foglalasok />} />
+                    <Route path="/admin/bookings" element={<ProtectedRoute><Foglalasok /></ProtectedRoute>} />
 
                     {/* Értékelések */}
-                    <Route path="/admin/reviews" element={<Reviews />} />
+                    <Route path="/admin/reviews" element={<ProtectedRoute><Reviews /></ProtectedRoute>} />
 
                     {/* Felhasználók kezelése */}
-                    <Route path="/admin/users" element={<Users />} />
+                    <Route path="/admin/users" element={<ProtectedRoute><Users /></ProtectedRoute>} />
 
                     {/* LÁBLÉC OLDALAK */}
                     <Route path="/aszf" element={<Aszf />} />

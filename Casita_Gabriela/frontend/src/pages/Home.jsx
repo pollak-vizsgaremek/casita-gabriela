@@ -20,14 +20,18 @@ const Home = () => {
     hidden: {},
     visible: {
       transition: {
-        staggerChildren: 0.15
+        staggerChildren: 0.18
       }
     }
   }
 
   const cardVariants = {
     hidden: { opacity: 0, y: 20 },
-    visible: { opacity: 1, y: 0 }
+    visible: {
+      opacity: 1,
+      y: 0,
+      transition: { duration: 0.6, ease: 'easeOut' }
+    }
   }
 
   useEffect(() => {
@@ -118,42 +122,75 @@ const Home = () => {
       </div>
 
 
-      <div className='w-full max-w-6xl px-6 mt-12 mb-6'>
-        <h2 className='text-3xl font-semibold text-gray-800'>
-          Kiemelt ajánlatok
-        </h2>
+
+      <div className='w-full max-w-6xl px-6 mt-12 mb-6 mx-auto'>
+        <h2 className='text-3xl font-semibold text-gray-800'>Kiemelt szobák</h2>
         <div className='w-20 h-1 bg-red-500 mt-2 rounded'></div>
+        <div className='mt-6'>
+          <motion.div
+            variants={containerVariants}
+            initial="hidden"
+            animate={loading ? "hidden" : "visible"}
+            className='flex flex-wrap justify-start items-start gap-8'
+          >
+            {loading ? (
+              <p className='text-gray-600'>Szobák betöltése...</p>
+            ) : (
+              rooms
+                .filter(r => r.isHighlighted)
+                .map(room => (
+                  <motion.div
+                    key={`highlight-${room.id}`}
+                    variants={cardVariants}
+                    whileHover={{ scale: 1.03 }}
+                    className='transition-shadow hover:shadow-2xl rounded-xl'
+                  >
+                    <OfferAdmin
+                      id={room.id}
+                      name={room.name}
+                      price={room.price}
+                      image={Array.isArray(room.images) ? room.images[0] : ''}
+                    />
+                  </motion.div>
+                ))
+            )}
+          </motion.div>
+        </div>
       </div>
 
-
-      
-        
-        <motion.div
-          variants={containerVariants}
-          initial="hidden"
-          animate={loading ? "hidden" : "visible"}
-          className='flex flex-wrap justify-center gap-8'
-        >
-          {loading ? (
-            <p className='text-gray-600'>Szobák betöltése...</p>
-          ) : (
-            rooms.map(room => (
-              <motion.div
-                key={room.id}
-                variants={cardVariants}
-                whileHover={{ scale: 1.05 }}
-                className='transition-shadow hover:shadow-2xl rounded-xl'
-              >
-                <OfferAdmin
-                  id={room.id}
-                  name={room.name}
-                  price={room.price}
-                  image={Array.isArray(room.images) ? room.images[0] : ''}
-                />
-              </motion.div>
-            ))
-          )}
-        </motion.div>
+    
+      <div className='w-full max-w-6xl px-6 mt-8 mb-12 mx-auto'>
+        <h3 className='text-2xl font-semibold text-gray-700'>További szobák</h3>
+        <div className='w-16 h-1 bg-gray-300 mt-2 rounded'></div>
+        <div className='mt-6'>
+          <motion.div
+            variants={containerVariants}
+            initial="hidden"
+            animate={loading ? "hidden" : "visible"}
+            className='flex flex-wrap justify-start items-start gap-8'
+          >
+            {loading ? null : (
+              rooms
+                .filter(r => !r.isHighlighted)
+                .map(room => (
+                  <motion.div
+                    key={`other-${room.id}`}
+                    variants={cardVariants}
+                    whileHover={{ scale: 1.02 }}
+                    className='transition-shadow hover:shadow-lg rounded-xl'
+                  >
+                    <OfferAdmin
+                      id={room.id}
+                      name={room.name}
+                      price={room.price}
+                      image={Array.isArray(room.images) ? room.images[0] : ''}
+                    />
+                  </motion.div>
+                ))
+            )}
+          </motion.div>
+        </div>
+      </div>
 
       
 

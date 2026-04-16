@@ -26,6 +26,30 @@ app.use(cors());
 app.use(express.json({ limit: "50mb" }));
 app.use(express.urlencoded({ limit: "50mb", extended: true }));
 
+// --- Auth middlewares ---
+const authenticate = async (req, res, next) => {
+  try {
+    const auth = req.headers.authorization || req.headers.Authorization;
+    if (!auth || !auth.startsWith('Bearer ')) return res.status(401).json({ error: 'Unauthorized' });
+    const token = auth.split(' ')[1];
+    const payload = jwt.verify(token, JWT_SECRET);
+    if (!payload || !payload.id) return res.status(401).json({ error: 'Unauthorized' });
+    const user = await prisma.users.findUnique({ where: { id: payload.id } });
+    if (!user) return res.status(401).json({ error: 'Unauthorized' });
+    req.user = user;
+    next();
+  } catch (err) {
+    console.error('AUTH ERROR:', err);
+    return res.status(401).json({ error: 'Invalid or expired token' });
+  }
+};
+
+const requireAdmin = (req, res, next) => {
+  if (!req.user) return res.status(401).json({ error: 'Unauthorized' });
+  if (!(req.user.isAdmin === true || req.user.isAdmin === 1)) return res.status(403).json({ error: 'Admin role required' });
+  return next();
+};
+
 
 // Ensure backend/public exists
 const PUBLIC_DIR = path.join(process.cwd(), "public");
@@ -179,6 +203,7 @@ app.post("/login", async (req, res) => {
       email: user.email,
       name: user.name,
       isAdmin: user.isAdmin,
+      isFirstTimeUser: user.isFirstTimeUser,
     };
     console.log("LOGIN OK – sending to frontend:", {
       message: "Sikeres bejelentkezés!",
@@ -205,11 +230,12 @@ app.post("/login", async (req, res) => {
 app.get("/rooms", async (req, res) => {
   try {
     const rooms = await prisma.room.findMany({
-      include: { booking: true, room_review: true },
+      include: { booking: true, room_review: { include: { user: true } } },
     });
     const formatted = rooms.map((room) => ({
       ...room,
       images: normalizeImagesFromDb(room.images),
+      reviews: room.room_review || [],
     }));
     res.json(formatted);
   } catch (err) {
@@ -219,7 +245,7 @@ app.get("/rooms", async (req, res) => {
 });
 
 
-app.post("/rooms", async (req, res) => {
+app.post("/rooms", authenticate, requireAdmin, async (req, res) => {
   try {
     const { name, description, price, category, space, images, isHighlighted } =
       req.body;
@@ -259,10 +285,10 @@ app.get("/rooms/:id", async (req, res) => {
   try {
     const room = await prisma.room.findUnique({
       where: { id },
-      include: { booking: true, room_review: true },
+      include: { booking: true, room_review: { include: { user: true } } },
     });
     if (!room) return res.status(404).json({ error: "Szoba nem található." });
-    const formatted = { ...room, images: normalizeImagesFromDb(room.images) };
+    const formatted = { ...room, images: normalizeImagesFromDb(room.images), reviews: room.room_review || [] };
     res.json(formatted);
   } catch (err) {
     console.error("GET /rooms/:id error:", err);
@@ -271,7 +297,7 @@ app.get("/rooms/:id", async (req, res) => {
 });
 
 
-app.put("/rooms/:id", async (req, res) => {
+app.put("/rooms/:id", authenticate, requireAdmin, async (req, res) => {
   try {
     const { id } = req.params;
 
@@ -310,7 +336,7 @@ app.put("/rooms/:id", async (req, res) => {
 });
 
 
-app.delete("/rooms/:id", async (req, res) => {
+app.delete("/rooms/:id", authenticate, requireAdmin, async (req, res) => {
   const id = parseId(req.params.id);
   if (!id) return res.status(400).json({ error: "Érvénytelen id." });
   try {
@@ -490,11 +516,54 @@ app.get("/room_reviews", async (req, res) => {
     const reviews = await prisma.room_review.findMany({
       where,
       orderBy: { id: "desc" },
+      include: { room: true, user: true },
     });
     res.json(reviews);
   } catch (err) {
     console.error("GET /room_reviews error:", err);
     res.status(500).json({ error: "Hiba az értékelések lekérésekor." });
+  }
+});
+
+
+// Create a new room review (authenticated users)
+app.post("/room_reviews", authenticate, async (req, res) => {
+  try {
+    const { room_id, stars, comment } = req.body;
+    const rid = parseId(room_id);
+    const s = Number(stars);
+    if (!rid || !Number.isInteger(s) || s < 1 || s > 5) {
+      return res.status(400).json({ error: "Érvénytelen adatok." });
+    }
+    const created = await prisma.room_review.create({
+      data: {
+        room_id: rid,
+        stars: s,
+        comment: comment ? String(comment).slice(0, 200) : "",
+        user_id: req.user.id,
+      },
+      include: { user: true, room: true },
+    });
+    res.json({ message: "Értékelés rögzítve.", review: created });
+  } catch (err) {
+    console.error("POST /room_reviews error:", err);
+    res.status(500).json({ error: "Hiba az értékelés létrehozásakor." });
+  }
+});
+
+
+// Delete a review (admin only)
+app.delete("/room_reviews/:id", authenticate, requireAdmin, async (req, res) => {
+  const id = parseId(req.params.id);
+  if (!id) return res.status(400).json({ error: "Érvénytelen id." });
+  try {
+    const existing = await prisma.room_review.findUnique({ where: { id } });
+    if (!existing) return res.status(404).json({ error: "Értékelés nem található." });
+    await prisma.room_review.delete({ where: { id } });
+    res.json({ message: "Értékelés sikeresen törölve." });
+  } catch (err) {
+    console.error("DELETE /room_reviews/:id error:", err);
+    res.status(500).json({ error: "Hiba az értékelés törlésekor." });
   }
 });
 

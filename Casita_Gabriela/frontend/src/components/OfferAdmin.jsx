@@ -5,13 +5,13 @@ import { motion } from 'framer-motion'
 const cardVariants = {
   hidden: {
     opacity: 0,
-    y: 40
+    y: 30
   },
   visible: {
     opacity: 1,
     y: 0,
     transition: {
-      duration: 0.5,
+      duration: 0.4,
       ease: "easeOut"
     }
   }
@@ -28,27 +28,42 @@ const OfferAdmin = ({ id, name, price, image }) => {
     <motion.div
       variants={cardVariants}
       onClick={handleClick}
-      whileHover={{ scale: 1.03, rotate: 1 }}
-      whileTap={{ scale: 0.98 }}
-      className='bg-white cursor-pointer shadow-md hover:shadow-2xl active:shadow-green-500 rounded-xl w-72 h-72 flex flex-col items-center'
+      whileHover={{ scale: 1.04 }}
+      whileTap={{ scale: 0.97 }}
+      className='group cursor-pointer w-72 rounded-2xl overflow-hidden bg-white shadow-md hover:shadow-2xl transition-all duration-300'
     >
-      <div className='h-3/5 w-full bg-[#edf9f2] rounded-t-xl'>
-        <img src={image} alt={name} className="w-full h-full object-cover rounded-t-xl" />
+      
+    
+      <div className='relative h-44 w-full overflow-hidden'>
+        
+        <motion.img
+          src={image}
+          alt={name}
+          className="w-full h-full object-cover"
+          whileHover={{ scale: 1.1 }}
+          transition={{ duration: 0.4 }}
+        />
+
+      
+        <div className='absolute inset-0 bg-gradient-to-t from-black/60 via-black/10 to-transparent'></div>
+
+      
+        <div className='absolute bottom-2 right-2 bg-white/90 backdrop-blur-md text-red-500 text-sm font-semibold px-3 py-1 rounded-lg shadow'>
+          {price} Ft / éj
+        </div>
       </div>
 
-      <div className='h-2/5 w-full bg-[#FFFECE] rounded-b-xl flex flex-col'>
-        <div className='w-full h-1/2'>
-          <p className='font-bold text-lg mt-2 ml-1 text-black'>{name}</p>
-        </div>
+     
+      <div className='p-4 flex flex-col gap-2'>
+        
+        <h3 className='font-semibold text-lg text-gray-800 group-hover:text-red-500 transition'>
+          {name}
+        </h3>
 
-        <div className='w-full h-1/2 flex flex-col items-end justify-end'>
-          <p className='font-semibold text-lg mt-2 mr-2 text-red-500'>
-            {price} Ft/fő/éj
-          </p>
-          <p className='font-semibold text-xs mb-2 mr-2 text-black'>
-            ÁFÁ-t tartalmazza
-          </p>
-        </div>
+        <p className='text-xs text-gray-500'>
+          ÁFÁ-t tartalmazza
+        </p>
+
       </div>
     </motion.div>
   )

@@ -172,11 +172,14 @@ app.post('/rooms', async (req, res) => {
       isHighlighted
     } = req.body;
 
+    const ac_availablity = req.body.ac_availablity !== undefined ? Number(req.body.ac_availablity) : 0;
+
     const room = await prisma.room.create({
       data: {
         name,
         description,
         price: Number(price),
+        ac_availablity: ac_availablity,
         category,
         space: Number(space),
         images: images ? JSON.stringify(images) : null,
@@ -220,9 +223,7 @@ app.put('/rooms/:id', async (req, res) => {
       isHighlighted
     } = req.body;
 
-    const updated = await prisma.room.update({
-      where: { id: Number(id) },
-      data: {
+      const updateData = {
         name,
         description,
         price: Number(price),
@@ -230,10 +231,15 @@ app.put('/rooms/:id', async (req, res) => {
         space: Number(space),
         images: images ? JSON.stringify(images) : null,
         isHighlighted: Boolean(isHighlighted)   // ÚJ
-      }
-    });
+      };
 
-    res.json(updated);
+      if (req.body.ac_availablity !== undefined) {
+        updateData.ac_availablity = Number(req.body.ac_availablity);
+      }
+
+      const updated = await prisma.room.update({ where: { id: Number(id) }, data: updateData });
+
+      res.json(updated);
   } catch (err) {
     console.error('PUT /rooms/:id error:', err);
     res.status(500).json({ error: 'Hiba történt a szoba frissítésekor.' });

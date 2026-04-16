@@ -17,6 +17,10 @@ import Impresszum from './pages/Impresszum';
 import AdminKezeles from './pages/AdminKezeles';
 import SearchResults from './pages/SearchResults';
 
+// ÚJ ADMIN OLDALAK
+import Foglalasok from './pages/Foglalasok';
+import Reviews from './pages/Reviews';
+import Users from './pages/Users';
 
 const App = () => {
     return (
@@ -24,22 +28,36 @@ const App = () => {
             <Routes>
                 <Route element={<Layout />}>
 
-                <Route path="/" element={<Home />} />
-                <Route path="/about" element={<About />} />
-                <Route path="/contact" element={<Contact />} />
-                <Route path="/login" element={<Login />} />
-                <Route path="/registration" element={<Registration />} />
+                    {/* PUBLIC OLDALAK */}
+                    <Route path="/" element={<Home />} />
+                    <Route path="/about" element={<About />} />
+                    <Route path="/contact" element={<Contact />} />
+                    <Route path="/login" element={<Login />} />
+                    <Route path="/registration" element={<Registration />} />
 
-                <Route path="/room/:id" element={<Room />} />
-                <Route path="/search" element={<SearchResults />} />
+                    <Route path="/room/:id" element={<Room />} />
+                    <Route path="/search" element={<SearchResults />} />
 
-                <Route path="/admin" element={<Admin />} />
-                <Route path="/AdminKezeles" element={<AdminKezeles />} />
-                <Route path="/AdminKezeles/:id" element={<AdminKezeles />} />
-                
-                <Route path="/aszf" element={<Aszf />} />
-                <Route path="/adatkezeles" element={<Adatkezeles />} />
-                <Route path="/impresszum" element={<Impresszum />} />
+                    {/* ADMIN OLDALAK */}
+                    <Route path="/admin" element={<Admin />} />
+
+                    {/* Szoba szerkesztés */}
+                    <Route path="/AdminKezeles" element={<AdminKezeles />} />
+                    <Route path="/AdminKezeles/:id" element={<AdminKezeles />} />
+
+                    {/* Foglalások kezelése */}
+                    <Route path="/admin/bookings" element={<Foglalasok />} />
+
+                    {/* Értékelések */}
+                    <Route path="/admin/reviews" element={<Reviews />} />
+
+                    {/* Felhasználók kezelése */}
+                    <Route path="/admin/users" element={<Users />} />
+
+                    {/* LÁBLÉC OLDALAK */}
+                    <Route path="/aszf" element={<Aszf />} />
+                    <Route path="/adatkezeles" element={<Adatkezeles />} />
+                    <Route path="/impresszum" element={<Impresszum />} />
 
                 </Route>
             </Routes>

@@ -1,11 +1,12 @@
 // src/pages/AdminKezeles.jsx
-
 import React, { useState, useEffect, useRef } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import api from '../services/api';
 
 const AdminKezeles = () => {
+
   const { id } = useParams();
+
   const navigate = useNavigate();
 
   const [formData, setFormData] = useState({
@@ -15,6 +16,7 @@ const AdminKezeles = () => {
     capacity: '',
     price: '',
     isHighlighted: false, // ÚJ
+    ac_availablity: 0, // ÚJ: légkondicionálás (0 vagy 1)
   });
 
   const [categories, setCategories] = useState([]);
@@ -25,10 +27,8 @@ const AdminKezeles = () => {
   const [message, setMessage] = useState('');
   const [isEditing, setIsEditing] = useState(false);
   const [initialLoad, setInitialLoad] = useState(true);
-
   const mainInputRef = useRef(null);
   const extraInputRef = useRef(null);
-
   const [isDraggingFile, setIsDraggingFile] = useState(false);
   const dragCounter = useRef(0);
 
@@ -116,7 +116,6 @@ const AdminKezeles = () => {
       const response = await api.get(`/rooms/${id}`);
       const room = response.data;
       const parsedImages = parseImagesFromServer(room.images);
-
       setFormData({
         title: room.name || '',
         description: room.description || '',
@@ -124,8 +123,8 @@ const AdminKezeles = () => {
         capacity: room.space || '',
         price: room.price || '',
         isHighlighted: room.isHighlighted ?? false, // ÚJ: betöltés
+        ac_availablity: room.ac_availablity ?? 0, // ÚJ: betöltés
       });
-
       if (parsedImages.length > 0) {
         setMainImagePreview(parsedImages[0]);
         setMainImageFile(null);
@@ -136,7 +135,6 @@ const AdminKezeles = () => {
         setMainImageFile(null);
         setExtraImages([]);
       }
-
       setIsEditing(true);
     } catch (err) {
       console.error('Error fetching room:', err);
@@ -316,6 +314,7 @@ const AdminKezeles = () => {
         space: parseInt(formData.capacity, 10),
         images: imagesPaths.length ? imagesPaths : null,
         isHighlighted: formData.isHighlighted, // ÚJ: küldjük a backendnek
+        ac_availablity: formData.ac_availablity ? 1 : 0, // ÚJ: küldjük a backendnek (0 vagy 1)
       };
 
       if (isEditing && id) {
@@ -329,6 +328,7 @@ const AdminKezeles = () => {
           capacity: fresh.data.space || '',
           price: fresh.data.price || '',
           isHighlighted: fresh.data.isHighlighted ?? false, // frissítés után is beállítjuk
+          ac_availablity: fresh.data.ac_availablity ?? 0, // frissítés után is beállítjuk
         });
         setMainImagePreview(parsed[0] || null);
         setExtraImages(parsed.slice(1).map((p, idx) => ({ id: `db-${idx}`, file: null, preview: p })));
@@ -349,6 +349,7 @@ const AdminKezeles = () => {
                 capacity: fresh.data.space || '',
                 price: fresh.data.price || '',
                 isHighlighted: fresh.data.isHighlighted ?? false,
+                ac_availablity: fresh.data.ac_availablity ?? 0,
               });
               setMainImagePreview(parsed[0] || null);
               setExtraImages(parsed.slice(1).map((p, idx) => ({ id: `db-${idx}`, file: null, preview: p })));
@@ -359,7 +360,7 @@ const AdminKezeles = () => {
             }
           }, 300);
         } else {
-          setFormData({ title: '', description: '', type: '', capacity: '', price: '', isHighlighted: false });
+          setFormData({ title: '', description: '', type: '', capacity: '', price: '', isHighlighted: false, ac_availablity: 0 });
           setMainImageFile(null);
           setMainImagePreview(null);
           setExtraImages([]);
@@ -389,7 +390,7 @@ const AdminKezeles = () => {
     try {
       await api.delete(`/rooms/${id}`);
       setMessage('Sikeresen törölted a szobát!');
-      setFormData({ title: '', description: '', type: '', capacity: '', price: '', isHighlighted: false });
+      setFormData({ title: '', description: '', type: '', capacity: '', price: '', isHighlighted: false, ac_availablity: 0 });
       setMainImageFile(null);
       setMainImagePreview(null);
       setExtraImages([]);
@@ -451,11 +452,15 @@ const AdminKezeles = () => {
         @media (max-width: 420px) {
           .floating-btn { width: 46px; height: 46px; }
         }
+
         .desc-area { height: 18rem; min-height: 10rem; max-height: 28rem; }
         @media (max-width: 767px) { .desc-area { height: 12rem; } }
+
         .main-image { width: 100%; height: auto; max-height: 20rem; object-fit: cover; display: block; border-radius: 0.5rem; }
         @media (max-width: 420px) { .main-image { max-height: 24rem; } }
+
         .thumb-image { width: 100%; height: 100%; object-fit: cover; display: block; }
+
         @media (max-width: 640px) {
           .yellow-card { width: calc(100% + 2rem); margin-left: -1rem; margin-right: -1rem; padding-left: 1.25rem; padding-right: 1.25rem; border-radius: 0.5rem; }
           .inner-white { width: calc(100% + 1.5rem); margin-left: -0.75rem; margin-right: -0.75rem; padding-left: 0.75rem; padding-right: 0.75rem; }
@@ -592,6 +597,26 @@ const AdminKezeles = () => {
                   </label>
                 </div>
 
+                {/* AC availability checkbox (ÚJ) */}
+                <div className="flex items-center gap-2 mt-2">
+                  <input
+                    type="checkbox"
+                    name="ac_availablity"
+                    checked={!!formData.ac_availablity}
+                    onChange={(e) =>
+                      setFormData((prev) => ({
+                        ...prev,
+                        ac_availablity: e.target.checked ? 1 : 0,
+                      }))
+                    }
+                    className="w-4 h-4 text-blue-600 border-gray-300 rounded"
+                    id="acAvailCheckbox"
+                  />
+                  <label htmlFor="acAvailCheckbox" className="text-sm font-semibold text-gray-700">
+                    Légkondicionálás elérhető
+                  </label>
+                </div>
+
                 <div className="flex flex-col gap-2">
                   <button
                     type="button"
@@ -704,6 +729,7 @@ const AdminKezeles = () => {
                       >
                         Képek hozzáadása
                       </button>
+
                       <button
                         type="button"
                         onClick={() => setExtraImages([])}
@@ -797,3 +823,4 @@ const AdminKezeles = () => {
 };
 
 export default AdminKezeles;
+

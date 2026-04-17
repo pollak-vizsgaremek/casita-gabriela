@@ -191,7 +191,7 @@ const Room = () => {
   const isLoggedIn = !!localStorage.getItem("token");
   const currentUserId = localStorage.getItem("user_id") ? Number(localStorage.getItem("user_id")) : null;
   const currentUser = localStorage.getItem("user") ? JSON.parse(localStorage.getItem("user")) : null;
-  const isFirstTimeUser = currentUser?.isFirstTimeUser === true;
+  const [isFirstTimeUser, setIsFirstTimeUser] = useState(currentUser?.isFirstTimeUser === true);
   const animTimeoutRef = useRef(null);
   const mountedRef = useRef(false);
   const [pageLoaded, setPageLoaded] = useState(false);
@@ -484,6 +484,36 @@ const Room = () => {
     return new Date(d.getFullYear(), d.getMonth(), d.getDate());
   }, []);
 
+  const hasBooked = useMemo(() => {
+    if (!currentUserId) return false;
+    try {
+      return bookings.some((b) => {
+        const uid = b.user_id ?? b.userId ?? (b.user && b.user.id) ?? null;
+        if (!uid) return false;
+        if (Number(uid) !== Number(currentUserId)) return false;
+        const status = (b.status || '').toString().toLowerCase();
+        if (status.includes('approved') || status.includes('complete') || status.includes('completed')) return true;
+        // allow if booking has already finished (past departure)
+        if (b.departure_date) {
+          const dep = parseISOToLocalDate(b.departure_date);
+          if (dep && dateToDayNumber(dep) <= dateToDayNumber(today)) return true;
+        }
+        return false;
+      });
+    } catch (e) {
+      return false;
+    }
+  }, [bookings, currentUserId, today]);
+
+  const alreadyReviewed = useMemo(() => {
+    if (!currentUserId) return false;
+    const revs = room?.reviews || [];
+    return revs.some((r) => {
+      const uid = r.user_id ?? r.userId ?? (r.user && r.user.id) ?? null;
+      return uid != null && Number(uid) === Number(currentUserId);
+    });
+  }, [room, currentUserId]);
+
   const handleDayClick = (dayIso) => {
     const clickedDate = parseISOToLocalDate(dayIso);
     if (!clickedDate) return;
@@ -582,12 +612,12 @@ const Room = () => {
         setGuests(1);
         setAcceptedAszf(false);
         setAcceptedAdat(false);
-            // If booking applied first-time discount, update local cached user
+            // After any successful booking, mark user as no longer first-time (prevent repeated discounts)
             try {
-              const respPrice = res?.data?.price;
-              if (respPrice && respPrice.discountApplied && currentUser) {
+              if (currentUser) {
                 const updated = { ...currentUser, isFirstTimeUser: false };
                 localStorage.setItem('user', JSON.stringify(updated));
+                setIsFirstTimeUser(false);
                 window.dispatchEvent(new CustomEvent('authChanged', { detail: { user: updated, token: localStorage.getItem('token') } }));
               }
             } catch (e) {
@@ -722,10 +752,10 @@ const Room = () => {
         <main className="flex-1 w-full max-w-6xl mx-auto px-4 py-10">
           <div className="grid grid-cols-1 lg:grid-cols-3 gap-10">
             <div className="lg:col-span-2 flex flex-col gap-6">
-              <h1 className={`text-3xl font-mono tracking-wide text-black transform transition-all duration-500 ${pageLoaded ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-2'}`}>{room.name}</h1>
-              <div className="flex items-center gap-3 mt-2">
+              <div className={`bg-[#FFFECE] text-black rounded-xl px-4 py-3 transform transition-all duration-500 ${pageLoaded ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-2'}`}>
+                <h1 className="text-3xl font-mono tracking-wide text-black m-0 mb-1">{room.name}</h1>
                 {room.reviews && room.reviews.length ? (
-                  <>
+                  <div className="flex items-center gap-3 text-sm">
                     <div className="text-yellow-500">
                       {(() => {
                         const reviews = room.reviews || [];
@@ -733,9 +763,9 @@ const Room = () => {
                         return "★".repeat(avgRounded) + "☆".repeat(5 - avgRounded)
                       })()}
                     </div>
-                    <div className="text-sm text-gray-700 font-medium">{(Math.round((room.reviews.reduce((s, r) => s + (r.stars || 0), 0) / room.reviews.length) * 10) / 10)}/5</div>
-                    <div className="text-sm text-gray-600">({room.reviews.length} vélemény)</div>
-                  </>
+                    <div className="font-medium bg-white/90 text-gray-800 px-2 py-0.5 rounded">{(Math.round((room.reviews.reduce((s, r) => s + (r.stars || 0), 0) / room.reviews.length) * 10) / 10)}/5</div>
+                    <div className="text-gray-600">({room.reviews.length} vélemény)</div>
+                  </div>
                 ) : (
                   <div className="text-sm text-gray-500">Nincsenek vélemények</div>
                 )}
@@ -854,21 +884,44 @@ const Room = () => {
                 ))}
                 <div className="pt-2">
                   {!showReviewForm ? (
-                    <button
-                      type="button"
-                      onClick={() => {
-                        if (!isLoggedIn) {
-                          pushToast('Bejelentkezés szükséges', 'A vélemény írásáshoz be kell jelentkezned.');
-                          return;
-                        }
-                        setReviewStars(0);
-                        setReviewComment("");
-                        setShowReviewForm(true);
-                      }}
-                      className="bg-[#6FD98C] text-white px-4 py-2 rounded hover:bg-[#5FCB80] transition-all duration-200 text-sm"
-                    >
-                      Vélemény írása
-                    </button>
+                    <>
+                      {!alreadyReviewed ? (
+                        <>
+                          {!isLoggedIn ? (
+                            <button
+                              type="button"
+                              onClick={() => pushToast('Bejelentkezés szükséges', 'A vélemény írásáshoz be kell jelentkezned.')}
+                              className="bg-[#6FD98C] text-white px-4 py-2 rounded hover:bg-[#5FCB80] transition-all duration-200 text-sm"
+                            >
+                              Vélemény írása
+                            </button>
+                          ) : !hasBooked ? (
+                            <>
+                              <button type="button" disabled className="bg-gray-300 text-gray-700 px-4 py-2 rounded text-sm">
+                                Vélemény írása
+                              </button>
+                              <div className="text-sm text-gray-500 mt-2">Előbb foglalj ennél a szobánál, hogy véleményt írj.</div>
+                            </>
+                          ) : (
+                            <button
+                              type="button"
+                              onClick={() => {
+                                setReviewStars(0);
+                                setReviewComment("");
+                                setShowReviewForm(true);
+                              }}
+                              className="bg-[#6FD98C] text-white px-4 py-2 rounded hover:bg-[#5FCB80] transition-all duration-200 text-sm"
+                            >
+                              Vélemény írása
+                            </button>
+                          )}
+                        </>
+                      ) : (
+                        <button type="button" disabled className="bg-gray-300 text-gray-700 px-4 py-2 rounded text-sm">
+                          Már írtál véleményt
+                        </button>
+                      )}
+                    </>
                   ) : (
                     <div className="flex flex-col gap-2">
                       <div className="flex items-center gap-2">
@@ -945,11 +998,6 @@ const Room = () => {
             <div className="flex flex-col gap-6">
               {/* Booking card */}
               <div className={`bg-[#FFFECE] text-black rounded-xl p-4 shadow-md transform transition-all duration-500 ${pageLoaded ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-2'}`} style={{ transitionDelay: pageLoaded ? '220ms' : '0ms' }}>
-                {successMessage && (
-                  <div className="mb-4 p-3 rounded-md bg-[#d4edda] border border-[#c3e6cb] text-[#155724] font-semibold text-sm">
-                    ✔ {successMessage}
-                  </div>
-                )}
                 <h2 className="font-semibold text-lg">Foglalás</h2>
                 <div className="mt-4">
                   <div className="flex gap-2 items-center mb-3">
@@ -1066,6 +1114,11 @@ const Room = () => {
                     Foglalás leadása
                   </button>
                 </div>
+                {successMessage && (
+                  <div className="mt-3 p-3 rounded-md bg-[#d4edda] border border-[#c3e6cb] text-[#155724] font-semibold text-sm">
+                    ✔ {successMessage}
+                  </div>
+                )}
               </div>
             </div>
           </div>

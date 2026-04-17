@@ -14,6 +14,7 @@ const Home = () => {
   const [arrival, setArrival] = useState('')
   const [departure, setDeparture] = useState('')
   const [people, setPeople] = useState('')
+  const [searchError, setSearchError] = useState('')
 
   const navigate = useNavigate()
 
@@ -63,6 +64,21 @@ const Home = () => {
   const handleSearch = (e) => {
     e.preventDefault()
 
+    setSearchError('')
+    const todayStr = new Date().toISOString().slice(0,10)
+    if (arrival && arrival < todayStr) {
+      setSearchError('Az érkezési dátum nem lehet a múltban.')
+      return
+    }
+    if (departure && departure < todayStr) {
+      setSearchError('A távozási dátum nem lehet a múltban.')
+      return
+    }
+    if (arrival && departure && departure <= arrival) {
+      setSearchError('A távozási dátumnak később kell lennie, mint az érkezési dátumnak.')
+      return
+    }
+
     const params = new URLSearchParams()
 
     if (category) params.append("category", category)
@@ -101,6 +117,7 @@ const Home = () => {
             Gyors, egyszerű és modern foglalás
           </p>
 
+          {searchError && <div className="text-base md:text-lg text-white mb-3 font-medium">{searchError}</div>}
           <form 
             onSubmit={handleSearch}
             className='bg-white/80 backdrop-blur-md text-gray-800 rounded-xl shadow-xl p-4 grid grid-cols-2 md:grid-cols-5 gap-3 max-w-4xl mx-auto'
@@ -149,27 +166,25 @@ const Home = () => {
 
       {/* CONTENT */}
       <div className='w-full max-w-6xl px-6 mt-12 mb-6 mx-auto'>
-        <div className='m-6 p-6 bg-[#FFFECE] border border-gray-100 rounded-2xl shadow-lg flex flex-col md:flex-row items-start md:items-center justify-between gap-4'>
-          <div className='flex items-start md:items-center gap-4'>
-            <div className='bg-white text-red-600 p-3 rounded-lg text-2xl font-extrabold'>15%</div>
-            <div>
-              <div className='text-2xl font-semibold text-gray-900'>
-                15% kedvezmény az első foglalásodra
-              </div>
-              <div className='text-sm text-gray-600 mt-1'>
-                {isFirstTimeUser
-                  ? 'A kedvezmény automatikusan érvényesül a fizetésnél — nincs teendőd.'
-                  : 'A kedvezményt csak az első foglalásra lehet igénybe venni.'}
+        {isFirstTimeUser && (
+          <div className='m-6 p-6 bg-[#FFFECE] border border-gray-100 rounded-2xl shadow-lg flex flex-col md:flex-row items-start md:items-center justify-between gap-4'>
+            <div className='flex items-start md:items-center gap-4'>
+              <div className='bg-white text-red-600 p-3 rounded-lg text-2xl font-extrabold'>15%</div>
+              <div>
+                <div className='text-2xl font-semibold text-gray-900'>
+                  15% kedvezmény az első foglalásodra
+                </div>
+                <div className='text-sm text-gray-600 mt-1'>
+                  A kedvezmény automatikusan érvényesül a fizetésnél — nincs teendőd.
+                </div>
               </div>
             </div>
-          </div>
 
-          <div className={`text-sm font-medium mt-2 md:mt-0 ${
-            isFirstTimeUser ? 'text-green-700' : 'text-gray-500'
-          }`}>
-            {isFirstTimeUser ? 'Automatikusan alkalmazva' : 'Nem elérhető'}
+            <div className="text-sm font-medium mt-2 md:mt-0 text-green-700">
+              Automatikusan alkalmazva
+            </div>
           </div>
-        </div>
+        )}
 
         <h2 className='text-3xl font-semibold text-gray-800'>
           Kiemelt szobák

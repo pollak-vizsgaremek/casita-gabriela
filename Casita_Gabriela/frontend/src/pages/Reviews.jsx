@@ -47,7 +47,7 @@ const Reviews = () => {
       <Sidebar isOpen={sidebarOpen} onClose={() => setSidebarOpen(false)} />
 
       <div className="flex-1 ml-0 md:ml-64 p-6">
-        <h1 className="text-2xl font-semibold mb-4">Értékelések kezelése</h1>
+        <h1 className="text-2xl font-semibold mb-4 text-gray-900">Értékelések kezelése</h1>
         {loading ? (
           <div>Betöltés...</div>
         ) : (

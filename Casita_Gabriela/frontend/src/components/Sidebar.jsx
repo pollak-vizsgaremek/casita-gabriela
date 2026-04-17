@@ -30,11 +30,12 @@ const Sidebar = ({ isOpen, onClose }) => {
       className={`
         bg-white text-black shadow-md z-40 transform transition-transform duration-200
         ${isOpen ? 'translate-x-0' : '-translate-x-full'}
-        md:translate-x-0 md:static md:shadow-none
-        w-64 fixed md:relative
+        md:translate-x-0 md:shadow-none md:fixed
+        w-64 fixed
       `}
       style={{
         top: '10dvh',                 // NAVBAR ALATTI KEZDÉS
+        left: 0,
         height: 'calc(100dvh - 10dvh)' // TELJES MAGASSÁG NAVBAR NÉLKÜL
       }}
       onClick={(e) => e.stopPropagation()}
@@ -75,7 +76,7 @@ const Sidebar = ({ isOpen, onClose }) => {
               }
               onClick={onClose}
             >
-              <span className="flex-shrink-0 text-green-700">{it.icon}</span>
+              <span className="shrink-0 text-green-700">{it.icon}</span>
               <span className="text-sm">{it.label}</span>
             </NavLink>
           ))}

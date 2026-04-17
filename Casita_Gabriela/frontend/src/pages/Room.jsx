@@ -715,7 +715,10 @@ const Room = () => {
 
   return (
     <>
-      <div className={`flex flex-col min-h-screen w-dvw bg-[#0b1f13] text-[#F1FBF4] spacer layerAdmin transition-all duration-500 ${pageLoaded ? 'opacity-100' : 'opacity-0'}`}>
+      <div
+        className={`flex flex-col min-h-screen w-dvw bg-[#0b1f13] text-[#F1FBF4] layerAdmin transition-all duration-500 ${pageLoaded ? 'opacity-100' : 'opacity-0'}`}
+        style={{ backgroundRepeat: 'no-repeat', backgroundPosition: 'center', backgroundSize: 'cover', backgroundAttachment: 'fixed' }}
+      >
         <main className="flex-1 w-full max-w-6xl mx-auto px-4 py-10">
           <div className="grid grid-cols-1 lg:grid-cols-3 gap-10">
             <div className="lg:col-span-2 flex flex-col gap-6">

@@ -8,6 +8,7 @@ import Registration from './pages/Registration';
 import Login from './pages/Login';
 import Contact from './pages/Contact';
 import Admin from './pages/Admin';
+import ProtectedRoute from './components/ProtectedRoute';
 import Room from './pages/Room';
 import './App.css'
 import Layout from './Layout';
@@ -17,6 +18,10 @@ import Impresszum from './pages/Impresszum';
 import AdminKezeles from './pages/AdminKezeles';
 import SearchResults from './pages/SearchResults';
 
+// ÚJ ADMIN OLDALAK
+import Foglalasok from './pages/Foglalasok';
+import Reviews from './pages/Reviews';
+import Users from './pages/Users';
 
 const App = () => {
     return (
@@ -24,22 +29,36 @@ const App = () => {
             <Routes>
                 <Route element={<Layout />}>
 
-                <Route path="/" element={<Home />} />
-                <Route path="/about" element={<About />} />
-                <Route path="/contact" element={<Contact />} />
-                <Route path="/login" element={<Login />} />
-                <Route path="/registration" element={<Registration />} />
+                    {/* PUBLIC OLDALAK */}
+                    <Route path="/" element={<Home />} />
+                    <Route path="/about" element={<About />} />
+                    <Route path="/contact" element={<Contact />} />
+                    <Route path="/login" element={<Login />} />
+                    <Route path="/registration" element={<Registration />} />
 
-                <Route path="/room/:id" element={<Room />} />
-                <Route path="/search" element={<SearchResults />} />
+                    <Route path="/room/:id" element={<Room />} />
+                    <Route path="/search" element={<SearchResults />} />
 
-                <Route path="/admin" element={<Admin />} />
-                <Route path="/AdminKezeles" element={<AdminKezeles />} />
-                <Route path="/AdminKezeles/:id" element={<AdminKezeles />} />
-                
-                <Route path="/aszf" element={<Aszf />} />
-                <Route path="/adatkezeles" element={<Adatkezeles />} />
-                <Route path="/impresszum" element={<Impresszum />} />
+                    {/* ADMIN OLDALAK */}
+                    <Route path="/admin" element={<ProtectedRoute><Admin /></ProtectedRoute>} />
+
+                    {/* Szoba szerkesztés */}
+                    <Route path="/AdminKezeles" element={<ProtectedRoute><AdminKezeles /></ProtectedRoute>} />
+                    <Route path="/AdminKezeles/:id" element={<ProtectedRoute><AdminKezeles /></ProtectedRoute>} />
+
+                    {/* Foglalások kezelése */}
+                    <Route path="/admin/bookings" element={<ProtectedRoute><Foglalasok /></ProtectedRoute>} />
+
+                    {/* Értékelések */}
+                    <Route path="/admin/reviews" element={<ProtectedRoute><Reviews /></ProtectedRoute>} />
+
+                    {/* Felhasználók kezelése */}
+                    <Route path="/admin/users" element={<ProtectedRoute><Users /></ProtectedRoute>} />
+
+                    {/* LÁBLÉC OLDALAK */}
+                    <Route path="/aszf" element={<Aszf />} />
+                    <Route path="/adatkezeles" element={<Adatkezeles />} />
+                    <Route path="/impresszum" element={<Impresszum />} />
 
                 </Route>
             </Routes>

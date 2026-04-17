@@ -63,8 +63,8 @@ const Admin = () => {
 
           {/* GRID – teljesen balról indul */}
           <div
-            className="grid gap-5 w-full justify-start items-start"
-            style={{ gridTemplateColumns: "repeat(auto-fit, minmax(18rem, auto))" }}
+            className="grid gap-5 w-full items-start"
+            style={{ gridTemplateColumns: "repeat(auto-fit, minmax(18rem, 1fr))" }}
           >
 
             {/* ADD CARD – 1:1 animáció, plusz középen */}
@@ -108,7 +108,7 @@ const Admin = () => {
               <p className="text-gray-500 col-span-full">Szobák betöltése...</p>
             ) : (
               rooms.map((room) => (
-                <div key={room.id} className="w-72 animate-fadein">
+                <div key={room.id} className="animate-fadein w-full">
                   <OfferAdminEdit
                     id={room.id}
                     name={room.name}
@@ -118,6 +118,7 @@ const Admin = () => {
                         ? room.images[0]
                         : room.images || 'https://via.placeholder.com/300?text=Nincs+kép'
                     }
+                    reviews={room.reviews || []}
                   />
                 </div>
               ))

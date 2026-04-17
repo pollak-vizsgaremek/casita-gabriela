@@ -4,7 +4,7 @@ import Footer from '../components/Footer'
 import api from '../services/api'
 import { motion, useScroll, useTransform } from "framer-motion"
 import { useNavigate } from "react-router"
-import searchImg from '/public/search.jpg'
+import searchImg from '/search.jpg'
 
 const Home = () => {
   const [rooms, setRooms] = useState([])

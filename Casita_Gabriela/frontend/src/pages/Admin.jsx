@@ -59,7 +59,7 @@ const Admin = () => {
 
         {/* MAIN */}
         <main className="px-5 pt-5">
-          <h2 className="text-2xl font-semibold mb-4">Szobák</h2>
+          <h2 className="text-2xl font-semibold mb-4 text-gray-900">Szobák</h2>
 
           {/* GRID – teljesen balról indul */}
           <div

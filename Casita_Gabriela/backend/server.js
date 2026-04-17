@@ -343,7 +343,18 @@ app.delete("/rooms/:id", authenticate, requireAdmin, async (req, res) => {
     const existing = await prisma.room.findUnique({ where: { id } });
     if (!existing)
       return res.status(404).json({ error: "Szoba nem található." });
-    await prisma.room.delete({ where: { id } });
+    
+    const result = await prisma.$transaction(async (tx) => {
+      const deletedBookings = await tx.booking.deleteMany({ where: { room_id: id } });
+      const deletedReviews = await tx.room_review.deleteMany({ where: { room_id: id } });
+      const deletedRoom = await tx.room.delete({ where: { id } });
+      return { deletedBookings, deletedReviews, deletedRoom };
+    });
+
+    console.log(
+      `DELETE /rooms/${id}: removed bookings=${result.deletedBookings.count}, reviews=${result.deletedReviews.count}`
+    );
+
     res.json({ message: "Szoba sikeresen törölve!" });
   } catch (err) {
     console.error("DELETE /rooms/:id error:", err);

@@ -1,10 +1,11 @@
 import React from 'react';
-import { Route, Routes } from 'react-router';
+import { Route, Routes } from 'react-router-dom';
 import Navigation from './components/Navigation';
 import Footer from './components/Footer';
 import Home from './pages/Home';
 import About from './pages/About';
 import Registration from './pages/Registration';
+import Verify from './pages/Verify';
 import Login from './pages/Login';
 import Contact from './pages/Contact';
 import Admin from './pages/Admin';
@@ -40,6 +41,7 @@ const App = () => {
                     <Route path="/contact" element={<Contact />} />
                     <Route path="/login" element={<Login />} />
                     <Route path="/registration" element={<Registration />} />
+                    <Route path="/verify" element={<Verify />} />
 
                     <Route path="/room/:id" element={<Room />} />
                     <Route path="/search" element={<SearchResults />} />

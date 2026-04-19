@@ -224,6 +224,69 @@ app.post("/login", async (req, res) => {
 });
 
 
+// Forgotten password
+app.post("/forgot-password", async (req, res) => {
+  try {
+    const { email } = req.body;
+    const user = await prisma.users.findUnique({ where: { email } });
+    if (!user) return res.status(400).json({ error: "Nincs ilyen email címmel regisztrált felhasználó." });
+
+    const resetToken = jwt.sign({ id: user.id }, JWT_SECRET, { expiresIn: "15m" });
+    const resetLink = `http://localhost:5173/reset-password?token=${resetToken}`;
+
+    const transporter = nodemailer.createTransport({
+      service: "gmail",
+      auth: {
+        user: process.env.EMAIL_USER,
+        pass: process.env.EMAIL_PASS,
+      },
+    });
+
+    await transporter.sendMail({
+      from: `"Casita Gabriela" <${process.env.EMAIL_USER}>`,
+      to: email,
+      subject: "Jelszó visszaállítás",
+      html: `
+        <div style="font-family:Arial,sans-serif;background:#f6f7fb;padding:30px;">
+          <div style="max-width:500px;margin:auto;background:#fff;border-radius:12px;padding:30px;">
+            <h2 style="color:#333;">Jelszó visszaállítás</h2>
+            <p style="color:#555;">Kattints az alábbi gombra az új jelszó megadásához. A link 15 percig érvényes.</p>
+            <a href="${resetLink}" style="display:inline-block;margin-top:16px;padding:12px 24px;background:#6FD98C;color:#fff;border-radius:8px;text-decoration:none;font-weight:bold;">Jelszó visszaállítása</a>
+            <p style="margin-top:20px;color:#999;font-size:12px;">Ha nem te kérted, hagyd figyelmen kívül ezt az emailt.</p>
+          </div>
+        </div>
+      `,
+    });
+
+    res.json({ message: "Jelszó visszaállító email elküldve!" });
+  } catch (err) {
+    console.error("FORGOT-PASSWORD ERROR:", err);
+    res.status(500).json({ error: "Nem sikerült elküldeni az emailt." });
+  }
+});
+
+app.post("/reset-password", async (req, res) => {
+  try {
+    const { token, password } = req.body;
+    if (!token || !password) return res.status(400).json({ error: "Hiányzó adatok." });
+
+    let payload;
+    try {
+      payload = jwt.verify(token, JWT_SECRET);
+    } catch {
+      return res.status(400).json({ error: "A link lejárt vagy érvénytelen." });
+    }
+
+    const hashed = await bcrypt.hash(password, 10);
+    await prisma.users.update({ where: { id: payload.id }, data: { password: hashed } });
+    res.json({ message: "Jelszó sikeresen megváltoztatva!" });
+  } catch (err) {
+    console.error("RESET-PASSWORD ERROR:", err);
+    res.status(500).json({ error: "Nem sikerült megváltoztatni a jelszót." });
+  }
+});
+
+
 /* ---------- Rooms ---------- */
 
 
@@ -756,6 +819,126 @@ Ez egy automatikus visszaigazoló email, ne válaszoljon rá.
   } catch (err) {
     console.error("CONTACT ERROR:", err);
     res.status(500).json({ error: "Hiba az üzenet küldésekor." });
+  }
+});
+
+
+/* ---------- USER PANELENDPOINTS ---------- */
+
+// Get all bookings in suer
+app.get("/user/bookings", authenticate, async (req, res) => {
+  try {
+    const bookings = await prisma.booking.findMany({
+      where: { user_id: req.user.id },
+      include: { room: true },
+      orderBy: { booking_date: "desc" },
+    });
+    const formatted = bookings.map(b => ({
+      id: b.id,
+      roomName: b.room?.name || "",
+      startDate: b.arrival_date?.toISOString().slice(0, 10),
+      endDate: b.departure_date?.toISOString().slice(0, 10),
+      guests: b.people,
+      status: b.status,
+    }));
+    res.json(formatted);
+  } catch (err) {
+    console.error("GET /user/bookings error:", err);
+    res.status(500).json({ error: "Nem sikerült betölteni a foglalásokat." });
+  }
+});
+
+// Cancela booking by id if user
+app.delete("/user/bookings/:id", authenticate, async (req, res) => {
+  const id = parseId(req.params.id);
+  if (!id) return res.status(400).json({ error: "Érvénytelen id." });
+  try {
+    const booking = await prisma.booking.findUnique({ where: { id } });
+    if (!booking || booking.user_id !== req.user.id) {
+      return res.status(404).json({ error: "Foglalás nem található." });
+    }
+    await prisma.booking.delete({ where: { id } });
+    res.json({ message: "Foglalás törölve." });
+  } catch (err) {
+    console.error("DELETE /user/bookings/:id error:", err);
+    res.status(500).json({ error: "Nem sikerült törölni a foglalást." });
+  }
+});
+
+// Get logged in users data
+app.get("/user/data", authenticate, async (req, res) => {
+  try {
+    const { id, name, email, phone_number, birth_date, address, identity_card } = req.user;
+    res.json({ id, name, email, phone_number, birth_date, address, identity_card });
+  } catch (err) {
+    console.error("GET /user/data error:", err);
+    res.status(500).json({ error: "Nem sikerült betölteni az adatokat." });
+  }
+});
+
+// Update users data when logged in
+app.put("/user/data", authenticate, async (req, res) => {
+  try {
+    const { name, email, phone_number, address, password, oldPassword } = req.body;
+    const data = { name, email, phone_number, address };
+    if (password && password.trim().length > 0) {
+      if (!oldPassword) {
+        return res.status(400).json({ error: "A jelenlegi jelszó megadása kötelező." });
+      }
+      const user = await prisma.users.findUnique({ where: { id: req.user.id } });
+      const valid = await bcrypt.compare(oldPassword, user.password);
+      if (!valid) {
+        return res.status(400).json({ error: "A jelenlegi jelszó helytelen." });
+      }
+      data.password = await bcrypt.hash(password, 10);
+    }
+    const updated = await prisma.users.update({
+      where: { id: req.user.id },
+      data,
+    });
+    res.json({ message: "Sikeres mentés!", user: updated });
+  } catch (err) {
+    console.error("PUT /user/data error:", err);
+    res.status(500).json({ error: "Nem sikerült menteni az adatokat." });
+  }
+});
+
+// Get all reviews in user panelk
+app.get("/user/reviews", authenticate, async (req, res) => {
+  try {
+    const reviews = await prisma.room_review.findMany({
+      where: { user_id: req.user.id },
+      include: { room: true },
+      orderBy: { id: "desc" },
+    });
+    const formatted = reviews.map(r => ({
+      id: r.id,
+      roomName: r.room?.name || "",
+      rating: r.stars,
+      text: r.comment,
+      date: r.created_at ? r.created_at.toISOString().slice(0, 10) : "",
+    }));
+    res.json(formatted);
+  } catch (err) {
+    console.error("GET /user/reviews error:", err);
+    res.status(500).json({ error: "Nem sikerült betölteni az értékeléseket." });
+  }
+});
+
+// Delete a review by id unless its a different user
+app.delete("/user/reviews/:id", authenticate, async (req, res) => {
+  const id = parseId(req.params.id);
+  if (!id) return res.status(400).json({ error: "Érvénytelen id." });
+  try {
+    const review = await prisma.room_review.findUnique({ where: { id } });
+    if (!review || review.user_id !== req.user.id) {
+      return res.status(404).json({ error: "Értékelés nem található." });
+    }
+    await prisma.room_review.delete({ where: { id } });
+    res.json({ message: "Értékelés törölve." });
+  } catch (err) {
+    console.error("DELETE /user/reviews/:id error:", err);
+    res.status(500).json({ error: "Nem sikerült törölni az értékelést." });
   }
 });
 

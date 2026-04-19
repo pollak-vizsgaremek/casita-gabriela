@@ -22,6 +22,11 @@ import SearchResults from './pages/SearchResults';
 import Foglalasok from './pages/Foglalasok';
 import Reviews from './pages/Reviews';
 import Users from './pages/Users';
+import UserBooking from './pages/UserBooking';
+import UserData from './pages/UserData';
+import UserReviews from './pages/UserReviews';
+import ForgotPassword from './pages/ForgotPassword';
+import ResetPassword from './pages/ResetPassword';
 
 const App = () => {
     return (
@@ -38,6 +43,8 @@ const App = () => {
 
                     <Route path="/room/:id" element={<Room />} />
                     <Route path="/search" element={<SearchResults />} />
+                    <Route path="/forgot-password" element={<ForgotPassword />} />
+                    <Route path="/reset-password" element={<ResetPassword />} />
 
                     {/* ADMIN OLDALAK */}
                     <Route path="/admin" element={<ProtectedRoute><Admin /></ProtectedRoute>} />
@@ -59,6 +66,11 @@ const App = () => {
                     <Route path="/aszf" element={<Aszf />} />
                     <Route path="/adatkezeles" element={<Adatkezeles />} />
                     <Route path="/impresszum" element={<Impresszum />} />
+
+                    {/* USER PANEL OLDALAK */}
+                    <Route path="/user/bookings" element={<UserBooking />} />
+                    <Route path="/user/data" element={<UserData />} />
+                    <Route path="/user/reviews" element={<UserReviews />} />
 
                 </Route>
             </Routes>

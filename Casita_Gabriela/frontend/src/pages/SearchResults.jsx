@@ -120,48 +120,64 @@ const SearchResults = () => {
     <div className='flex flex-col items-center spacer layerAdmin'>
 
       {/* SEARCH BAR */}
-      <div className='w-dvw h-[200px] bg-[#FFFECE]/80 flex flex-col items-center justify-center shadow-md/20 bg-search bg-blend-multiply'>
-      <h1 className='text-white text-4xl text-center p-4'>
-          Találd meg a számodra megfelelő szobát!
-        </h1>
-        <form onSubmit={handleSearch} className='bg-gray-400/80 rounded-md shadow-md mb-4'>
+      <div className='w-full h-[300px] relative flex items-center justify-center overflow-hidden'>
+        <img
+          src="/search.jpg"
+          alt="search background"
+          className="absolute inset-0 w-full h-[120%] object-cover z-0"
+        />
+        <div className='absolute inset-0 bg-black/40 z-10'></div>
 
-          <input
-            type="text"
-            placeholder='Szoba típusa...'
-            value={category}
-            onChange={(e) => setCategory(e.target.value)}
-            className='bg-gray-200 text-gray-900 p-2 m-1 rounded-md'
-          />
+        <div className='relative z-20 text-center text-white px-4'>
+          <h1 className='text-4xl md:text-5xl font-bold mb-3'>
+            Találd meg a számodra megfelelő szobát!
+          </h1>
 
-          <input
-            type="date"
-            value={arrival}
-            onChange={(e) => setArrival(e.target.value)}
-            className='bg-gray-200 text-gray-900 p-2 m-1 rounded-md'
-          />
+          <p className='text-sm md:text-lg opacity-90 mb-5'>
+            Gyors, egyszerű és modern foglalás
+          </p>
 
-          <input
-            type="date"
-            value={departure}
-            onChange={(e) => setDeparture(e.target.value)}
-            className='bg-gray-200 text-gray-900 p-2 m-1 rounded-md'
-          />
+          <form
+            onSubmit={handleSearch}
+            className='bg-white/80 backdrop-blur-md text-gray-800 rounded-xl shadow-xl p-4 grid grid-cols-2 md:grid-cols-5 gap-3 max-w-4xl mx-auto'
+          >
+            <input
+              type="text"
+              placeholder='Szoba típusa'
+              value={category}
+              onChange={(e) => setCategory(e.target.value)}
+              className='p-2 rounded-md border focus:outline-none focus:ring-2 focus:ring-red-400'
+            />
 
-          <input
-            type="number"
-            min={1}
-            placeholder='Létszám...'
-            value={people}
-            onChange={(e) => setPeople(e.target.value)}
-            onKeyDown={(e) => { if (e.key === '-' || e.key === 'e' || e.key === '+') e.preventDefault(); }}
-            className='bg-gray-200 text-gray-900 p-2 m-1 rounded-md'
-          />
+            <input
+              type="date"
+              value={arrival}
+              onChange={(e) => setArrival(e.target.value)}
+              className='p-2 rounded-md border focus:outline-none focus:ring-2 focus:ring-red-400'
+            />
 
-          <button className='bg-red-400 text-white p-2 m-1 rounded-md'>
-            Keresés
-          </button>
-        </form>
+            <input
+              type="date"
+              value={departure}
+              onChange={(e) => setDeparture(e.target.value)}
+              className='p-2 rounded-md border focus:outline-none focus:ring-2 focus:ring-red-400'
+            />
+
+            <input
+              type="number"
+              min={1}
+              placeholder='Létszám'
+              value={people}
+              onChange={(e) => setPeople(e.target.value)}
+              onKeyDown={(e) => { if (e.key === '-' || e.key === 'e' || e.key === '+') e.preventDefault(); }}
+              className='p-2 rounded-md border focus:outline-none focus:ring-2 focus:ring-red-400'
+            />
+
+            <button className='bg-red-500 hover:bg-red-600 text-white rounded-md px-4 py-2 transition font-semibold'>
+              Keresés
+            </button>
+          </form>
+        </div>
       </div>
 
       <div className='w-full h-[180px] flex items-end'> 

@@ -1,8 +1,8 @@
 import React from 'react'
 import { NavLink } from 'react-router-dom'
 
-const Sidebar = ({ isOpen, onClose }) => {
-  const items = [
+const Sidebar = ({ isOpen, onClose, userPanel }) => {
+  const adminItems = [
     { to: '/admin', label: 'Szobák kezelése', icon: (
       <svg className="h-5 w-5" viewBox="0 0 24 24" fill="none" stroke="currentColor">
         <path strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" d="M3 7h18M3 12h18M3 17h18" />
@@ -23,7 +23,25 @@ const Sidebar = ({ isOpen, onClose }) => {
         <path strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" d="M16 11c1.657 0 3-1.343 3-3s-1.343-3-3-3-3 1.343-3 3 1.343 3 3 3zM8 11c1.657 0 3-1.343 3-3S9.657 5 8 5 5 6.343 5 8s1.343 3 3 3zM2 20c0-3.314 2.686-6 6-6h8c3.314 0 6 2.686 6 6" />
       </svg>
     )},
-  ]
+  ];
+  const userItems = [
+    { to: '/user/bookings', label: 'Foglalásaim', icon: (
+      <svg className="h-5 w-5" viewBox="0 0 24 24" fill="none" stroke="currentColor">
+        <path strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" d="M8 7V3m8 4V3M3 11h18M5 21h14a2 2 0 002-2V11H3v8a2 2 0 002 2z" />
+      </svg>
+    )},
+    { to: '/user/data', label: 'Adataim', icon: (
+      <svg className="h-5 w-5" viewBox="0 0 24 24" fill="none" stroke="currentColor">
+        <path strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" d="M16 11c1.657 0 3-1.343 3-3s-1.343-3-3-3-3 1.343-3 3 1.343 3 3 3zM8 11c1.657 0 3-1.343 3-3S9.657 5 8 5 5 6.343 5 8s1.343 3 3 3zM2 20c0-3.314 2.686-6 6-6h8c3.314 0 6 2.686 6 6" />
+      </svg>
+    )},
+    { to: '/user/reviews', label: 'Értékeléseim', icon: (
+      <svg className="h-5 w-5" viewBox="0 0 24 24" fill="none" stroke="currentColor">
+        <path strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" d="M12 17l-5 3 1-6-4-4 6-1 3-6 3 6 6 1-4 4 1 6z" />
+      </svg>
+    )},
+  ];
+  const items = userPanel ? userItems : adminItems;
 
   return (
     <aside
@@ -45,8 +63,8 @@ const Sidebar = ({ isOpen, onClose }) => {
         {/* HEADER + X ICON */}
         <div className="px-4 py-4 border-b flex items-center justify-between bg-white">
           <div>
-            <div className="text-lg font-semibold">Admin</div>
-            <div className="text-xs text-gray-500 mt-1">Vezérlőpult</div>
+            <div className="text-lg font-semibold">{userPanel ? (() => { try { const u = JSON.parse(localStorage.getItem('user')); return u?.name || 'Felhasználó'; } catch { return 'Felhasználó'; } })() : 'Admin'}</div>
+            <div className="text-xs text-gray-500 mt-1">{userPanel ? 'Saját fiók' : 'Vezérlőpult'}</div>
           </div>
 
           <button

@@ -111,22 +111,37 @@ const Navigation = () => {
 
           {user && (
             <>
-              <div className="flex items-center gap-2 px-4 py-2 bg-white/80 rounded-lg shadow-sm text-gray-800 font-medium">
-                <span className="w-7 h-7 bg-[#6FD98C] text-white rounded-full flex items-center justify-center font-bold">
-                  {user.name?.charAt(0).toUpperCase()}
-                </span>
-                <span className="hidden md:inline">{user.name}</span>
-              </div>
-
-              {Number(user.isAdmin) === 1 && (
+              {Number(user.isAdmin) === 1 ? (
+                <>
+                  <Link
+                    to="/user/bookings"
+                    className="flex items-center gap-2 px-4 py-2 bg-white/80 rounded-lg shadow-sm text-gray-800 font-medium hover:bg-green-100 transition"
+                    style={{ textDecoration: 'none' }}
+                  >
+                    <span className="w-7 h-7 bg-[#6FD98C] text-white rounded-full flex items-center justify-center font-bold">
+                      {user.name?.charAt(0).toUpperCase()}
+                    </span>
+                    <span className="hidden md:inline">{user.name}</span>
+                  </Link>
+                  <Link
+                    to="/admin"
+                    className="bg-[#2B6CB0] text-white px-4 py-2 rounded-xl hover:-translate-y-px hover:bg-[#245a94] transition-all duration-200 font-semibold cursor-pointer"
+                  >
+                    Admin
+                  </Link>
+                </>
+              ) : (
                 <Link
-                  to="/admin"
-                  className="bg-[#2B6CB0] text-white px-4 py-2 rounded-xl hover:-translate-y-px hover:bg-[#245a94] transition-all duration-200 font-semibold cursor-pointer"
+                  to="/user/bookings"
+                  className="flex items-center gap-2 px-4 py-2 bg-white/80 rounded-lg shadow-sm text-gray-800 font-medium hover:bg-green-100 transition"
+                  style={{ textDecoration: 'none' }}
                 >
-                  Admin
+                  <span className="w-7 h-7 bg-[#6FD98C] text-white rounded-full flex items-center justify-center font-bold">
+                    {user.name?.charAt(0).toUpperCase()}
+                  </span>
+                  <span className="hidden md:inline">{user.name}</span>
                 </Link>
               )}
-
               <button
                 onClick={handleLogout}
                 className="px-6 py-2 rounded-xl text-white font-semibold cursor-pointer"
@@ -210,15 +225,37 @@ const Navigation = () => {
 
                 {user && (
                   <>
-                    <div className="flex items-center gap-3 px-3 py-3 bg-white/80 rounded-lg shadow-sm text-gray-800 font-medium">
-                      <span className="w-9 h-9 bg-[#6FD98C] text-white rounded-full flex items-center justify-center font-bold">
-                        {user.name?.charAt(0).toUpperCase()}
-                      </span>
-                      <div className="flex-1">
-                        <div className="font-semibold">{user.name}</div>
-                        <div className="text-xs text-gray-600">Felhasználó</div>
-                      </div>
-                    </div>
+                    {Number(user.isAdmin) === 1 ? (
+                      <Link
+                        to="/user/bookings"
+                        onClick={() => setSidebarOpen(false)}
+                        className="flex items-center gap-3 px-3 py-3 bg-white/80 rounded-lg shadow-sm text-gray-800 font-medium hover:bg-green-100 transition"
+                        style={{ textDecoration: 'none' }}
+                      >
+                        <span className="w-9 h-9 bg-[#6FD98C] text-white rounded-full flex items-center justify-center font-bold">
+                          {user.name?.charAt(0).toUpperCase()}
+                        </span>
+                        <div className="flex-1">
+                          <div className="font-semibold">{user.name}</div>
+                          <div className="text-xs text-gray-600">Felhasználó</div>
+                        </div>
+                      </Link>
+                    ) : (
+                      <Link
+                        to="/user/bookings"
+                        onClick={() => setSidebarOpen(false)}
+                        className="flex items-center gap-3 px-3 py-3 bg-white/80 rounded-lg shadow-sm text-gray-800 font-medium hover:bg-green-100 transition"
+                        style={{ textDecoration: 'none' }}
+                      >
+                        <span className="w-9 h-9 bg-[#6FD98C] text-white rounded-full flex items-center justify-center font-bold">
+                          {user.name?.charAt(0).toUpperCase()}
+                        </span>
+                        <div className="flex-1">
+                          <div className="font-semibold">{user.name}</div>
+                          <div className="text-xs text-gray-600">Felhasználó</div>
+                        </div>
+                      </Link>
+                    )}
 
                     {Number(user.isAdmin) === 1 && (
                       <Link

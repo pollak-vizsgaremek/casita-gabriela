@@ -14,34 +14,26 @@ export const mailer = nodemailer.createTransport({
   },
 });
 
+// Admin email (ideiglenes default; később .env-ben állítható)
+const ADMIN_EMAIL = process.env.ADMIN_EMAIL || "casitagabriela.mailer@gmail.com";
+
 /* ---------- Registration via email verification ---------- */
 
-/**
- * POST /register-init
- * - Validates minimal input
- * - Hashes password
- * - Creates a JWT token containing the user data (hashed password)
- * - Sends a verification email with a link to /verify-registration?token=...
- */
 export const registerInit = async (req, res) => {
   try {
     const { name, email, password, phone_number, birth_date, address, identity_card } = req.body;
 
-    // Basic validation (keep it minimal here; frontend should validate too)
     if (!name || !email || !password) {
       return res.status(400).json({ error: "Név, email és jelszó kötelező." });
     }
 
-    // Check if email already exists
     const existing = await prisma.users.findUnique({ where: { email } });
     if (existing) {
       return res.status(400).json({ error: "Ezzel az email címmel már regisztráltak." });
     }
 
-    // Hash password now so we don't put plain password into token
     const hashedPassword = await bcrypt.hash(password, 10);
 
-    // Build payload for token (store only what's necessary)
     const payload = {
       name,
       email,
@@ -52,13 +44,12 @@ export const registerInit = async (req, res) => {
       identity_card: identity_card || null,
     };
 
-    // Token valid for 24 hours
     const token = jwt.sign(payload, process.env.JWT_SECRET, { expiresIn: "24h" });
 
-    // Verification link (frontend route where user clicks; backend verify endpoint below)
-    const verifyUrl = `http://localhost:5173/verify?token=${token}`;
+    // A link most a frontend Verify oldalára mutat (Vite dev: 5173)
+    const frontendHost = process.env.FRONTEND_HOST || `${req.protocol}://${req.get("host")}`; // ha nincs .env, fallback a backend host
+    const verifyUrl = `${frontendHost.replace(/\/$/, "")}/verify?token=${token}`;
 
-    // Friendly HTML email
     const html = `
       <div style="font-family:Arial,sans-serif;background:#f6f7fb;padding:30px;">
         <div style="max-width:600px;margin:auto;background:#fff;border-radius:12px;padding:24px;">
@@ -84,7 +75,6 @@ export const registerInit = async (req, res) => {
       </div>
     `;
 
-    // Send email
     await mailer.sendMail({
       from: `"Casa Gabriel" <${process.env.EMAIL_USER}>`,
       to: email,
@@ -99,12 +89,6 @@ export const registerInit = async (req, res) => {
   }
 };
 
-/**
- * GET /verify-registration?token=...
- * - Verifies token
- * - If valid and email not already used, creates the user in DB
- * - Returns success message (frontend can redirect to login)
- */
 export const verifyRegistration = async (req, res) => {
   try {
     const { token } = req.query;
@@ -117,13 +101,11 @@ export const verifyRegistration = async (req, res) => {
       return res.status(400).json({ error: "A link lejárt vagy érvénytelen." });
     }
 
-    // Check again if email already exists (race condition safety)
     const existing = await prisma.users.findUnique({ where: { email: payload.email } });
     if (existing) {
       return res.status(400).json({ error: "Ezzel az email címmel már regisztráltak." });
     }
 
-    // Create user using the data from token (password already hashed)
     const user = await prisma.users.create({
       data: {
         name: payload.name,
@@ -136,12 +118,157 @@ export const verifyRegistration = async (req, res) => {
       },
     });
 
-    // Optionally: you can auto-login the user by issuing a JWT here.
-    // For now, return success message.
     res.json({ message: "Regisztráció sikeres. Most már bejelentkezhetsz.", user: { id: user.id, email: user.email, name: user.name } });
   } catch (err) {
     console.error("VERIFY-REGISTRATION ERROR:", err);
     res.status(500).json({ error: "Hiba történt a regisztráció megerősítésekor." });
+  }
+};
+
+/* ---------- Booking-related emails ---------- */
+
+/**
+ * Foglalás leadva - visszaigazoló email a felhasználónak
+ * booking: a booking objektum (tartalmazza a room_id, arrival_date, departure_date, people, stb.)
+ * room: a szoba objektum (név, ár, stb.)
+ * user: a felhasználó objektum (name, email)
+ */
+export const sendBookingCreatedUser = async (booking, room, user) => {
+  try {
+    const arrival = booking.arrival_date ? new Date(booking.arrival_date).toISOString().slice(0,10) : "";
+    const departure = booking.departure_date ? new Date(booking.departure_date).toISOString().slice(0,10) : "";
+
+    const html = `
+      <div style="font-family:Arial,sans-serif;padding:20px;">
+        <h3>Foglalás beérkezett</h3>
+        <p>Kedves <strong>${user.name}</strong>,</p>
+        <p>Köszönjük a foglalásodat. A foglalás részletei:</p>
+        <ul>
+          <li><strong>Szoba:</strong> ${room?.name || "—"}</li>
+          <li><strong>Érkezés:</strong> ${arrival}</li>
+          <li><strong>Távozás:</strong> ${departure}</li>
+          <li><strong>Vendégek száma:</strong> ${booking.people || booking.guests || 1}</li>
+          <li><strong>Foglalás azonosító:</strong> ${booking.id}</li>
+        </ul>
+        <p>Az admin hamarosan elbírálja a foglalást. Amint döntés születik, értesítünk.</p>
+        <p>Üdvözlettel,<br/>Casa Gabriel csapata</p>
+      </div>
+    `;
+
+    await mailer.sendMail({
+      from: `"Casa Gabriel" <${process.env.EMAIL_USER}>`,
+      to: user.email,
+      subject: "Foglalás beérkezett - Casa Gabriel",
+      html,
+    });
+  } catch (err) {
+    console.error("SEND BOOKING CREATED USER ERROR:", err);
+  }
+};
+
+/**
+ * Foglalás leadva - értesítő email az adminnak
+ */
+export const sendBookingCreatedAdmin = async (booking, room, user) => {
+  try {
+    const arrival = booking.arrival_date ? new Date(booking.arrival_date).toISOString().slice(0,10) : "";
+    const departure = booking.departure_date ? new Date(booking.departure_date).toISOString().slice(0,10) : "";
+
+    const html = `
+      <div style="font-family:Arial,sans-serif;padding:20px;">
+        <h3>Új foglalás érkezett</h3>
+        <p>Új foglalás érkezett a rendszerbe:</p>
+        <ul>
+          <li><strong>Felhasználó:</strong> ${user.name} (${user.email})</li>
+          <li><strong>Szoba:</strong> ${room?.name || "—"}</li>
+          <li><strong>Érkezés:</strong> ${arrival}</li>
+          <li><strong>Távozás:</strong> ${departure}</li>
+          <li><strong>Vendégek száma:</strong> ${booking.people || booking.guests || 1}</li>
+          <li><strong>Foglalás azonosító:</strong> ${booking.id}</li>
+        </ul>
+        <p>Kérjük, lépj be az admin felületre a foglalás elbírálásához.</p>
+      </div>
+    `;
+
+    await mailer.sendMail({
+      from: `"Casa Gabriel" <${process.env.EMAIL_USER}>`,
+      to: ADMIN_EMAIL,
+      subject: "Új foglalás érkezett - Casa Gabriel",
+      html,
+    });
+  } catch (err) {
+    console.error("SEND BOOKING CREATED ADMIN ERROR:", err);
+  }
+};
+
+/**
+ * Foglalás elfogadva - értesítő a felhasználónak
+ */
+export const sendBookingApproved = async (booking, room, user) => {
+  try {
+    const arrival = booking.arrival_date ? new Date(booking.arrival_date).toISOString().slice(0,10) : "";
+    const departure = booking.departure_date ? new Date(booking.departure_date).toISOString().slice(0,10) : "";
+
+    const html = `
+      <div style="font-family:Arial,sans-serif;padding:20px;">
+        <h3>Foglalás elfogadva</h3>
+        <p>Kedves <strong>${user.name}</strong>,</p>
+        <p>Örömmel értesítünk, hogy a foglalásodat elfogadtuk. Részletek:</p>
+        <ul>
+          <li><strong>Szoba:</strong> ${room?.name || "—"}</li>
+          <li><strong>Érkezés:</strong> ${arrival}</li>
+          <li><strong>Távozás:</strong> ${departure}</li>
+          <li><strong>Foglalás azonosító:</strong> ${booking.id}</li>
+        </ul>
+        <p>Várunk szeretettel!</p>
+        <p>Üdvözlettel,<br/>Casa Gabriel csapata</p>
+      </div>
+    `;
+
+    await mailer.sendMail({
+      from: `"Casa Gabriel" <${process.env.EMAIL_USER}>`,
+      to: user.email,
+      subject: "Foglalás elfogadva - Casa Gabriel",
+      html,
+    });
+  } catch (err) {
+    console.error("SEND BOOKING APPROVED ERROR:", err);
+  }
+};
+
+/**
+ * Foglalás elutasítva - értesítő a felhasználónak
+ */
+export const sendBookingRejected = async (booking, room, user, reason = null) => {
+  try {
+    const arrival = booking.arrival_date ? new Date(booking.arrival_date).toISOString().slice(0,10) : "";
+    const departure = booking.departure_date ? new Date(booking.departure_date).toISOString().slice(0,10) : "";
+
+    const html = `
+      <div style="font-family:Arial,sans-serif;padding:20px;">
+        <h3>Foglalás elutasítva</h3>
+        <p>Kedves <strong>${user.name}</strong>,</p>
+        <p>Sajnálattal értesítünk, hogy a foglalásodat elutasítottuk. Részletek:</p>
+        <ul>
+          <li><strong>Szoba:</strong> ${room?.name || "—"}</li>
+          <li><strong>Érkezés:</strong> ${arrival}</li>
+          <li><strong>Távozás:</strong> ${departure}</li>
+          <li><strong>Foglalás azonosító:</strong> ${booking.id}</li>
+        </ul>
+        ${reason ? `<p><strong>Indok:</strong> ${reason}</p>` : ""}
+        <p>Ha kérdésed van, kérjük válaszolj erre az emailre vagy lépj kapcsolatba velünk.</p>
+        <p>Üdvözlettel,<br/>Casa Gabriel csapata</p>
+      </div>
+    `;
+
+    await mailer.sendMail({
+      from: `"Casa Gabriel" <${process.env.EMAIL_USER}>`,
+      to: user.email,
+      subject: "Foglalás elutasítva - Casa Gabriel",
+      html,
+    });
+  } catch (err) {
+    console.error("SEND BOOKING REJECTED ERROR:", err);
   }
 };
 
@@ -217,7 +344,7 @@ export const contactForm = async (req, res) => {
 
     const mailOptions = {
       from: `"Casa Gabriel" <${process.env.EMAIL_USER}>`,
-      to: "casitagabriela.mailer@gmail.com",
+      to: ADMIN_EMAIL,
       subject: `Új kapcsolatfelvétel: ${subject}`,
       html: `
         <div style="font-family:Arial,sans-serif;padding:20px;">
@@ -235,7 +362,6 @@ export const contactForm = async (req, res) => {
 
     await mailer.sendMail(mailOptions);
 
-    // visszaigazoló email a feladónak
     await mailer.sendMail({
       from: `"Casa Gabriel" <${process.env.EMAIL_USER}>`,
       to: email,

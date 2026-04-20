@@ -17,7 +17,12 @@ import {
   getUserData,
   updateUserData,
   getUserReviews,
-  deleteUserReview
+  deleteUserReview,
+  getAdminCounts,
+  getUserCounts,
+  getAllUsers,
+  adminUpdateUser,
+  adminDeleteUser
 } from "./controllers.js";
 
 import {
@@ -66,6 +71,15 @@ export default function registerRoutes(app) {
 
   // Contact (email)
   app.post("/contact", contactForm);
+
+  // Admin user management
+  app.get("/admin/users", authenticate, requireAdmin, getAllUsers);
+  app.put("/admin/users/:id", authenticate, requireAdmin, adminUpdateUser);
+  app.delete("/admin/users/:id", authenticate, requireAdmin, adminDeleteUser);
+
+  // Notification counts
+  app.get("/admin/counts", authenticate, requireAdmin, getAdminCounts);
+  app.get("/user/counts", authenticate, getUserCounts);
 
   // User panel
   app.get("/user/bookings", authenticate, getUserBookings);

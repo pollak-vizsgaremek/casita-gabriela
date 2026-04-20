@@ -605,14 +605,7 @@ const Room = () => {
       try {
         const url = `${BACKEND_BASE}${ep}`;
             const res = await axios.post(url, payload, { headers: { "Content-Type": "application/json" } });
-        setSuccessMessage("Foglalás sikeresen leadva!");
-        setTimeout(() => setSuccessMessage(""), 4000);
-        fetchBookings();
-        clearSelection();
-        setGuests(1);
-        setAcceptedAszf(false);
-        setAcceptedAdat(false);
-            // After any successful booking, mark user as no longer first-time (prevent repeated discounts)
+            // After any successful booking, mark user as no longer first-time
             try {
               if (currentUser) {
                 const updated = { ...currentUser, isFirstTimeUser: false };
@@ -623,6 +616,7 @@ const Room = () => {
             } catch (e) {
               console.debug('Updating local first-time flag failed', e);
             }
+        navigate('/booking-success');
         return;
       } catch (err) {
         lastError = { err, endpoint: ep, code: ERR_POST };

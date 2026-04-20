@@ -1,41 +1,86 @@
-import React from 'react'
-import { NavLink } from 'react-router-dom'
+import React, { useEffect, useState, useCallback } from 'react'
+import { NavLink, useLocation } from 'react-router-dom'
+import api from '../services/api'
+
+const SEEN_KEY = 'sidebar_seen_ids';
+
+const getSeenIds = () => {
+  try { return JSON.parse(localStorage.getItem(SEEN_KEY)) || {}; } catch { return {}; }
+};
+const setSeenId = (key, maxId) => {
+  const seen = getSeenIds();
+  seen[key] = maxId;
+  localStorage.setItem(SEEN_KEY, JSON.stringify(seen));
+};
 
 const Sidebar = ({ isOpen, onClose, userPanel }) => {
+  const [counts, setCounts] = useState({});
+  const [maxIds, setMaxIds] = useState({});
+  const location = useLocation();
+
+  const fetchCounts = useCallback(() => {
+    const seen = getSeenIds();
+    const prefix = userPanel ? '/user/counts' : '/admin/counts';
+    const params = userPanel
+      ? { sinceBooking: seen.bookings || 0, sinceReview: seen.reviews || 0 }
+      : { sinceBooking: seen.bookings || 0, sinceReview: seen.reviews || 0, sinceUser: seen.users || 0 };
+    api.get(prefix, { params })
+      .then(res => {
+        setCounts(res.data);
+        setMaxIds(res.data.maxIds || {});
+      })
+      .catch(() => {});
+  }, [userPanel]);
+
+  useEffect(() => { fetchCounts(); }, [fetchCounts]);
+
+  // When navigating to a section, mark it as seen and refresh counts
+  useEffect(() => {
+    const path = location.pathname;
+    const sectionMap = userPanel
+      ? { '/user/bookings': 'bookings', '/user/reviews': 'reviews' }
+      : { '/admin/bookings': 'bookings', '/admin/reviews': 'reviews', '/admin/users': 'users' };
+    const key = sectionMap[path];
+    if (key && maxIds[key]) {
+      setSeenId(key, maxIds[key]);
+      fetchCounts();
+    }
+  }, [location.pathname, maxIds, userPanel, fetchCounts]);
+
   const adminItems = [
-    { to: '/admin', label: 'Szobák kezelése', icon: (
+    { to: '/admin', label: 'Szobák kezelése', countKey: null, icon: (
       <svg className="h-5 w-5" viewBox="0 0 24 24" fill="none" stroke="currentColor">
         <path strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" d="M3 7h18M3 12h18M3 17h18" />
       </svg>
     )},
-    { to: '/admin/bookings', label: 'Foglalások kezelése', icon: (
+    { to: '/admin/bookings', label: 'Foglalások kezelése', countKey: 'bookings', icon: (
       <svg className="h-5 w-5" viewBox="0 0 24 24" fill="none" stroke="currentColor">
         <path strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" d="M8 7V3m8 4V3M3 11h18M5 21h14a2 2 0 002-2V11H3v8a2 2 0 002 2z" />
       </svg>
     )},
-    { to: '/admin/reviews', label: 'Értékelések', icon: (
+    { to: '/admin/reviews', label: 'Értékelések', countKey: 'reviews', icon: (
       <svg className="h-5 w-5" viewBox="0 0 24 24" fill="none" stroke="currentColor">
         <path strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" d="M12 17l-5 3 1-6-4-4 6-1 3-6 3 6 6 1-4 4 1 6z" />
       </svg>
     )},
-    { to: '/admin/users', label: 'Felhasználók kezelése', icon: (
+    { to: '/admin/users', label: 'Felhasználók kezelése', countKey: 'users', icon: (
       <svg className="h-5 w-5" viewBox="0 0 24 24" fill="none" stroke="currentColor">
         <path strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" d="M16 11c1.657 0 3-1.343 3-3s-1.343-3-3-3-3 1.343-3 3 1.343 3 3 3zM8 11c1.657 0 3-1.343 3-3S9.657 5 8 5 5 6.343 5 8s1.343 3 3 3zM2 20c0-3.314 2.686-6 6-6h8c3.314 0 6 2.686 6 6" />
       </svg>
     )},
   ];
   const userItems = [
-    { to: '/user/bookings', label: 'Foglalásaim', icon: (
+    { to: '/user/bookings', label: 'Foglalásaim', countKey: 'bookings', icon: (
       <svg className="h-5 w-5" viewBox="0 0 24 24" fill="none" stroke="currentColor">
         <path strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" d="M8 7V3m8 4V3M3 11h18M5 21h14a2 2 0 002-2V11H3v8a2 2 0 002 2z" />
       </svg>
     )},
-    { to: '/user/data', label: 'Adataim', icon: (
+    { to: '/user/data', label: 'Adataim', countKey: null, icon: (
       <svg className="h-5 w-5" viewBox="0 0 24 24" fill="none" stroke="currentColor">
         <path strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" d="M16 11c1.657 0 3-1.343 3-3s-1.343-3-3-3-3 1.343-3 3 1.343 3 3 3zM8 11c1.657 0 3-1.343 3-3S9.657 5 8 5 5 6.343 5 8s1.343 3 3 3zM2 20c0-3.314 2.686-6 6-6h8c3.314 0 6 2.686 6 6" />
       </svg>
     )},
-    { to: '/user/reviews', label: 'Értékeléseim', icon: (
+    { to: '/user/reviews', label: 'Értékeléseim', countKey: 'reviews', icon: (
       <svg className="h-5 w-5" viewBox="0 0 24 24" fill="none" stroke="currentColor">
         <path strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" d="M12 17l-5 3 1-6-4-4 6-1 3-6 3 6 6 1-4 4 1 6z" />
       </svg>
@@ -95,7 +140,12 @@ const Sidebar = ({ isOpen, onClose, userPanel }) => {
               onClick={onClose}
             >
               <span className="shrink-0 text-green-700">{it.icon}</span>
-              <span className="text-sm">{it.label}</span>
+              <span className="text-sm flex-1">{it.label}</span>
+              {it.countKey && counts[it.countKey] > 0 && (
+                <span className="bg-red-500 text-white text-xs font-bold rounded-full min-w-5 h-5 flex items-center justify-center px-1">
+                  {counts[it.countKey]}
+                </span>
+              )}
             </NavLink>
           ))}
         </nav>

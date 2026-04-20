@@ -1,10 +1,15 @@
-import { Outlet } from "react-router";
+import { Outlet, useLocation } from "react-router";
 import Navigation from "./components/Navigation";
 import CookieBanner from "./components/CookieBanner";
 import { useEffect } from "react";
 import { loadConsentScripts } from "./utils/loadConsentScripts";
 
 const Layout = () => {
+  const location = useLocation();
+
+  useEffect(() => {
+    window.scrollTo(0, 0);
+  }, [location.pathname]);
 
   useEffect(() => {
     // betölti a statisztika / marketing scripteket, ha engedélyezve vannak

@@ -28,6 +28,8 @@ import UserData from './pages/UserData';
 import UserReviews from './pages/UserReviews';
 import ForgotPassword from './pages/ForgotPassword';
 import ResetPassword from './pages/ResetPassword';
+import BookingSuccess from './pages/BookingSuccess';
+import NotFound from './pages/NotFound';
 
 const App = () => {
     return (
@@ -44,6 +46,7 @@ const App = () => {
                     <Route path="/verify" element={<Verify />} />
 
                     <Route path="/room/:id" element={<Room />} />
+                    <Route path="/booking-success" element={<BookingSuccess />} />
                     <Route path="/search" element={<SearchResults />} />
                     <Route path="/forgot-password" element={<ForgotPassword />} />
                     <Route path="/reset-password" element={<ResetPassword />} />
@@ -73,6 +76,9 @@ const App = () => {
                     <Route path="/user/bookings" element={<UserBooking />} />
                     <Route path="/user/data" element={<UserData />} />
                     <Route path="/user/reviews" element={<UserReviews />} />
+
+                    {/* 404 */}
+                    <Route path="*" element={<NotFound />} />
 
                 </Route>
             </Routes>

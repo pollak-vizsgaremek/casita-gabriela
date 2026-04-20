@@ -187,6 +187,11 @@ export const createBooking = async (req, res) => {
     });
 
     res.json({ message: "Foglalás sikeresen létrehozva!", booking: created });
+
+    // Mark user as no longer first-time in DB (fire-and-forget)
+    if (user_id) {
+      prisma.users.update({ where: { id: parseInt(user_id, 10) }, data: { isFirstTimeUser: false } }).catch(() => {});
+    }
   } catch (err) {
     console.error("POST /booking error:", err);
     res.status(500).json({ error: "Hiba a foglalás létrehozásakor." });
@@ -400,6 +405,111 @@ export const getUserReviews = async (req, res) => {
   } catch (err) {
     console.error("GET /user/reviews error:", err);
     res.status(500).json({ error: "Nem sikerült betölteni az értékeléseket." });
+  }
+};
+
+/* ---------- ADMIN USER MANAGEMENT ---------- */
+export const getAllUsers = async (req, res) => {
+  try {
+    const users = await prisma.users.findMany({
+      orderBy: { id: 'desc' },
+      select: { id: true, name: true, email: true, phone_number: true, birth_date: true, address: true, identity_card: true, isAdmin: true, isFirstTimeUser: true },
+    });
+    res.json(users);
+  } catch (err) {
+    console.error('GET /admin/users error:', err);
+    res.status(500).json({ error: 'Hiba a felhasználók lekérésekor.' });
+  }
+};
+
+export const adminUpdateUser = async (req, res) => {
+  const id = parseId(req.params.id);
+  if (!id) return res.status(400).json({ error: 'Érvénytelen id.' });
+  try {
+    const { name, email, phone_number, address, isAdmin } = req.body;
+    const data = {};
+    if (name !== undefined) data.name = name;
+    if (email !== undefined) data.email = email;
+    if (phone_number !== undefined) data.phone_number = phone_number;
+    if (address !== undefined) data.address = address;
+    if (isAdmin !== undefined) data.isAdmin = Boolean(isAdmin);
+    const updated = await prisma.users.update({ where: { id }, data });
+    res.json({ message: 'Felhasználó frissítve.', user: updated });
+  } catch (err) {
+    console.error('PUT /admin/users/:id error:', err);
+    res.status(500).json({ error: 'Hiba a felhasználó frissítésekor.' });
+  }
+};
+
+export const adminDeleteUser = async (req, res) => {
+  const id = parseId(req.params.id);
+  if (!id) return res.status(400).json({ error: 'Érvénytelen id.' });
+  try {
+    await prisma.$transaction(async (tx) => {
+      await tx.booking.deleteMany({ where: { user_id: id } });
+      await tx.room_review.deleteMany({ where: { user_id: id } });
+      await tx.users.delete({ where: { id } });
+    });
+    res.json({ message: 'Felhasználó törölve.' });
+  } catch (err) {
+    console.error('DELETE /admin/users/:id error:', err);
+    res.status(500).json({ error: 'Hiba a felhasználó törlésekor.' });
+  }
+};
+
+/* ---------- NOTIFICATION COUNTS ---------- */
+export const getAdminCounts = async (req, res) => {
+  try {
+    const sinceBooking = parseInt(req.query.sinceBooking) || 0;
+    const sinceReview  = parseInt(req.query.sinceReview)  || 0;
+    const sinceUser    = parseInt(req.query.sinceUser)    || 0;
+
+    const [bookings, reviews, users, maxBooking, maxReview, maxUser] = await Promise.all([
+      prisma.booking.count({ where: { id: { gt: sinceBooking }, status: 'pending' } }),
+      prisma.room_review.count({ where: { id: { gt: sinceReview } } }),
+      prisma.users.count({ where: { id: { gt: sinceUser } } }),
+      prisma.booking.findFirst({ where: { status: 'pending' }, orderBy: { id: 'desc' }, select: { id: true } }),
+      prisma.room_review.findFirst({ orderBy: { id: 'desc' }, select: { id: true } }),
+      prisma.users.findFirst({ orderBy: { id: 'desc' }, select: { id: true } }),
+    ]);
+
+    res.json({
+      bookings, reviews, users,
+      maxIds: {
+        bookings: maxBooking?.id || 0,
+        reviews:  maxReview?.id  || 0,
+        users:    maxUser?.id    || 0,
+      }
+    });
+  } catch (err) {
+    console.error('GET /admin/counts error:', err);
+    res.status(500).json({ error: 'Hiba.' });
+  }
+};
+
+export const getUserCounts = async (req, res) => {
+  try {
+    const sinceBooking = parseInt(req.query.sinceBooking) || 0;
+    const sinceReview  = parseInt(req.query.sinceReview)  || 0;
+    const uid = req.user.id;
+
+    const [bookings, reviews, maxBooking, maxReview] = await Promise.all([
+      prisma.booking.count({ where: { user_id: uid, id: { gt: sinceBooking } } }),
+      prisma.room_review.count({ where: { user_id: uid, id: { gt: sinceReview } } }),
+      prisma.booking.findFirst({ where: { user_id: uid }, orderBy: { id: 'desc' }, select: { id: true } }),
+      prisma.room_review.findFirst({ where: { user_id: uid }, orderBy: { id: 'desc' }, select: { id: true } }),
+    ]);
+
+    res.json({
+      bookings, reviews,
+      maxIds: {
+        bookings: maxBooking?.id || 0,
+        reviews:  maxReview?.id  || 0,
+      }
+    });
+  } catch (err) {
+    console.error('GET /user/counts error:', err);
+    res.status(500).json({ error: 'Hiba.' });
   }
 };
 

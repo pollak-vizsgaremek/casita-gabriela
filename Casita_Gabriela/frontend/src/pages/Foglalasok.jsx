@@ -122,7 +122,7 @@ const Foglalasok = () => {
   const fetchBookings = async () => {
     try {
       setLoading(true);
-      const res = await api.get('/bookings');
+      const res = await api.get('/booking');
       // ensure array
       const data = Array.isArray(res.data) ? res.data : [];
       // sort by booking_date desc for display

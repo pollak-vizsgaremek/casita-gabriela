@@ -2,6 +2,12 @@ import { PrismaClient } from "./generated/prisma/client.js";
 import bcrypt from "bcrypt";
 import jwt from "jsonwebtoken";
 import { normalizeImagesFromDb, parseId } from "./utils.js";
+import {
+  sendBookingCreatedUser,
+  sendBookingCreatedAdmin,
+  sendBookingApproved,
+  sendBookingRejected
+} from "./email.js";
 
 const prisma = new PrismaClient();
 
@@ -186,6 +192,24 @@ export const createBooking = async (req, res) => {
       },
     });
 
+    // --- Email értesítések: felhasználó és admin ---
+    try {
+      // lekérjük a szükséges adatokat az email sablonokhoz
+      const room = await prisma.room.findUnique({ where: { id: Number(room_id) } });
+      const user = user_id ? await prisma.users.findUnique({ where: { id: Number(user_id) } }) : null;
+
+      // felhasználónak visszaigazoló email
+      if (user && user.email) {
+        await sendBookingCreatedUser(created, room, user);
+      }
+
+      // admin értesítés
+      await sendBookingCreatedAdmin(created, room, user || { name: "Ismeretlen", email: "—" });
+    } catch (emailErr) {
+      console.error("BOOKING EMAIL ERROR:", emailErr);
+      // nem dobunk hibát a felhasználónak, csak logoljuk
+    }
+
     res.json({ message: "Foglalás sikeresen létrehozva!", booking: created });
   } catch (err) {
     console.error("POST /booking error:", err);
@@ -214,6 +238,10 @@ export const updateBooking = async (req, res) => {
   if (!id) return res.status(400).json({ error: "Érvénytelen id." });
 
   try {
+    // először lekérjük a meglévő foglalást, hogy össze tudjuk hasonlítani a státuszt
+    const existing = await prisma.booking.findUnique({ where: { id } });
+    if (!existing) return res.status(404).json({ error: "Foglalás nem található." });
+
     const data = {};
     if (req.body.status) data.status = req.body.status;
     if (req.body.people !== undefined) data.people = parseInt(req.body.people, 10);
@@ -221,6 +249,25 @@ export const updateBooking = async (req, res) => {
     if (req.body.departure_date) data.departure_date = new Date(req.body.departure_date);
 
     const updated = await prisma.booking.update({ where: { id }, data });
+
+    // Ha státusz változott, és új státusz approved vagy rejected, értesítjük a felhasználót
+    try {
+      if (data.status && data.status !== existing.status) {
+        const room = await prisma.room.findUnique({ where: { id: existing.room_id } });
+        const user = existing.user_id ? await prisma.users.findUnique({ where: { id: existing.user_id } }) : null;
+
+        if (data.status === "approved") {
+          if (user && user.email) await sendBookingApproved(updated, room, user);
+        } else if (data.status === "rejected") {
+          // opcionálisan lehet indokot is átadni: req.body.reason
+          const reason = req.body.reason || null;
+          if (user && user.email) await sendBookingRejected(updated, room, user, reason);
+        }
+      }
+    } catch (emailErr) {
+      console.error("BOOKING STATUS EMAIL ERROR:", emailErr);
+    }
+
     res.json({ message: "Foglalás frissítve", booking: updated });
   } catch (err) {
     console.error("PUT /booking/:id error:", err);
@@ -339,6 +386,7 @@ export const deleteUserBooking = async (req, res) => {
     const booking = await prisma.booking.findUnique({ where: { id } });
     if (!booking || booking.user_id !== req.user.id) return res.status(404).json({ error: "Foglalás nem található." });
 
+    // Felhasználói törlés: a te kérésed szerint NEM küldünk emailt sem az adminnak, sem a felhasználónak
     await prisma.booking.delete({ where: { id } });
     res.json({ message: "Foglalás törölve." });
   } catch (err) {

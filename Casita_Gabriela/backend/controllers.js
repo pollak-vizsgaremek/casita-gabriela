@@ -6,7 +6,7 @@ import {
   sendBookingCreatedUser,
   sendBookingCreatedAdmin,
   sendBookingApproved,
-  sendBookingRejected
+  sendBookingRejected,
 } from "./email.js";
 
 const prisma = new PrismaClient();
@@ -16,13 +16,18 @@ export const login = async (req, res) => {
   const { email, password } = req.body;
   try {
     const user = await prisma.users.findUnique({ where: { email } });
-    if (!user) return res.status(400).json({ error: "Nincs ilyen felhasználó." });
+    if (!user)
+      return res.status(400).json({ error: "Nincs ilyen felhasználó." });
 
     const validPassword = await bcrypt.compare(password, user.password);
     if (!validPassword) return res.status(400).json({ error: "Hibás jelszó." });
 
     const role = user.isAdmin ? "admin" : "user";
-    const token = jwt.sign({ id: user.id, email: user.email, role }, process.env.JWT_SECRET, { expiresIn: "1h" });
+    const token = jwt.sign(
+      { id: user.id, email: user.email, role },
+      process.env.JWT_SECRET,
+      { expiresIn: "1h" }
+    );
 
     const safeUser = {
       id: user.id,
@@ -66,8 +71,12 @@ export const getRooms = async (req, res) => {
 
 export const createRoom = async (req, res) => {
   try {
-    const { name, description, price, category, space, images, isHighlighted } = req.body;
-    const ac_availablity = req.body.ac_availablity !== undefined ? Number(req.body.ac_availablity) : 0;
+    const { name, description, price, category, space, images, isHighlighted } =
+      req.body;
+    const ac_availablity =
+      req.body.ac_availablity !== undefined
+        ? Number(req.body.ac_availablity)
+        : 0;
 
     const room = await prisma.room.create({
       data: {
@@ -101,7 +110,11 @@ export const getRoomById = async (req, res) => {
 
     if (!room) return res.status(404).json({ error: "Szoba nem található." });
 
-    const formatted = { ...room, images: normalizeImagesFromDb(room.images), reviews: room.room_review || [] };
+    const formatted = {
+      ...room,
+      images: normalizeImagesFromDb(room.images),
+      reviews: room.room_review || [],
+    };
     res.json(formatted);
   } catch (err) {
     console.error("GET /rooms/:id error:", err);
@@ -112,7 +125,8 @@ export const getRoomById = async (req, res) => {
 export const updateRoom = async (req, res) => {
   try {
     const { id } = req.params;
-    const { name, description, price, category, space, images, isHighlighted } = req.body;
+    const { name, description, price, category, space, images, isHighlighted } =
+      req.body;
 
     const updateData = {
       name,
@@ -124,9 +138,13 @@ export const updateRoom = async (req, res) => {
       isHighlighted: Boolean(isHighlighted),
     };
 
-    if (req.body.ac_availablity !== undefined) updateData.ac_availablity = Number(req.body.ac_availablity);
+    if (req.body.ac_availablity !== undefined)
+      updateData.ac_availablity = Number(req.body.ac_availablity);
 
-    const updated = await prisma.room.update({ where: { id: Number(id) }, data: updateData });
+    const updated = await prisma.room.update({
+      where: { id: Number(id) },
+      data: updateData,
+    });
     res.json(updated);
   } catch (err) {
     console.error("PUT /rooms/:id error:", err);
@@ -140,11 +158,16 @@ export const deleteRoom = async (req, res) => {
 
   try {
     const existing = await prisma.room.findUnique({ where: { id } });
-    if (!existing) return res.status(404).json({ error: "Szoba nem található." });
+    if (!existing)
+      return res.status(404).json({ error: "Szoba nem található." });
 
     const result = await prisma.$transaction(async (tx) => {
-      const deletedBookings = await tx.booking.deleteMany({ where: { room_id: id } });
-      const deletedReviews = await tx.room_review.deleteMany({ where: { room_id: id } });
+      const deletedBookings = await tx.booking.deleteMany({
+        where: { room_id: id },
+      });
+      const deletedReviews = await tx.room_review.deleteMany({
+        where: { room_id: id },
+      });
       const deletedRoom = await tx.room.delete({ where: { id } });
       return { deletedBookings, deletedReviews, deletedRoom };
     });
@@ -171,7 +194,9 @@ export const createBooking = async (req, res) => {
     } = req.body;
 
     const local = new Date(booking_date);
-    const corrected = new Date(local.getTime() - local.getTimezoneOffset() * 60000);
+    const corrected = new Date(
+      local.getTime() - local.getTimezoneOffset() * 60000
+    );
 
     const peopleCount =
       people !== undefined && people !== null
@@ -195,8 +220,12 @@ export const createBooking = async (req, res) => {
     // --- Email értesítések: felhasználó és admin ---
     try {
       // lekérjük a szükséges adatokat az email sablonokhoz
-      const room = await prisma.room.findUnique({ where: { id: Number(room_id) } });
-      const user = user_id ? await prisma.users.findUnique({ where: { id: Number(user_id) } }) : null;
+      const room = await prisma.room.findUnique({
+        where: { id: Number(room_id) },
+      });
+      const user = user_id
+        ? await prisma.users.findUnique({ where: { id: Number(user_id) } })
+        : null;
 
       // felhasználónak visszaigazoló email
       if (user && user.email) {
@@ -204,7 +233,11 @@ export const createBooking = async (req, res) => {
       }
 
       // admin értesítés
-      await sendBookingCreatedAdmin(created, room, user || { name: "Ismeretlen", email: "—" });
+      await sendBookingCreatedAdmin(
+        created,
+        room,
+        user || { name: "Ismeretlen", email: "—" }
+      );
     } catch (emailErr) {
       console.error("BOOKING EMAIL ERROR:", emailErr);
       // nem dobunk hibát a felhasználónak, csak logoljuk
@@ -214,7 +247,12 @@ export const createBooking = async (req, res) => {
 
     // Mark user as no longer first-time in DB (fire-and-forget)
     if (user_id) {
-      prisma.users.update({ where: { id: parseInt(user_id, 10) }, data: { isFirstTimeUser: false } }).catch(() => {});
+      prisma.users
+        .update({
+          where: { id: parseInt(user_id, 10) },
+          data: { isFirstTimeUser: false },
+        })
+        .catch(() => {});
     }
   } catch (err) {
     console.error("POST /booking error:", err);
@@ -230,7 +268,10 @@ export const getBookings = async (req, res) => {
       if (rid) where.room_id = rid;
     }
 
-    const bookings = await prisma.booking.findMany({ where, orderBy: { booking_date: "desc" } });
+    const bookings = await prisma.booking.findMany({
+      where,
+      orderBy: { booking_date: "desc" },
+    });
     res.json(bookings);
   } catch (err) {
     console.error("GET /booking error:", err);
@@ -245,28 +286,38 @@ export const updateBooking = async (req, res) => {
   try {
     // először lekérjük a meglévő foglalást, hogy össze tudjuk hasonlítani a státuszt
     const existing = await prisma.booking.findUnique({ where: { id } });
-    if (!existing) return res.status(404).json({ error: "Foglalás nem található." });
+    if (!existing)
+      return res.status(404).json({ error: "Foglalás nem található." });
 
     const data = {};
     if (req.body.status) data.status = req.body.status;
-    if (req.body.people !== undefined) data.people = parseInt(req.body.people, 10);
-    if (req.body.arrival_date) data.arrival_date = new Date(req.body.arrival_date);
-    if (req.body.departure_date) data.departure_date = new Date(req.body.departure_date);
+    if (req.body.people !== undefined)
+      data.people = parseInt(req.body.people, 10);
+    if (req.body.arrival_date)
+      data.arrival_date = new Date(req.body.arrival_date);
+    if (req.body.departure_date)
+      data.departure_date = new Date(req.body.departure_date);
 
     const updated = await prisma.booking.update({ where: { id }, data });
 
     // Ha státusz változott, és új státusz approved vagy rejected, értesítjük a felhasználót
     try {
       if (data.status && data.status !== existing.status) {
-        const room = await prisma.room.findUnique({ where: { id: existing.room_id } });
-        const user = existing.user_id ? await prisma.users.findUnique({ where: { id: existing.user_id } }) : null;
+        const room = await prisma.room.findUnique({
+          where: { id: existing.room_id },
+        });
+        const user = existing.user_id
+          ? await prisma.users.findUnique({ where: { id: existing.user_id } })
+          : null;
 
         if (data.status === "approved") {
-          if (user && user.email) await sendBookingApproved(updated, room, user);
+          if (user && user.email)
+            await sendBookingApproved(updated, room, user);
         } else if (data.status === "rejected") {
           // opcionálisan lehet indokot is átadni: req.body.reason
           const reason = req.body.reason || null;
-          if (user && user.email) await sendBookingRejected(updated, room, user, reason);
+          if (user && user.email)
+            await sendBookingRejected(updated, room, user, reason);
         }
       }
     } catch (emailErr) {
@@ -348,7 +399,8 @@ export const deleteReview = async (req, res) => {
 
   try {
     const existing = await prisma.room_review.findUnique({ where: { id } });
-    if (!existing) return res.status(404).json({ error: "Értékelés nem található." });
+    if (!existing)
+      return res.status(404).json({ error: "Értékelés nem található." });
 
     await prisma.room_review.delete({ where: { id } });
     res.json({ message: "Értékelés sikeresen törölve." });
@@ -367,7 +419,7 @@ export const getUserBookings = async (req, res) => {
       orderBy: { booking_date: "desc" },
     });
 
-    const formatted = bookings.map(b => ({
+    const formatted = bookings.map((b) => ({
       id: b.id,
       roomName: b.room?.name || "",
       startDate: b.arrival_date?.toISOString().slice(0, 10),
@@ -389,7 +441,8 @@ export const deleteUserBooking = async (req, res) => {
 
   try {
     const booking = await prisma.booking.findUnique({ where: { id } });
-    if (!booking || booking.user_id !== req.user.id) return res.status(404).json({ error: "Foglalás nem található." });
+    if (!booking || booking.user_id !== req.user.id)
+      return res.status(404).json({ error: "Foglalás nem található." });
 
     // Felhasználói törlés: a te kérésed szerint NEM küldünk emailt sem az adminnak, sem a felhasználónak
     await prisma.booking.delete({ where: { id } });
@@ -402,8 +455,24 @@ export const deleteUserBooking = async (req, res) => {
 
 export const getUserData = async (req, res) => {
   try {
-    const { id, name, email, phone_number, birth_date, address, identity_card } = req.user;
-    res.json({ id, name, email, phone_number, birth_date, address, identity_card });
+    const {
+      id,
+      name,
+      email,
+      phone_number,
+      birth_date,
+      address,
+      identity_card,
+    } = req.user;
+    res.json({
+      id,
+      name,
+      email,
+      phone_number,
+      birth_date,
+      address,
+      identity_card,
+    });
   } catch (err) {
     console.error("GET /user/data error:", err);
     res.status(500).json({ error: "Nem sikerült betölteni az adatokat." });
@@ -412,20 +481,30 @@ export const getUserData = async (req, res) => {
 
 export const updateUserData = async (req, res) => {
   try {
-    const { name, email, phone_number, address, password, oldPassword } = req.body;
+    const { name, email, phone_number, address, password, oldPassword } =
+      req.body;
     const data = { name, email, phone_number, address };
 
     if (password && password.trim().length > 0) {
-      if (!oldPassword) return res.status(400).json({ error: "A jelenlegi jelszó megadása kötelező." });
+      if (!oldPassword)
+        return res
+          .status(400)
+          .json({ error: "A jelenlegi jelszó megadása kötelező." });
 
-      const user = await prisma.users.findUnique({ where: { id: req.user.id } });
+      const user = await prisma.users.findUnique({
+        where: { id: req.user.id },
+      });
       const valid = await bcrypt.compare(oldPassword, user.password);
-      if (!valid) return res.status(400).json({ error: "A jelenlegi jelszó helytelen." });
+      if (!valid)
+        return res.status(400).json({ error: "A jelenlegi jelszó helytelen." });
 
       data.password = await bcrypt.hash(password, 10);
     }
 
-    const updated = await prisma.users.update({ where: { id: req.user.id }, data });
+    const updated = await prisma.users.update({
+      where: { id: req.user.id },
+      data,
+    });
     res.json({ message: "Sikeres mentés!", user: updated });
   } catch (err) {
     console.error("PUT /user/data error:", err);
@@ -441,7 +520,7 @@ export const getUserReviews = async (req, res) => {
       orderBy: { id: "desc" },
     });
 
-    const formatted = reviews.map(r => ({
+    const formatted = reviews.map((r) => ({
       id: r.id,
       roomName: r.room?.name || "",
       rating: r.stars,
@@ -460,19 +539,29 @@ export const getUserReviews = async (req, res) => {
 export const getAllUsers = async (req, res) => {
   try {
     const users = await prisma.users.findMany({
-      orderBy: { id: 'desc' },
-      select: { id: true, name: true, email: true, phone_number: true, birth_date: true, address: true, identity_card: true, isAdmin: true, isFirstTimeUser: true },
+      orderBy: { id: "desc" },
+      select: {
+        id: true,
+        name: true,
+        email: true,
+        phone_number: true,
+        birth_date: true,
+        address: true,
+        identity_card: true,
+        isAdmin: true,
+        isFirstTimeUser: true,
+      },
     });
     res.json(users);
   } catch (err) {
-    console.error('GET /admin/users error:', err);
-    res.status(500).json({ error: 'Hiba a felhasználók lekérésekor.' });
+    console.error("GET /admin/users error:", err);
+    res.status(500).json({ error: "Hiba a felhasználók lekérésekor." });
   }
 };
 
 export const adminUpdateUser = async (req, res) => {
   const id = parseId(req.params.id);
-  if (!id) return res.status(400).json({ error: 'Érvénytelen id.' });
+  if (!id) return res.status(400).json({ error: "Érvénytelen id." });
   try {
     const { name, email, phone_number, address, isAdmin } = req.body;
     const data = {};
@@ -482,26 +571,26 @@ export const adminUpdateUser = async (req, res) => {
     if (address !== undefined) data.address = address;
     if (isAdmin !== undefined) data.isAdmin = Boolean(isAdmin);
     const updated = await prisma.users.update({ where: { id }, data });
-    res.json({ message: 'Felhasználó frissítve.', user: updated });
+    res.json({ message: "Felhasználó frissítve.", user: updated });
   } catch (err) {
-    console.error('PUT /admin/users/:id error:', err);
-    res.status(500).json({ error: 'Hiba a felhasználó frissítésekor.' });
+    console.error("PUT /admin/users/:id error:", err);
+    res.status(500).json({ error: "Hiba a felhasználó frissítésekor." });
   }
 };
 
 export const adminDeleteUser = async (req, res) => {
   const id = parseId(req.params.id);
-  if (!id) return res.status(400).json({ error: 'Érvénytelen id.' });
+  if (!id) return res.status(400).json({ error: "Érvénytelen id." });
   try {
     await prisma.$transaction(async (tx) => {
       await tx.booking.deleteMany({ where: { user_id: id } });
       await tx.room_review.deleteMany({ where: { user_id: id } });
       await tx.users.delete({ where: { id } });
     });
-    res.json({ message: 'Felhasználó törölve.' });
+    res.json({ message: "Felhasználó törölve." });
   } catch (err) {
-    console.error('DELETE /admin/users/:id error:', err);
-    res.status(500).json({ error: 'Hiba a felhasználó törlésekor.' });
+    console.error("DELETE /admin/users/:id error:", err);
+    res.status(500).json({ error: "Hiba a felhasználó törlésekor." });
   }
 };
 
@@ -509,55 +598,83 @@ export const adminDeleteUser = async (req, res) => {
 export const getAdminCounts = async (req, res) => {
   try {
     const sinceBooking = parseInt(req.query.sinceBooking) || 0;
-    const sinceReview  = parseInt(req.query.sinceReview)  || 0;
-    const sinceUser    = parseInt(req.query.sinceUser)    || 0;
+    const sinceReview = parseInt(req.query.sinceReview) || 0;
+    const sinceUser = parseInt(req.query.sinceUser) || 0;
 
-    const [bookings, reviews, users, maxBooking, maxReview, maxUser] = await Promise.all([
-      prisma.booking.count({ where: { id: { gt: sinceBooking }, status: 'pending' } }),
-      prisma.room_review.count({ where: { id: { gt: sinceReview } } }),
-      prisma.users.count({ where: { id: { gt: sinceUser } } }),
-      prisma.booking.findFirst({ where: { status: 'pending' }, orderBy: { id: 'desc' }, select: { id: true } }),
-      prisma.room_review.findFirst({ orderBy: { id: 'desc' }, select: { id: true } }),
-      prisma.users.findFirst({ orderBy: { id: 'desc' }, select: { id: true } }),
-    ]);
+    const [bookings, reviews, users, maxBooking, maxReview, maxUser] =
+      await Promise.all([
+        prisma.booking.count({
+          where: { id: { gt: sinceBooking }, status: "pending" },
+        }),
+        prisma.room_review.count({ where: { id: { gt: sinceReview } } }),
+        prisma.users.count({ where: { id: { gt: sinceUser } } }),
+        prisma.booking.findFirst({
+          where: { status: "pending" },
+          orderBy: { id: "desc" },
+          select: { id: true },
+        }),
+        prisma.room_review.findFirst({
+          orderBy: { id: "desc" },
+          select: { id: true },
+        }),
+        prisma.users.findFirst({
+          orderBy: { id: "desc" },
+          select: { id: true },
+        }),
+      ]);
 
     res.json({
-      bookings, reviews, users,
+      bookings,
+      reviews,
+      users,
       maxIds: {
         bookings: maxBooking?.id || 0,
-        reviews:  maxReview?.id  || 0,
-        users:    maxUser?.id    || 0,
-      }
+        reviews: maxReview?.id || 0,
+        users: maxUser?.id || 0,
+      },
     });
   } catch (err) {
-    console.error('GET /admin/counts error:', err);
-    res.status(500).json({ error: 'Hiba.' });
+    console.error("GET /admin/counts error:", err);
+    res.status(500).json({ error: "Hiba." });
   }
 };
 
 export const getUserCounts = async (req, res) => {
   try {
     const sinceBooking = parseInt(req.query.sinceBooking) || 0;
-    const sinceReview  = parseInt(req.query.sinceReview)  || 0;
+    const sinceReview = parseInt(req.query.sinceReview) || 0;
     const uid = req.user.id;
 
     const [bookings, reviews, maxBooking, maxReview] = await Promise.all([
-      prisma.booking.count({ where: { user_id: uid, id: { gt: sinceBooking } } }),
-      prisma.room_review.count({ where: { user_id: uid, id: { gt: sinceReview } } }),
-      prisma.booking.findFirst({ where: { user_id: uid }, orderBy: { id: 'desc' }, select: { id: true } }),
-      prisma.room_review.findFirst({ where: { user_id: uid }, orderBy: { id: 'desc' }, select: { id: true } }),
+      prisma.booking.count({
+        where: { user_id: uid, id: { gt: sinceBooking } },
+      }),
+      prisma.room_review.count({
+        where: { user_id: uid, id: { gt: sinceReview } },
+      }),
+      prisma.booking.findFirst({
+        where: { user_id: uid },
+        orderBy: { id: "desc" },
+        select: { id: true },
+      }),
+      prisma.room_review.findFirst({
+        where: { user_id: uid },
+        orderBy: { id: "desc" },
+        select: { id: true },
+      }),
     ]);
 
     res.json({
-      bookings, reviews,
+      bookings,
+      reviews,
       maxIds: {
         bookings: maxBooking?.id || 0,
-        reviews:  maxReview?.id  || 0,
-      }
+        reviews: maxReview?.id || 0,
+      },
     });
   } catch (err) {
-    console.error('GET /user/counts error:', err);
-    res.status(500).json({ error: 'Hiba.' });
+    console.error("GET /user/counts error:", err);
+    res.status(500).json({ error: "Hiba." });
   }
 };
 
@@ -567,7 +684,8 @@ export const deleteUserReview = async (req, res) => {
 
   try {
     const review = await prisma.room_review.findUnique({ where: { id } });
-    if (!review || review.user_id !== req.user.id) return res.status(404).json({ error: "Értékelés nem található." });
+    if (!review || review.user_id !== req.user.id)
+      return res.status(404).json({ error: "Értékelés nem található." });
 
     await prisma.room_review.delete({ where: { id } });
     res.json({ message: "Értékelés törölve." });

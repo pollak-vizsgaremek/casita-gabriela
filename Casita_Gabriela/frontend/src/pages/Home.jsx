@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useMemo } from "react";
 import OfferAdmin from "../components/OfferAdmin";
 import Footer from "../components/Footer";
 import api from "../services/api";
@@ -8,6 +8,7 @@ import searchImg from "/search.jpg";
 
 const Home = () => {
   const [rooms, setRooms] = useState([]);
+  const [categoryDefs, setCategoryDefs] = useState([]);
   const [loading, setLoading] = useState(true);
 
   const [category, setCategory] = useState("");
@@ -47,7 +48,18 @@ const Home = () => {
 
   useEffect(() => {
     fetchRooms();
+    fetchCategories();
   }, []);
+
+  const categories = useMemo(() => {
+    return (categoryDefs || []).map((cat) => {
+      const count = rooms.filter(
+        (r) => (r.category || "").trim().toLowerCase() === (cat.name || "").trim().toLowerCase()
+      ).length;
+
+      return { ...cat, count };
+    });
+  }, [categoryDefs, rooms]);
 
   const fetchRooms = async () => {
     try {
@@ -56,6 +68,15 @@ const Home = () => {
       setRooms(response.data);
     } catch (err) {
       console.error(err);
+    }
+  };
+
+  const fetchCategories = async () => {
+    try {
+      const response = await api.get("/categories");
+      setCategoryDefs(Array.isArray(response.data) ? response.data : []);
+    } catch (err) {
+      console.error("Error fetching categories:", err);
     } finally {
       setLoading(false);
     }
@@ -88,14 +109,13 @@ const Home = () => {
     if (departure) params.append("departure", departure);
     if (people) params.append("people", people);
 
-    navigate(`/search?${params.toString()}`);
-  };
+    navigate(`/search?${params.toString()}`)
+  }
 
   return (
-    <div
-      className="flex flex-col items-center w-full min-h-screen 
-      bg-gradient-to-br from-gray-50 via-white to-gray-100 relative overflow-hidden"
-    >
+    <div className='flex flex-col items-center w-full min-h-screen 
+      bg-linear-to-br from-gray-50 via-white to-gray-100 relative overflow-hidden'>
+
       {/* HERO */}
       <div className="w-full h-[300px] relative flex items-center justify-center overflow-hidden">
         {/* IMAGE */}
@@ -128,13 +148,18 @@ const Home = () => {
             onSubmit={handleSearch}
             className="bg-white/80 backdrop-blur-md text-gray-800 rounded-xl shadow-xl p-4 grid grid-cols-2 md:grid-cols-5 gap-3 max-w-4xl mx-auto"
           >
-            <input
-              type="text"
-              placeholder="Szoba típusa"
+            <select
               value={category}
               onChange={(e) => setCategory(e.target.value)}
               className="p-2 rounded-md border focus:outline-none focus:ring-2 focus:ring-red-400"
-            />
+            >
+              <option value="">Összes kategória</option>
+              {categories.map((cat) => (
+                <option key={cat.name} value={cat.name}>
+                  {cat.name}
+                </option>
+              ))}
+            </select>
 
             <input
               type="date"
@@ -232,7 +257,7 @@ const Home = () => {
       </div>
 
       <div className="w-full max-w-6xl px-6 mt-8 mb-12 mx-auto">
-        <h3 className="text-2xl font-semibold text-gray-700">További szobák</h3>
+        <h3 className="text-2xl font-semibold text-gray-700">Kategóriák</h3>
         <div className="w-16 h-1 bg-gray-300 mt-2 rounded"></div>
 
         <div className="mt-6">
@@ -240,27 +265,46 @@ const Home = () => {
             variants={containerVariants}
             initial="hidden"
             animate={loading ? "hidden" : "visible"}
-            className="flex flex-wrap gap-8"
+            className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6"
           >
-            {!loading &&
-              rooms
-                .filter((r) => !r.isHighlighted)
-                .map((room) => (
-                  <motion.div
-                    key={`other-${room.id}`}
-                    variants={cardVariants}
-                    whileHover={{ scale: 1.03 }}
-                    className="transition-shadow hover:shadow-lg rounded-xl"
-                  >
-                    <OfferAdmin
-                      id={room.id}
-                      name={room.name}
-                      price={room.price}
-                      image={Array.isArray(room.images) ? room.images[0] : ""}
-                      reviews={room.reviews || []}
+            {loading ? (
+              <p className="text-gray-600">Kategóriák betöltése...</p>
+            ) : categories.length === 0 ? (
+              <p className="text-gray-600">Jelenleg nincs elérhető kategória.</p>
+            ) : (
+              categories.map((cat) => (
+                <motion.button
+                  type="button"
+                  key={cat.id}
+                  variants={cardVariants}
+                  whileHover={{ scale: 1.03 }}
+                  whileTap={{ scale: 0.99 }}
+                  onClick={() =>
+                    navigate(`/category/${encodeURIComponent(cat.name)}`)
+                  }
+                  className="relative h-[220px] rounded-2xl overflow-hidden shadow-lg text-left group"
+                >
+                  {cat.image ? (
+                    <img
+                      src={cat.image}
+                      alt={`${cat.name} kategória`}
+                      className="absolute inset-0 w-full h-full object-cover transition-transform duration-300 group-hover:scale-110"
                     />
-                  </motion.div>
-                ))}
+                  ) : (
+                    <div className="absolute inset-0 bg-linear-to-br from-gray-300 to-gray-400" />
+                  )}
+
+                  <div className="absolute inset-0 bg-black/40 group-hover:bg-black/50 transition" />
+
+                  <div className="relative z-10 h-full w-full p-5 flex flex-col justify-end text-white">
+                    <h4 className="text-2xl font-bold leading-tight">{cat.name}</h4>
+                    <p className="text-sm opacity-90 mt-1">
+                      {cat.count || 0} szoba • Megtekintés
+                    </p>
+                  </div>
+                </motion.button>
+              ))
+            )}
           </motion.div>
         </div>
       </div>

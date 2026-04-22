@@ -694,3 +694,83 @@ export const deleteUserReview = async (req, res) => {
     res.status(500).json({ error: "Nem sikerült törölni az értékelést." });
   }
 };
+
+/* ---------- CATEGORIES ---------- */
+export const getCategories = async (req, res) => {
+  try {
+    const categories = await prisma.category.findMany({
+      orderBy: { name: 'asc' }
+    });
+    res.json(categories);
+  } catch (err) {
+    console.error("GET /categories error:", err);
+    res.status(500).json({ error: "Hiba a kategóriák lekérésekor." });
+  }
+};
+
+export const createCategory = async (req, res) => {
+  try {
+    const { name, image } = req.body;
+    
+    if (!name || !image) {
+      return res.status(400).json({ error: "Név és kép szükséges." });
+    }
+
+    const category = await prisma.category.create({
+      data: {
+        name,
+        image,
+      },
+    });
+
+    res.json(category);
+  } catch (err) {
+    if (err.code === 'P2002') {
+      return res.status(400).json({ error: "Ez a kategória már létezik." });
+    }
+    console.error("POST /categories error:", err);
+    res.status(500).json({ error: "Hiba történt a kategória létrehozásakor." });
+  }
+};
+
+export const updateCategory = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { name, image } = req.body;
+
+    if (!name || !image) {
+      return res.status(400).json({ error: "Név és kép szükséges." });
+    }
+
+    const category = await prisma.category.update({
+      where: { id: Number(id) },
+      data: { name, image },
+    });
+
+    res.json(category);
+  } catch (err) {
+    if (err.code === 'P2002') {
+      return res.status(400).json({ error: "Ez a kategória már létezik." });
+    }
+    console.error("PUT /categories/:id error:", err);
+    res.status(500).json({ error: "Hiba történt a kategória frissítésekor." });
+  }
+};
+
+export const deleteCategory = async (req, res) => {
+  try {
+    const { id } = req.params;
+    
+    await prisma.category.delete({
+      where: { id: Number(id) },
+    });
+
+    res.json({ message: "Kategória törölve." });
+  } catch (err) {
+    if (err.code === 'P2025') {
+      return res.status(404).json({ error: "Kategória nem található." });
+    }
+    console.error("DELETE /categories/:id error:", err);
+    res.status(500).json({ error: "Hiba történt a kategória törlésénél." });
+  }
+};

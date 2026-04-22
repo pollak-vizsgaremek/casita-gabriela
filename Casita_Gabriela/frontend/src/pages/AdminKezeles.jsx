@@ -98,9 +98,11 @@ const AdminKezeles = () => {
 
   const loadCategories = async () => {
     try {
-      const res = await api.get('/rooms');
-      const rooms = Array.isArray(res.data) ? res.data : [];
-      const cats = Array.from(new Set(rooms.map((r) => r.category).filter(Boolean)));
+      const res = await api.get('/categories');
+      const categoryRows = Array.isArray(res.data) ? res.data : [];
+      const cats = categoryRows
+        .map((c) => c?.name)
+        .filter(Boolean);
       setCategories(cats);
     } catch (err) {
       console.warn('Nem sikerült betölteni a kategóriákat:', err);
@@ -538,21 +540,21 @@ const AdminKezeles = () => {
 
                 <div className="grid grid-cols-3 gap-4">
                   <div>
-                    <label className="block text-xs font-semibold text-gray-700 mb-2">Szoba típusa</label>
-                    <input
+                    <label className="block text-xs font-semibold text-gray-700 mb-2">Szoba kategória</label>
+                    <select
                       name="type"
-                      list="categories-list"
                       value={formData.type}
                       onChange={handleInputChange}
                       className="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 text-gray-900 bg-white"
-                      placeholder="Írj be vagy válassz..."
                       style={{ color: '#111827' }}
-                    />
-                    <datalist id="categories-list">
+                    >
+                      <option value="">Válassz kategóriát...</option>
                       {categories.map((c) => (
-                        <option key={c} value={c} />
+                        <option key={c} value={c}>
+                          {c}
+                        </option>
                       ))}
-                    </datalist>
+                    </select>
                   </div>
 
                   <div>

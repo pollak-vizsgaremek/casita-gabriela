@@ -6,6 +6,8 @@ import api from "../services/api";
 const Reviews = () => {
   const location = useLocation();
   const [sidebarOpen, setSidebarOpen] = useState(false);
+  const [rooms, setRooms] = useState([]);
+  const [selectedRoomId, setSelectedRoomId] = useState('');
   const [reviews, setReviews] = useState([]);
   const [loading, setLoading] = useState(false);
 
@@ -13,10 +15,11 @@ const Reviews = () => {
     setSidebarOpen(false);
   }, [location.pathname]);
 
-  const fetchReviews = async () => {
+  const fetchReviews = async (roomId = '') => {
     setLoading(true);
     try {
-      const res = await api.get(`/room_reviews`);
+      const params = roomId ? { room_id: roomId } : undefined;
+      const res = await api.get(`/room_reviews`, { params });
       setReviews(res.data || []);
     } catch (err) {
       console.error("Error fetching reviews", err);
@@ -26,15 +29,29 @@ const Reviews = () => {
     }
   };
 
+  const fetchRooms = async () => {
+    try {
+      const res = await api.get('/rooms');
+      setRooms(res.data || []);
+    } catch (err) {
+      console.error('Error fetching rooms for review filter', err);
+    }
+  };
+
   useEffect(() => {
+    fetchRooms();
     fetchReviews();
   }, []);
+
+  useEffect(() => {
+    fetchReviews(selectedRoomId);
+  }, [selectedRoomId]);
 
   const deleteReview = async (id) => {
     if (!window.confirm("Biztosan törölni szeretnéd ezt az értékelést?")) return;
     try {
       await api.delete(`/room_reviews/${id}`);
-      await fetchReviews();
+      await fetchReviews(selectedRoomId);
       alert('Értékelés törölve.');
     } catch (err) {
       console.error('Delete review error', err);
@@ -48,6 +65,23 @@ const Reviews = () => {
 
       <div className="flex-1 ml-0 md:ml-64 p-6">
         <h1 className="text-2xl font-semibold mb-4 text-gray-900">Értékelések kezelése</h1>
+
+        <div className="mb-4 max-w-md">
+          <label className="block text-sm font-medium text-gray-700 mb-1">Szűrés szoba szerint</label>
+          <select
+            value={selectedRoomId}
+            onChange={(e) => setSelectedRoomId(e.target.value)}
+            className="w-full bg-white text-gray-900 border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-green-500"
+          >
+            <option value="">Összes szoba</option>
+            {rooms.map((room) => (
+              <option key={room.id} value={room.id}>
+                {room.name}
+              </option>
+            ))}
+          </select>
+        </div>
+
         {loading ? (
           <div>Betöltés...</div>
         ) : (

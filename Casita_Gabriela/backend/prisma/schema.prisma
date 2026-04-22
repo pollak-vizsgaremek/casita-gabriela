@@ -33,6 +33,12 @@ model form {
   description  String @db.VarChar(1000)
 }
 
+model category {
+  id             Int           @id @default(autoincrement())
+  name           String        @unique @db.VarChar(50)
+  image          String        @db.LongText
+}
+
 model room {
   id             Int           @id @default(autoincrement())
   name           String        @db.VarChar(30)

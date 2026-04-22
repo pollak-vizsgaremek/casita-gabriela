@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react'
+import React, { useEffect, useMemo, useState } from 'react'
 import OfferAdmin from '../components/OfferAdmin'
 import { useLocation, useNavigate } from 'react-router'
 import Footer from '../components/Footer'
@@ -7,6 +7,7 @@ import { motion } from "framer-motion"
 
 const SearchResults = () => {
   const [rooms, setRooms] = useState([])
+  const [categories, setCategories] = useState([])
   const [filteredRooms, setFilteredRooms] = useState([])
   const [loading, setLoading] = useState(true)
 
@@ -20,6 +21,11 @@ const SearchResults = () => {
   const [arrival, setArrival] = useState('')
   const [departure, setDeparture] = useState('')
   const [people, setPeople] = useState('')
+
+  const categoryOptions = useMemo(
+    () => categories.map(cat => cat.name),
+    [categories]
+  )
 
   const itemVariants = {
     hidden: { opacity: 0, y: 20 },
@@ -39,15 +45,12 @@ const SearchResults = () => {
   useEffect(() => {
     const params = new URLSearchParams(location.search)
 
-    setCategory(params.get("category") || '')
+    const categoryParams = params.getAll("category")
+    setCategory(categoryParams[0] || params.get("category") || '')
     setArrival(params.get("arrival") || '')
     setDeparture(params.get("departure") || '')
     setPeople(params.get("people") || '')
   }, [location.search])
-
-  useEffect(() => {
-    fetchRooms()
-  }, [])
 
   useEffect(() => {
     if (rooms.length > 0) {
@@ -59,6 +62,11 @@ const SearchResults = () => {
   useEffect(() => {
     setAnimationKey(prev => prev + 1)
   }, [filteredRooms])
+
+  useEffect(() => {
+    fetchRooms()
+    fetchCategories()
+  }, [])
 
   const fetchRooms = async () => {
     try {
@@ -72,10 +80,19 @@ const SearchResults = () => {
     }
   }
 
+  const fetchCategories = async () => {
+    try {
+      const res = await api.get('/categories')
+      setCategories(res.data)
+    } catch (err) {
+      console.error('Error fetching categories:', err)
+    }
+  }
+
   const filterRooms = () => {
     const params = new URLSearchParams(location.search)
 
-    const categoryParam = params.get("category")
+    const categoryParam = params.getAll("category")[0] || params.get("category")
     const peopleParam = params.get("people")
     const arrivalParam = params.get("arrival")
     const departureParam = params.get("departure")
@@ -84,7 +101,7 @@ const SearchResults = () => {
 
     if (categoryParam) {
       results = results.filter(room =>
-        room.category.toLowerCase().includes(categoryParam.toLowerCase())
+        room.category?.trim().toLowerCase() === categoryParam.trim().toLowerCase()
       )
     }
 
@@ -141,25 +158,23 @@ const SearchResults = () => {
             onSubmit={handleSearch}
             className='bg-white/80 backdrop-blur-md text-gray-800 rounded-xl shadow-xl p-4 grid grid-cols-2 md:grid-cols-5 gap-3 max-w-4xl mx-auto'
           >
-            <input
-              type="text"
-              placeholder='Szoba típusa'
+            <select
               value={category}
               onChange={(e) => setCategory(e.target.value)}
               className='p-2 rounded-md border focus:outline-none focus:ring-2 focus:ring-red-400'
-            />
+            >
+              <option value="">Összes kategória</option>
+              {categoryOptions.map((cat) => (
+                <option key={cat} value={cat}>
+                  {cat}
+                </option>
+              ))}
+            </select>
 
             <input
               type="date"
               value={arrival}
               onChange={(e) => setArrival(e.target.value)}
-              className='p-2 rounded-md border focus:outline-none focus:ring-2 focus:ring-red-400'
-            />
-
-            <input
-              type="date"
-              value={departure}
-              onChange={(e) => setDeparture(e.target.value)}
               className='p-2 rounded-md border focus:outline-none focus:ring-2 focus:ring-red-400'
             />
 

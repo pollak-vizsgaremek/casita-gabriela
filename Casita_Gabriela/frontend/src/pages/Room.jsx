@@ -6,6 +6,9 @@ import Footer from "../components/Footer";
 
 const BACKEND_BASE = "http://localhost:6969";
 const MS_PER_DAY = 24 * 60 * 60 * 1000;
+const BOOKING_DRAFT_KEY_PREFIX = "room_booking_draft_";
+
+const getBookingDraftKey = (roomId) => `${BOOKING_DRAFT_KEY_PREFIX}${roomId}`;
 
 const parseISOToLocalDate = (isoStr) => {
   if (!isoStr) return null;
@@ -188,6 +191,7 @@ const Room = () => {
   const [acceptedAszf, setAcceptedAszf] = useState(false);
   const [acceptedAdat, setAcceptedAdat] = useState(false);
   const [visibleMonth, setVisibleMonth] = useState(() => new Date());
+  const [bookingDraftHydrated, setBookingDraftHydrated] = useState(false);
   const isLoggedIn = !!localStorage.getItem("token");
   const currentUserId = localStorage.getItem("user_id") ? Number(localStorage.getItem("user_id")) : null;
   const currentUser = localStorage.getItem("user") ? JSON.parse(localStorage.getItem("user")) : null;
@@ -216,6 +220,66 @@ const Room = () => {
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [id]);
+
+  const bookingDraftKey = useMemo(() => getBookingDraftKey(id), [id]);
+
+  const persistBookingDraft = useCallback(() => {
+    if (!id) return;
+    const hasDraft = !!(checkIn || checkOut || guests !== 1 || acceptedAszf || acceptedAdat);
+    if (!hasDraft) {
+      localStorage.removeItem(bookingDraftKey);
+      return;
+    }
+    const monthStartIso = isoFromDate(new Date(visibleMonth.getFullYear(), visibleMonth.getMonth(), 1));
+    localStorage.setItem(
+      bookingDraftKey,
+      JSON.stringify({
+        checkIn,
+        checkOut,
+        guests,
+        acceptedAszf,
+        acceptedAdat,
+        visibleMonth: monthStartIso,
+        updatedAt: new Date().toISOString(),
+      })
+    );
+  }, [id, bookingDraftKey, checkIn, checkOut, guests, acceptedAszf, acceptedAdat, visibleMonth]);
+
+  useEffect(() => {
+    if (!id) {
+      setBookingDraftHydrated(true);
+      return;
+    }
+    try {
+      const raw = localStorage.getItem(bookingDraftKey);
+      if (raw) {
+        const draft = JSON.parse(raw);
+        if (typeof draft?.checkIn === "string") setCheckIn(draft.checkIn);
+        if (typeof draft?.checkOut === "string") setCheckOut(draft.checkOut);
+        if (typeof draft?.guests === "number" && Number.isFinite(draft.guests)) {
+          setGuests(Math.max(1, Math.floor(draft.guests)));
+        }
+        setAcceptedAszf(Boolean(draft?.acceptedAszf));
+        setAcceptedAdat(Boolean(draft?.acceptedAdat));
+        const monthDate = parseISOToLocalDate(draft?.visibleMonth);
+        if (monthDate) setVisibleMonth(new Date(monthDate.getFullYear(), monthDate.getMonth(), 1));
+      }
+    } catch (err) {
+      console.debug("Could not restore booking draft:", err);
+    } finally {
+      setBookingDraftHydrated(true);
+    }
+  }, [id, bookingDraftKey]);
+
+  useEffect(() => {
+    if (!bookingDraftHydrated) return;
+    persistBookingDraft();
+  }, [bookingDraftHydrated, persistBookingDraft]);
+
+  useEffect(() => {
+    if (!room?.space) return;
+    setGuests((prev) => Math.min(Math.max(1, Number(prev) || 1), room.space));
+  }, [room?.space]);
 
   const pushToast = (title, message, status = null, code = null, ttl = 7000) => {
     const id = Date.now() + Math.random().toString(36).slice(2, 9);
@@ -561,7 +625,8 @@ const Room = () => {
 
   const handleBooking = async () => {
     if (!isLoggedIn) {
-      navigate("/login");
+      persistBookingDraft();
+      navigate("/login", { state: { from: `/room/${id}` } });
       return;
     }
     if (!checkIn || !checkOut) {
@@ -616,6 +681,7 @@ const Room = () => {
             } catch (e) {
               console.debug('Updating local first-time flag failed', e);
             }
+        localStorage.removeItem(bookingDraftKey);
         navigate('/booking-success');
         return;
       } catch (err) {
@@ -736,6 +802,8 @@ const Room = () => {
 
   // New: booking enabled only when dates selected and both checkboxes accepted
   const canBook = !!(checkIn && checkOut && acceptedAszf && acceptedAdat);
+  const bookingButtonEnabled = isLoggedIn ? canBook : true;
+  const bookingButtonLabel = isLoggedIn ? "Foglalás leadása" : "Jelentkezz be a foglaláshoz";
 
   return (
     <>
@@ -1098,14 +1166,14 @@ const Room = () => {
                 <div className="mt-4">
                   <button
                     onClick={handleBooking}
-                    disabled={!canBook}
+                    disabled={!bookingButtonEnabled}
                     className={`w-full py-2 rounded transition ${
-                      canBook
+                      bookingButtonEnabled
                         ? "bg-[#6FD98C] text-white cursor-pointer hover:bg-[#5FCB80]"
                         : "bg-gray-400 text-white cursor-not-allowed"
                     }`}
                   >
-                    Foglalás leadása
+                    {bookingButtonLabel}
                   </button>
                 </div>
                 {successMessage && (

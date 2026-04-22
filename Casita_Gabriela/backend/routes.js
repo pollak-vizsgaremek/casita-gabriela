@@ -22,7 +22,11 @@ import {
   getUserCounts,
   getAllUsers,
   adminUpdateUser,
-  adminDeleteUser
+  adminDeleteUser,
+  getCategories,
+  createCategory,
+  updateCategory,
+  deleteCategory
 } from "./controllers.js";
 
 import {
@@ -57,6 +61,12 @@ export default function registerRoutes(app) {
   app.get("/rooms/:id", getRoomById);
   app.put("/rooms/:id", authenticate, requireAdmin, updateRoom);
   app.delete("/rooms/:id", authenticate, requireAdmin, deleteRoom);
+
+  // Categories
+  app.get("/categories", getCategories);
+  app.post("/categories", authenticate, requireAdmin, createCategory);
+  app.put("/categories/:id", authenticate, requireAdmin, updateCategory);
+  app.delete("/categories/:id", authenticate, requireAdmin, deleteCategory);
 
   // Booking
   app.post("/booking", createBooking);

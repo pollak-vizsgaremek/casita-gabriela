@@ -53,6 +53,11 @@ const Sidebar = ({ isOpen, onClose, userPanel }) => {
         <path strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" d="M3 7h18M3 12h18M3 17h18" />
       </svg>
     )},
+    { to: '/admin/categories', label: 'Kategóriák kezelése', countKey: null, icon: (
+      <svg className="h-5 w-5" viewBox="0 0 24 24" fill="none" stroke="currentColor">
+        <path strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" d="M7 7h10M7 11h10M7 15h10" />
+      </svg>
+    )},
     { to: '/admin/bookings', label: 'Foglalások kezelése', countKey: 'bookings', icon: (
       <svg className="h-5 w-5" viewBox="0 0 24 24" fill="none" stroke="currentColor">
         <path strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" d="M8 7V3m8 4V3M3 11h18M5 21h14a2 2 0 002-2V11H3v8a2 2 0 002 2z" />

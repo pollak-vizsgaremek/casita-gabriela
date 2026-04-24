@@ -1,23 +1,28 @@
 import { PrismaClient } from "./generated/prisma/client.js";
+
 import bcrypt from "bcrypt";
+
 import jwt from "jsonwebtoken";
+
 import { normalizeImagesFromDb, parseId } from "./utils.js";
+
 import {
   sendBookingCreatedUser,
   sendBookingCreatedAdmin,
   sendBookingApproved,
   sendBookingRejected,
+  sendBookingCancelledByUser
 } from "./email.js";
 
 const prisma = new PrismaClient();
 
 /* ---------- AUTH (login) ---------- */
+
 export const login = async (req, res) => {
   const { email, password } = req.body;
   try {
     const user = await prisma.users.findUnique({ where: { email } });
-    if (!user)
-      return res.status(400).json({ error: "Nincs ilyen felhasználó." });
+    if (!user) return res.status(400).json({ error: "Nincs ilyen felhasználó." });
 
     const validPassword = await bcrypt.compare(password, user.password);
     if (!validPassword) return res.status(400).json({ error: "Hibás jelszó." });
@@ -50,6 +55,7 @@ export const login = async (req, res) => {
 };
 
 /* ---------- ROOMS ---------- */
+
 export const getRooms = async (req, res) => {
   try {
     const rooms = await prisma.room.findMany({
@@ -73,6 +79,7 @@ export const createRoom = async (req, res) => {
   try {
     const { name, description, price, category, space, images, isHighlighted } =
       req.body;
+
     const ac_availablity =
       req.body.ac_availablity !== undefined
         ? Number(req.body.ac_availablity)
@@ -115,6 +122,7 @@ export const getRoomById = async (req, res) => {
       images: normalizeImagesFromDb(room.images),
       reviews: room.room_review || [],
     };
+
     res.json(formatted);
   } catch (err) {
     console.error("GET /rooms/:id error:", err);
@@ -145,6 +153,7 @@ export const updateRoom = async (req, res) => {
       where: { id: Number(id) },
       data: updateData,
     });
+
     res.json(updated);
   } catch (err) {
     console.error("PUT /rooms/:id error:", err);
@@ -165,10 +174,13 @@ export const deleteRoom = async (req, res) => {
       const deletedBookings = await tx.booking.deleteMany({
         where: { room_id: id },
       });
+
       const deletedReviews = await tx.room_review.deleteMany({
         where: { room_id: id },
       });
+
       const deletedRoom = await tx.room.delete({ where: { id } });
+
       return { deletedBookings, deletedReviews, deletedRoom };
     });
 
@@ -180,6 +192,7 @@ export const deleteRoom = async (req, res) => {
 };
 
 /* ---------- BOOKING ---------- */
+
 export const createBooking = async (req, res) => {
   try {
     const {
@@ -218,11 +231,13 @@ export const createBooking = async (req, res) => {
     });
 
     // --- Email értesítések: felhasználó és admin ---
+
     try {
       // lekérjük a szükséges adatokat az email sablonokhoz
       const room = await prisma.room.findUnique({
         where: { id: Number(room_id) },
       });
+
       const user = user_id
         ? await prisma.users.findUnique({ where: { id: Number(user_id) } })
         : null;
@@ -263,6 +278,7 @@ export const createBooking = async (req, res) => {
 export const getBookings = async (req, res) => {
   try {
     const where = {};
+
     if (req.query.room_id) {
       const rid = parseId(req.query.room_id);
       if (rid) where.room_id = rid;
@@ -272,6 +288,7 @@ export const getBookings = async (req, res) => {
       where,
       orderBy: { booking_date: "desc" },
     });
+
     res.json(bookings);
   } catch (err) {
     console.error("GET /booking error:", err);
@@ -306,13 +323,13 @@ export const updateBooking = async (req, res) => {
         const room = await prisma.room.findUnique({
           where: { id: existing.room_id },
         });
+
         const user = existing.user_id
           ? await prisma.users.findUnique({ where: { id: existing.user_id } })
           : null;
 
         if (data.status === "approved") {
-          if (user && user.email)
-            await sendBookingApproved(updated, room, user);
+          if (user && user.email) await sendBookingApproved(updated, room, user);
         } else if (data.status === "rejected") {
           // opcionálisan lehet indokot is átadni: req.body.reason
           const reason = req.body.reason || null;
@@ -345,9 +362,11 @@ export const deleteBooking = async (req, res) => {
 };
 
 /* ---------- REVIEWS ---------- */
+
 export const getReviews = async (req, res) => {
   try {
     const where = {};
+
     if (req.query.room_id) {
       const rid = parseId(req.query.room_id);
       if (rid) where.room_id = rid;
@@ -371,7 +390,6 @@ export const createReview = async (req, res) => {
     const { room_id, stars, comment } = req.body;
     const rid = parseId(room_id);
     const s = Number(stars);
-
     if (!rid || !Number.isInteger(s) || s < 1 || s > 5) {
       return res.status(400).json({ error: "Érvénytelen adatok." });
     }
@@ -411,6 +429,7 @@ export const deleteReview = async (req, res) => {
 };
 
 /* ---------- USER PANEL ---------- */
+
 export const getUserBookings = async (req, res) => {
   try {
     const bookings = await prisma.booking.findMany({
@@ -444,8 +463,20 @@ export const deleteUserBooking = async (req, res) => {
     if (!booking || booking.user_id !== req.user.id)
       return res.status(404).json({ error: "Foglalás nem található." });
 
-    // Felhasználói törlés: a te kérésed szerint NEM küldünk emailt sem az adminnak, sem a felhasználónak
+    // Lekérjük a room és user adatokat az admin értesítéséhez
+    const room = await prisma.room.findUnique({ where: { id: booking.room_id } });
+    const user = await prisma.users.findUnique({ where: { id: booking.user_id } });
+
+    // Töröljük a foglalást
     await prisma.booking.delete({ where: { id } });
+
+    // Küldünk értesítést az adminnak, hogy a felhasználó lemondta a foglalást
+    try {
+      await sendBookingCancelledByUser(booking, room, user);
+    } catch (emailErr) {
+      console.error("BOOKING CANCELLED BY USER EMAIL ERROR:", emailErr);
+    }
+
     res.json({ message: "Foglalás törölve." });
   } catch (err) {
     console.error("DELETE /user/bookings/:id error:", err);
@@ -464,6 +495,7 @@ export const getUserData = async (req, res) => {
       address,
       identity_card,
     } = req.user;
+
     res.json({
       id,
       name,
@@ -483,6 +515,7 @@ export const updateUserData = async (req, res) => {
   try {
     const { name, email, phone_number, address, password, oldPassword } =
       req.body;
+
     const data = { name, email, phone_number, address };
 
     if (password && password.trim().length > 0) {
@@ -494,6 +527,7 @@ export const updateUserData = async (req, res) => {
       const user = await prisma.users.findUnique({
         where: { id: req.user.id },
       });
+
       const valid = await bcrypt.compare(oldPassword, user.password);
       if (!valid)
         return res.status(400).json({ error: "A jelenlegi jelszó helytelen." });
@@ -505,6 +539,7 @@ export const updateUserData = async (req, res) => {
       where: { id: req.user.id },
       data,
     });
+
     res.json({ message: "Sikeres mentés!", user: updated });
   } catch (err) {
     console.error("PUT /user/data error:", err);
@@ -536,6 +571,7 @@ export const getUserReviews = async (req, res) => {
 };
 
 /* ---------- ADMIN USER MANAGEMENT ---------- */
+
 export const getAllUsers = async (req, res) => {
   try {
     const users = await prisma.users.findMany({
@@ -552,6 +588,7 @@ export const getAllUsers = async (req, res) => {
         isFirstTimeUser: true,
       },
     });
+
     res.json(users);
   } catch (err) {
     console.error("GET /admin/users error:", err);
@@ -562,6 +599,7 @@ export const getAllUsers = async (req, res) => {
 export const adminUpdateUser = async (req, res) => {
   const id = parseId(req.params.id);
   if (!id) return res.status(400).json({ error: "Érvénytelen id." });
+
   try {
     const { name, email, phone_number, address, isAdmin } = req.body;
     const data = {};
@@ -570,6 +608,7 @@ export const adminUpdateUser = async (req, res) => {
     if (phone_number !== undefined) data.phone_number = phone_number;
     if (address !== undefined) data.address = address;
     if (isAdmin !== undefined) data.isAdmin = Boolean(isAdmin);
+
     const updated = await prisma.users.update({ where: { id }, data });
     res.json({ message: "Felhasználó frissítve.", user: updated });
   } catch (err) {
@@ -581,12 +620,14 @@ export const adminUpdateUser = async (req, res) => {
 export const adminDeleteUser = async (req, res) => {
   const id = parseId(req.params.id);
   if (!id) return res.status(400).json({ error: "Érvénytelen id." });
+
   try {
     await prisma.$transaction(async (tx) => {
       await tx.booking.deleteMany({ where: { user_id: id } });
       await tx.room_review.deleteMany({ where: { user_id: id } });
       await tx.users.delete({ where: { id } });
     });
+
     res.json({ message: "Felhasználó törölve." });
   } catch (err) {
     console.error("DELETE /admin/users/:id error:", err);
@@ -595,6 +636,7 @@ export const adminDeleteUser = async (req, res) => {
 };
 
 /* ---------- NOTIFICATION COUNTS ---------- */
+
 export const getAdminCounts = async (req, res) => {
   try {
     const sinceBooking = parseInt(req.query.sinceBooking) || 0;
@@ -696,11 +738,13 @@ export const deleteUserReview = async (req, res) => {
 };
 
 /* ---------- CATEGORIES ---------- */
+
 export const getCategories = async (req, res) => {
   try {
     const categories = await prisma.category.findMany({
       orderBy: { name: 'asc' }
     });
+
     res.json(categories);
   } catch (err) {
     console.error("GET /categories error:", err);
@@ -711,7 +755,6 @@ export const getCategories = async (req, res) => {
 export const createCategory = async (req, res) => {
   try {
     const { name, image } = req.body;
-    
     if (!name || !image) {
       return res.status(400).json({ error: "Név és kép szükséges." });
     }
@@ -737,7 +780,6 @@ export const updateCategory = async (req, res) => {
   try {
     const { id } = req.params;
     const { name, image } = req.body;
-
     if (!name || !image) {
       return res.status(400).json({ error: "Név és kép szükséges." });
     }
@@ -760,11 +802,9 @@ export const updateCategory = async (req, res) => {
 export const deleteCategory = async (req, res) => {
   try {
     const { id } = req.params;
-    
     await prisma.category.delete({
       where: { id: Number(id) },
     });
-
     res.json({ message: "Kategória törölve." });
   } catch (err) {
     if (err.code === 'P2025') {

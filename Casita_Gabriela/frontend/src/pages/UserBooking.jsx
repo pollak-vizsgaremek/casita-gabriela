@@ -164,6 +164,11 @@ export default function UserBooking() {
 		return normalized.includes("approved") || normalized.includes("jóvá") || normalized.includes("elfog");
 	};
 
+	const isPendingStatus = (status) => {
+		const normalized = (status || "").toString().toLowerCase();
+		return normalized.includes("pend") || normalized.includes("függ");
+	};
+
 	const getStatusLabelHu = (status) => {
 		const normalized = (status || "").toString().toLowerCase();
 		if (normalized.includes("pend") || normalized.includes("függ")) return "Függőben";
@@ -260,6 +265,8 @@ export default function UserBooking() {
 
 	const getCardClass = (b) => {
 		if (b.isRejected) return "bg-red-50/60 border-red-200";
+		if (b.phase === "active") return "bg-blue-50/70 border-blue-200";
+		if (isPendingStatus(b.status)) return "bg-yellow-50/70 border-yellow-200";
 		if (b.phase === "past") return "bg-gray-100 border-gray-300";
 		if (b.phase !== "active" && isApprovedStatus(b.status)) return "bg-emerald-50/70 border-emerald-200";
 		return "bg-white border-gray-200";

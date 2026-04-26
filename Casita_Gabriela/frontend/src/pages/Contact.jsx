@@ -1,5 +1,5 @@
 // src/pages/Contact.jsx
-import React, { useState } from "react";
+import React, { useRef, useState } from "react";
 import {
   FaPhoneAlt,
   FaEnvelope,
@@ -13,6 +13,8 @@ import {
 import Footer from "../components/Footer";
 
 const Contact = () => {
+  const submitInFlightRef = useRef(false);
+  const [submitting, setSubmitting] = useState(false);
   const [form, setForm] = useState({
     name: "",
     email: "",
@@ -26,6 +28,10 @@ const Contact = () => {
 
   const handleSubmit = async (e) => {
   e.preventDefault();
+
+  if (submitInFlightRef.current) return;
+  submitInFlightRef.current = true;
+  setSubmitting(true);
 
   try {
     const res = await fetch("http://localhost:6969/contact", {
@@ -52,6 +58,9 @@ const Contact = () => {
   } catch (err) {
     console.error(err);
     alert("Hiba történt!");
+  } finally {
+    submitInFlightRef.current = false;
+    setSubmitting(false);
   }
 };
 
@@ -125,9 +134,10 @@ const Contact = () => {
 
             <button
               type="submit"
-              className="bg-red-500 text-white px-4 py-2 rounded hover:bg-red-600 transition-all duration-200 text-sm font-semibold"
+              disabled={submitting}
+              className="bg-red-500 text-white px-4 py-2 rounded hover:bg-red-600 transition-all duration-200 text-sm font-semibold disabled:opacity-60 disabled:cursor-not-allowed"
             >
-              Küldés
+              {submitting ? "Küldés folyamatban..." : "Küldés"}
             </button>
           </form>
 

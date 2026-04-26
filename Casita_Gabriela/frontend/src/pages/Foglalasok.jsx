@@ -1,14 +1,24 @@
 // src/pages/Foglalasok.jsx
 
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import Sidebar from '../components/Sidebar';
 import api from '../services/api';
+import Toast, { useToast } from '../components/Toast';
 import { useLocation } from 'react-router';
 import { useNavigate } from 'react-router';
 
 const STATUS_PENDING = 'pending';
 const STATUS_APPROVED = 'approved';
 const STATUS_REJECTED = 'rejected';
+const CONFIRM_ANIMATION_MS = 220;
+
+const getStatusLabel = (status) => {
+  const normalized = (status || '').toLowerCase();
+  if (normalized === STATUS_PENDING) return 'Függőben';
+  if (normalized === STATUS_APPROVED) return 'Jóváhagyva';
+  if (normalized === STATUS_REJECTED) return 'Elutasítva';
+  return status || '-';
+};
 
 const formatDate = (iso) => {
   if (!iso) return '-';
@@ -39,22 +49,22 @@ const BookingRow = ({ b, onApprove, onReject, onChangeStatus }) => {
         </div>
       </div>
 
-      <div className="flex-shrink-0 flex items-center gap-2">
+      <div className="shrink-0 flex items-center gap-2">
         <div className={`px-3 py-1 rounded text-sm font-medium ${b.status === STATUS_PENDING ? 'bg-yellow-100 text-yellow-800' : b.status === STATUS_APPROVED ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'}`}>
-          {b.status}
+          {getStatusLabel(b.status)}
         </div>
 
         {b.status === STATUS_PENDING && (
           <>
             <button
               onClick={() => onApprove(b)}
-              className="px-3 py-1 bg-green-600 text-white rounded text-sm hover:cursor-pointer hover:bg-green-700"
+              className="px-3 py-1 bg-green-100 text-green-800 border border-green-200 rounded text-sm hover:cursor-pointer hover:bg-green-200 transition-colors"
             >
               Jóváhagy
             </button>
             <button
               onClick={() => onReject(b)}
-              className="px-3 py-1 bg-red-600 text-white rounded text-sm hover:cursor-pointer hover:bg-red-700"
+              className="px-3 py-1 bg-red-100 text-red-700 border border-red-200 rounded text-sm hover:cursor-pointer hover:bg-red-200 transition-colors"
             >
               Elutasít
             </button>
@@ -108,8 +118,21 @@ const Foglalasok = () => {
   const [bookings, setBookings] = useState([]);
   const [loading, setLoading] = useState(true);
   const [updatingId, setUpdatingId] = useState(null);
+  const [confirmMounted, setConfirmMounted] = useState(false);
+  const [confirmVisible, setConfirmVisible] = useState(false);
+  const closeConfirmTimeoutRef = useRef(null);
+  const openConfirmRafRef = useRef(null);
+  const [confirmDialog, setConfirmDialog] = useState({
+    open: false,
+    title: '',
+    message: '',
+    confirmLabel: 'Megerősítés',
+    variant: 'primary',
+    onConfirm: null,
+  });
   const location = useLocation();
   const navigate = useNavigate();
+  const { toasts, pushToast, removeToast } = useToast();
 
   useEffect(() => {
     setSidebarOpen(false);
@@ -117,6 +140,13 @@ const Foglalasok = () => {
 
   useEffect(() => {
     fetchBookings();
+  }, []);
+
+  useEffect(() => {
+    return () => {
+      if (closeConfirmTimeoutRef.current) clearTimeout(closeConfirmTimeoutRef.current);
+      if (openConfirmRafRef.current) cancelAnimationFrame(openConfirmRafRef.current);
+    };
   }, []);
 
   const fetchBookings = async () => {
@@ -136,39 +166,113 @@ const Foglalasok = () => {
   };
 
   const updateBookingStatus = async (bookingId, newStatus) => {
+    const statusLabel = getStatusLabel(newStatus).toLowerCase();
+
     try {
       setUpdatingId(bookingId);
       // backend supports both /booking/:id and /bookings/:id aliases for PUT
       await api.put(`/booking/${bookingId}`, { status: newStatus });
       // optimistic refresh
       await fetchBookings();
+      pushToast('Foglalás frissítve', `A #${bookingId} foglalás sikeresen ${statusLabel}.`, 'success');
     } catch (err) {
       console.error('Error updating booking status:', err);
       // try alternate alias if needed
       try {
         await api.put(`/bookings/${bookingId}`, { status: newStatus });
         await fetchBookings();
+        pushToast('Foglalás frissítve', `A #${bookingId} foglalás sikeresen ${statusLabel}.`, 'success');
       } catch (e) {
         console.error('Alternate update failed:', e);
+        pushToast('Státusz módosítás hiba', `Nem sikerült frissíteni a #${bookingId} foglalást (${getStatusLabel(newStatus)}).`, 'error');
       }
     } finally {
       setUpdatingId(null);
     }
   };
 
+  const openConfirm = ({ title, message, confirmLabel = 'Megerősítés', variant = 'primary', onConfirm }) => {
+    if (closeConfirmTimeoutRef.current) {
+      clearTimeout(closeConfirmTimeoutRef.current);
+      closeConfirmTimeoutRef.current = null;
+    }
+    if (openConfirmRafRef.current) {
+      cancelAnimationFrame(openConfirmRafRef.current);
+      openConfirmRafRef.current = null;
+    }
+
+    setConfirmDialog({
+      open: true,
+      title,
+      message,
+      confirmLabel,
+      variant,
+      onConfirm,
+    });
+
+    setConfirmMounted(true);
+    setConfirmVisible(false);
+    openConfirmRafRef.current = requestAnimationFrame(() => {
+      setConfirmVisible(true);
+      openConfirmRafRef.current = null;
+    });
+  };
+
+  const closeConfirm = () => {
+    if (openConfirmRafRef.current) {
+      cancelAnimationFrame(openConfirmRafRef.current);
+      openConfirmRafRef.current = null;
+    }
+
+    setConfirmVisible(false);
+    closeConfirmTimeoutRef.current = setTimeout(() => {
+      setConfirmMounted(false);
+      setConfirmDialog({
+        open: false,
+        title: '',
+        message: '',
+        confirmLabel: 'Megerősítés',
+        variant: 'primary',
+        onConfirm: null,
+      });
+      closeConfirmTimeoutRef.current = null;
+    }, CONFIRM_ANIMATION_MS);
+  };
+
+  const handleConfirm = () => {
+    const callback = confirmDialog.onConfirm;
+    closeConfirm();
+    if (typeof callback === 'function') callback();
+  };
+
   const handleApprove = (b) => {
-    if (!window.confirm(`Jóváhagyod a #${b.id} foglalást?`)) return;
-    updateBookingStatus(b.id, STATUS_APPROVED);
+    openConfirm({
+      title: 'Foglalás jóváhagyása',
+      message: `Biztosan jóváhagyod a #${b.id} foglalást?`,
+      confirmLabel: 'Jóváhagyás',
+      variant: 'success',
+      onConfirm: () => updateBookingStatus(b.id, STATUS_APPROVED),
+    });
   };
 
   const handleReject = (b) => {
-    if (!window.confirm(`Elutasítod a #${b.id} foglalást?`)) return;
-    updateBookingStatus(b.id, STATUS_REJECTED);
+    openConfirm({
+      title: 'Foglalás elutasítása',
+      message: `Biztosan elutasítod a #${b.id} foglalást?`,
+      confirmLabel: 'Elutasítás',
+      variant: 'danger',
+      onConfirm: () => updateBookingStatus(b.id, STATUS_REJECTED),
+    });
   };
 
   const handleChangeStatus = (b, status) => {
-    if (!window.confirm(`Átállítod a #${b.id} státuszát ${status}-re?`)) return;
-    updateBookingStatus(b.id, status);
+    openConfirm({
+      title: 'Státusz módosítása',
+      message: `Átállítod a #${b.id} foglalás státuszát ${getStatusLabel(status)} állapotra?`,
+      confirmLabel: 'Módosítás',
+      variant: status === STATUS_REJECTED ? 'danger' : 'primary',
+      onConfirm: () => updateBookingStatus(b.id, status),
+    });
   };
 
   // group bookings
@@ -207,7 +311,7 @@ const Foglalasok = () => {
             <div className="flex items-center gap-2">
               <button
                 onClick={fetchBookings}
-                className="px-3 py-2 bg-blue-500 text-white rounded hover:cursor-pointer hover:bg-blue-600"
+                className="px-3 py-2 bg-blue-100 text-blue-700 border border-blue-200 rounded hover:cursor-pointer hover:bg-blue-200 transition-colors"
               >
                 Frissít
               </button>
@@ -300,6 +404,42 @@ const Foglalasok = () => {
           )}
         </main>
       </div>
+
+      {confirmMounted && (
+        <div
+          className={`fixed inset-0 z-50 flex items-center justify-center bg-black/35 px-4 backdrop-blur-[1px] transition-opacity duration-200 ${confirmVisible ? 'opacity-100' : 'opacity-0 pointer-events-none'}`}
+        >
+          <div
+            className={`w-full max-w-md bg-white rounded-xl shadow-xl border border-gray-200 transition-all duration-200 ${confirmVisible ? 'opacity-100 translate-y-0 scale-100' : 'opacity-0 translate-y-2 scale-95'}`}
+          >
+            <div className="p-5">
+              <h3 className="text-lg font-semibold text-gray-900">{confirmDialog.title}</h3>
+              <p className="mt-2 text-sm text-gray-700">{confirmDialog.message}</p>
+            </div>
+            <div className="px-5 pb-5 flex justify-end gap-2">
+              <button
+                onClick={closeConfirm}
+                className="px-3 py-2 bg-gray-100 text-gray-700 rounded-md hover:bg-gray-200 transition-colors"
+              >
+                Mégse
+              </button>
+              <button
+                onClick={handleConfirm}
+                className={`px-3 py-2 rounded-md border transition-colors ${confirmDialog.variant === 'danger'
+                  ? 'bg-red-100 text-red-700 border-red-200 hover:bg-red-200'
+                  : confirmDialog.variant === 'success'
+                    ? 'bg-green-100 text-green-800 border-green-200 hover:bg-green-200'
+                    : 'bg-blue-100 text-blue-700 border-blue-200 hover:bg-blue-200'
+                  }`}
+              >
+                {confirmDialog.confirmLabel}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      <Toast toasts={toasts} removeToast={removeToast} />
 
       {/* Inline small styles */}
       <style>{`

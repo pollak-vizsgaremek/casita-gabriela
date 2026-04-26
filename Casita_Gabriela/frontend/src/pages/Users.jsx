@@ -1,19 +1,44 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import Sidebar from "../components/Sidebar";
 import { useLocation } from "react-router";
 import api from "../services/api";
+import Toast, { useToast } from "../components/Toast";
 
 const Users = () => {
+  const CONFIRM_ANIMATION_MS = 220;
+  const EDIT_ANIMATION_MS = 220;
   const location = useLocation();
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [users, setUsers] = useState([]);
   const [loading, setLoading] = useState(true);
   const [editingId, setEditingId] = useState(null);
+  const [closingEditId, setClosingEditId] = useState(null);
   const [editData, setEditData] = useState({});
   const [search, setSearch] = useState("");
+  const [confirmMounted, setConfirmMounted] = useState(false);
+  const [confirmVisible, setConfirmVisible] = useState(false);
+  const closeConfirmTimeoutRef = useRef(null);
+  const openConfirmRafRef = useRef(null);
+  const [confirmDialog, setConfirmDialog] = useState({
+    open: false,
+    title: "",
+    message: "",
+    confirmLabel: "Megerősítés",
+    variant: "danger",
+    onConfirm: null,
+  });
+  const { toasts, pushToast, removeToast } = useToast();
+  const closeEditTimeoutRef = useRef(null);
 
   useEffect(() => { setSidebarOpen(false); }, [location.pathname]);
   useEffect(() => { fetchUsers(); }, []);
+  useEffect(() => {
+    return () => {
+      if (closeConfirmTimeoutRef.current) clearTimeout(closeConfirmTimeoutRef.current);
+      if (openConfirmRafRef.current) cancelAnimationFrame(openConfirmRafRef.current);
+      if (closeEditTimeoutRef.current) clearTimeout(closeEditTimeoutRef.current);
+    };
+  }, []);
 
   const fetchUsers = async () => {
     try {
@@ -28,33 +53,115 @@ const Users = () => {
   };
 
   const startEdit = (user) => {
+    if (closeEditTimeoutRef.current) {
+      clearTimeout(closeEditTimeoutRef.current);
+      closeEditTimeoutRef.current = null;
+    }
+    setClosingEditId(null);
     setEditingId(user.id);
     setEditData({ name: user.name, email: user.email, phone_number: user.phone_number || "", address: user.address || "", isAdmin: user.isAdmin || false });
   };
 
-  const cancelEdit = () => { setEditingId(null); setEditData({}); };
+  const closeEditPanel = () => {
+    if (editingId === null || editingId === undefined) return;
+
+    setClosingEditId(editingId);
+    if (closeEditTimeoutRef.current) clearTimeout(closeEditTimeoutRef.current);
+    closeEditTimeoutRef.current = setTimeout(() => {
+      setEditingId(null);
+      setClosingEditId(null);
+      setEditData({});
+      closeEditTimeoutRef.current = null;
+    }, EDIT_ANIMATION_MS);
+  };
+
+  const cancelEdit = () => { closeEditPanel(); };
 
   const saveEdit = async (id) => {
     try {
       await api.put(`/admin/users/${id}`, editData);
-      setEditingId(null);
-      setEditData({});
+      closeEditPanel();
       await fetchUsers();
+      pushToast("Sikeres módosítás", "A felhasználó adatai sikeresen frissítve.", "success");
     } catch (err) {
       console.error("Error updating user:", err);
       alert("Hiba a felhasználó frissítésekor.");
     }
   };
 
+  const openConfirm = ({ title, message, confirmLabel = "Megerősítés", variant = "danger", onConfirm }) => {
+    if (closeConfirmTimeoutRef.current) {
+      clearTimeout(closeConfirmTimeoutRef.current);
+      closeConfirmTimeoutRef.current = null;
+    }
+    if (openConfirmRafRef.current) {
+      cancelAnimationFrame(openConfirmRafRef.current);
+      openConfirmRafRef.current = null;
+    }
+
+    setConfirmDialog({
+      open: true,
+      title,
+      message,
+      confirmLabel,
+      variant,
+      onConfirm,
+    });
+
+    setConfirmMounted(true);
+    setConfirmVisible(false);
+    openConfirmRafRef.current = requestAnimationFrame(() => {
+      setConfirmVisible(true);
+      openConfirmRafRef.current = null;
+    });
+  };
+
+  const closeConfirm = () => {
+    if (openConfirmRafRef.current) {
+      cancelAnimationFrame(openConfirmRafRef.current);
+      openConfirmRafRef.current = null;
+    }
+
+    setConfirmVisible(false);
+    closeConfirmTimeoutRef.current = setTimeout(() => {
+      setConfirmMounted(false);
+      setConfirmDialog({
+        open: false,
+        title: "",
+        message: "",
+        confirmLabel: "Megerősítés",
+        variant: "danger",
+        onConfirm: null,
+      });
+      closeConfirmTimeoutRef.current = null;
+    }, CONFIRM_ANIMATION_MS);
+  };
+
+  const handleConfirm = () => {
+    const callback = confirmDialog.onConfirm;
+    closeConfirm();
+    if (typeof callback === "function") callback();
+  };
+
   const deleteUser = async (user) => {
-    if (!window.confirm(`Biztosan törölni szeretnéd a felhasználót: ${user.name} (${user.email})?\n\nEz törli az összes foglalását és értékelését is!`)) return;
     try {
       await api.delete(`/admin/users/${user.id}`);
       await fetchUsers();
+      pushToast("Sikeres törlés", "A felhasználó sikeresen törölve.", "success");
     } catch (err) {
       console.error("Error deleting user:", err);
       alert("Hiba a felhasználó törlésekor.");
     }
+  };
+
+  const requestDeleteUser = (user) => {
+    openConfirm({
+      title: "Felhasználó törlése",
+      message: `Biztosan törölni szeretnéd a felhasználót: ${user.name} (${user.email})?\n\nEz törli az összes foglalását és értékelését is!`,
+      confirmLabel: "Törlés",
+      variant: "danger",
+      onConfirm: () => deleteUser(user),
+    });
   };
 
   const filtered = users.filter((u) => {
@@ -100,7 +207,7 @@ const Users = () => {
                 <div key={user.id} className="bg-white border rounded-lg p-4 shadow-sm">
                   {editingId === user.id ? (
                     /* EDIT MODE */
-                    <div className="space-y-3">
+                    <div className={`space-y-3 ${closingEditId === user.id ? 'animate-edit-popup-out pointer-events-none' : 'animate-edit-popup-in'}`}>
                       <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                         <div>
                           <label className="text-xs text-gray-500 font-medium">Név</label>
@@ -144,8 +251,8 @@ const Users = () => {
                         {user.address && <div className="text-sm text-gray-500 mt-1">{user.address}</div>}
                       </div>
                       <div className="flex gap-2 shrink-0">
-                        <button onClick={() => startEdit(user)} className="px-3 py-1.5 bg-blue-50 text-blue-700 border border-blue-200 rounded-md text-sm hover:bg-blue-100">Szerkesztés</button>
-                        <button onClick={() => deleteUser(user)} className="px-3 py-1.5 bg-red-50 text-red-700 border border-red-200 rounded-md text-sm hover:bg-red-100">Törlés</button>
+                        <button onClick={() => startEdit(user)} className="px-3 py-1.5 bg-emerald-50 text-emerald-700 border border-emerald-200 rounded-md text-sm hover:bg-emerald-100">Szerkesztés</button>
+                        <button onClick={() => requestDeleteUser(user)} className="px-3 py-1.5 bg-red-50 text-red-700 border border-red-200 rounded-md text-sm hover:bg-red-100">Törlés</button>
                       </div>
                     </div>
                   )}
@@ -156,6 +263,67 @@ const Users = () => {
           )}
         </div>
       </div>
+
+      {confirmMounted && (
+        <div className={`fixed inset-0 z-50 flex items-center justify-center bg-black/35 px-4 backdrop-blur-[1px] transition-opacity duration-200 ${confirmVisible ? "opacity-100" : "opacity-0 pointer-events-none"}`}>
+          <div className={`w-full max-w-md bg-white rounded-xl shadow-xl border border-gray-200 transition-all duration-200 ${confirmVisible ? "opacity-100 translate-y-0 scale-100" : "opacity-0 translate-y-2 scale-95"}`}>
+            <div className="p-5">
+              <h3 className="text-lg font-semibold text-gray-900">{confirmDialog.title}</h3>
+              <p className="mt-2 text-sm text-gray-700 whitespace-pre-line">{confirmDialog.message}</p>
+            </div>
+            <div className="px-5 pb-5 flex justify-end gap-2">
+              <button
+                onClick={closeConfirm}
+                className="px-3 py-2 bg-gray-100 text-gray-700 rounded-md hover:bg-gray-200 transition-colors"
+              >
+                Mégse
+              </button>
+              <button
+                onClick={handleConfirm}
+                className={`px-3 py-2 rounded-md border transition-colors ${confirmDialog.variant === "danger" ? "bg-red-100 text-red-700 border-red-200 hover:bg-red-200" : "bg-emerald-100 text-emerald-700 border-emerald-200 hover:bg-emerald-200"}`}
+              >
+                {confirmDialog.confirmLabel}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      <Toast toasts={toasts} removeToast={removeToast} />
+
+      <style>{`
+        .animate-edit-popup-in {
+          animation: editPopupIn 0.24s ease-out;
+          transform-origin: top;
+        }
+
+        .animate-edit-popup-out {
+          animation: editPopupOut 0.22s ease-in forwards;
+          transform-origin: top;
+        }
+
+        @keyframes editPopupIn {
+          from {
+            opacity: 0;
+            transform: translateY(8px) scale(0.98);
+          }
+          to {
+            opacity: 1;
+            transform: translateY(0) scale(1);
+          }
+        }
+
+        @keyframes editPopupOut {
+          from {
+            opacity: 1;
+            transform: translateY(0) scale(1);
+          }
+          to {
+            opacity: 0;
+            transform: translateY(8px) scale(0.98);
+          }
+        }
+      `}</style>
     </div>
   );
 };

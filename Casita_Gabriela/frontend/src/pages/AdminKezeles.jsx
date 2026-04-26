@@ -247,7 +247,7 @@ const AdminKezeles = () => {
       const idx = prev.findIndex((p) => p.id === id);
       if (idx === -1) return prev;
       const newArr = [...prev];
-      const swapIdx = direction === 'left' ? idx - 1 : idx + 1;
+      const swapIdx = direction === 'up' ? idx - 1 : idx + 1;
       if (swapIdx < 0 || swapIdx >= newArr.length) return prev;
       const tmp = newArr[swapIdx];
       newArr[swapIdx] = newArr[idx];
@@ -458,6 +458,14 @@ const AdminKezeles = () => {
         .desc-area { height: 18rem; min-height: 10rem; max-height: 28rem; }
         @media (max-width: 767px) { .desc-area { height: 12rem; } }
 
+        @keyframes slideIn {
+          from { opacity: 0; transform: translateY(8px); }
+          to { opacity: 1; transform: translateY(0); }
+        }
+        .extra-image-item {
+          animation: slideIn 0.3s ease-out;
+        }
+
         .main-image { width: 100%; height: auto; max-height: 20rem; object-fit: cover; display: block; border-radius: 0.5rem; }
         @media (max-width: 420px) { .main-image { max-height: 24rem; } }
 
@@ -638,7 +646,7 @@ const AdminKezeles = () => {
                     type="button"
                     onClick={handleSubmit}
                     disabled={loading}
-                    className="w-full mt-2 px-6 py-3 bg-blue-500 text-white font-semibold rounded-lg hover:bg-blue-600 transition disabled:bg-gray-400 disabled:cursor-not-allowed"
+                    className="w-full mt-2 px-6 py-3 bg-emerald-50 text-emerald-700 border border-emerald-200 font-semibold rounded-lg hover:bg-emerald-100 transition disabled:bg-gray-400 disabled:cursor-not-allowed"
                   >
                     {loading ? 'Mentés...' : (isEditing ? 'Szoba frissítése' : 'Szoba hozzáadása')}
                   </button>
@@ -648,7 +656,7 @@ const AdminKezeles = () => {
                       type="button"
                       onClick={handleDelete}
                       disabled={loading}
-                      className="w-full mt-2 px-6 py-3 bg-red-500 text-white font-semibold rounded-lg hover:bg-red-600 transition disabled:bg-gray-400 disabled:cursor-not-allowed"
+                      className="w-full mt-2 px-6 py-3 bg-red-50 text-red-700 border border-red-200 font-semibold rounded-lg hover:bg-red-100 transition disabled:bg-gray-400 disabled:cursor-not-allowed"
                     >
                       {loading ? 'Törlés...' : 'Szoba törlése'}
                     </button>
@@ -701,13 +709,13 @@ const AdminKezeles = () => {
                   <button
                     type="button"
                     onClick={() => mainInputRef.current?.click()}
-                    className="px-4 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600"
+                    className="px-4 py-2 bg-emerald-50 text-emerald-700 border border-emerald-200 rounded-lg hover:bg-emerald-100"
                   >
                     {mainImagePreview ? 'Kép cseréje' : 'Kép feltöltése'}
                   </button>
 
                   {mainImagePreview && (
-                    <button type="button" onClick={handleRemoveMainImage} className="px-4 py-2 bg-red-500 text-white rounded-lg hover:bg-red-600">
+                    <button type="button" onClick={handleRemoveMainImage} className="px-4 py-2 bg-red-50 text-red-700 border border-red-200 rounded-lg hover:bg-red-100">
                       Kép eltávolítása
                     </button>
                   )}
@@ -741,7 +749,7 @@ const AdminKezeles = () => {
                       <button
                         type="button"
                         onClick={() => extraInputRef.current?.click()}
-                        className="px-3 py-1 bg-green-500 text-white rounded-md text-sm"
+                        className="px-3 py-1 bg-emerald-50 text-emerald-700 border border-emerald-200 rounded-md text-sm hover:bg-emerald-100"
                       >
                         Képek hozzáadása
                       </button>
@@ -763,7 +771,7 @@ const AdminKezeles = () => {
                   ) : (
                     <div className="space-y-3">
                       {extraImages.map((img, idx) => (
-                        <div key={img.id} className="flex items-center gap-3 bg-gray-50 p-2 rounded-md">
+                        <div key={img.id} className="extra-image-item flex items-center gap-3 bg-gray-50 p-2 rounded-md">
                           <div className="w-20 h-14 bg-gray-100 rounded overflow-hidden flex-shrink-0">
                             {img.preview ? (
                               <img src={img.preview} alt={`extra-${idx}`} className="thumb-image" />
@@ -780,28 +788,28 @@ const AdminKezeles = () => {
                           <div className="flex items-center gap-2">
                             <button
                               type="button"
-                              onClick={() => moveExtraImage(img.id, 'left')}
+                              onClick={() => moveExtraImage(img.id, 'up')}
                               disabled={idx === 0}
-                              className="px-2 py-1 bg-white border rounded disabled:opacity-50"
-                              title="Balra"
+                              className="px-2 py-1 bg-white border rounded text-gray-700 hover:bg-gray-100 hover:text-gray-900 disabled:opacity-50 transition-colors"
+                              title="Felfele"
                             >
-                              ◀
+                              ▲
                             </button>
 
                             <button
                               type="button"
-                              onClick={() => moveExtraImage(img.id, 'right')}
+                              onClick={() => moveExtraImage(img.id, 'down')}
                               disabled={idx === extraImages.length - 1}
-                              className="px-2 py-1 bg-white border rounded disabled:opacity-50"
-                              title="Jobbra"
+                              className="px-2 py-1 bg-white border rounded text-gray-700 hover:bg-gray-100 hover:text-gray-900 disabled:opacity-50 transition-colors"
+                              title="Lefele"
                             >
-                              ▶
+                              ▼
                             </button>
 
                             <button
                               type="button"
                               onClick={() => handleRemoveExtraImage(img.id)}
-                              className="px-2 py-1 bg-red-500 text-white rounded"
+                              className="px-2 py-1 bg-red-50 text-red-700 border border-red-200 rounded hover:bg-red-100"
                               title="Eltávolít"
                             >
                               ✕

@@ -1,17 +1,36 @@
-import React, { useState, useEffect } from 'react'
+import React, { useState, useEffect, useRef } from 'react'
 import api from '../services/api'
 import Sidebar from '../components/Sidebar'
 import Toast, { useToast } from '../components/Toast'
 import { useLocation } from 'react-router'
 
 const AdminCategories = () => {
+  const CONFIRM_ANIMATION_MS = 220
+  const FORM_ANIMATION_MS = 220
   const location = useLocation()
   const [categories, setCategories] = useState([])
   const [loading, setLoading] = useState(true)
   const [sidebarOpen, setSidebarOpen] = useState(false)
   const [showForm, setShowForm] = useState(false)
+  const [formClosing, setFormClosing] = useState(false)
   const [editingId, setEditingId] = useState(null)
   const [formData, setFormData] = useState({ name: '', image: '' })
+  const [uploadingImage, setUploadingImage] = useState(false)
+  const [selectedImageName, setSelectedImageName] = useState('')
+  const imageInputRef = useRef(null)
+  const [confirmMounted, setConfirmMounted] = useState(false)
+  const [confirmVisible, setConfirmVisible] = useState(false)
+  const closeConfirmTimeoutRef = useRef(null)
+  const openConfirmRafRef = useRef(null)
+  const [confirmDialog, setConfirmDialog] = useState({
+    open: false,
+    title: '',
+    message: '',
+    confirmLabel: 'Megerősítés',
+    variant: 'danger',
+    onConfirm: null,
+  })
+  const closeFormTimeoutRef = useRef(null)
   const { toasts, pushToast, removeToast } = useToast()
 
   useEffect(() => {
@@ -21,6 +40,36 @@ const AdminCategories = () => {
   useEffect(() => {
     setSidebarOpen(false)
   }, [location.pathname])
+
+  useEffect(() => {
+    return () => {
+      if (closeConfirmTimeoutRef.current) clearTimeout(closeConfirmTimeoutRef.current)
+      if (openConfirmRafRef.current) cancelAnimationFrame(openConfirmRafRef.current)
+      if (closeFormTimeoutRef.current) clearTimeout(closeFormTimeoutRef.current)
+    }
+  }, [])
+
+  const openFormPanel = () => {
+    if (closeFormTimeoutRef.current) {
+      clearTimeout(closeFormTimeoutRef.current)
+      closeFormTimeoutRef.current = null
+    }
+    setFormClosing(false)
+    setShowForm(true)
+  }
+
+  const closeFormPanel = (afterClose) => {
+    if (!showForm) return
+
+    setFormClosing(true)
+    if (closeFormTimeoutRef.current) clearTimeout(closeFormTimeoutRef.current)
+    closeFormTimeoutRef.current = setTimeout(() => {
+      setShowForm(false)
+      setFormClosing(false)
+      if (typeof afterClose === 'function') afterClose()
+      closeFormTimeoutRef.current = null
+    }, FORM_ANIMATION_MS)
+  }
 
   const fetchCategories = async () => {
     try {
@@ -39,8 +88,12 @@ const AdminCategories = () => {
     const files = e.target.files
     if (!files || files.length === 0) return
 
+    const file = files[0]
+    setSelectedImageName(file.name)
+    setUploadingImage(true)
+
     const formDataUpload = new FormData()
-    formDataUpload.append('images', files[0])
+    formDataUpload.append('images', file)
 
     try {
       const response = await api.post('/upload-images', formDataUpload, {
@@ -48,10 +101,13 @@ const AdminCategories = () => {
       })
       if (response.data.paths && response.data.paths.length > 0) {
         setFormData(prev => ({ ...prev, image: response.data.paths[0] }))
+        pushToast('Kép feltöltve', 'A kategória képe sikeresen feltöltve.', 'success')
       }
     } catch (err) {
       console.error('Error uploading image:', err)
-      pushToast('Hiba', 'Hiba a kép feltöltésekor', 'error')
+      pushToast('Képfeltöltési hiba', 'Nem sikerült feltölteni a kategória képét.', 'error')
+    } finally {
+      setUploadingImage(false)
     }
   }
 
@@ -66,15 +122,17 @@ const AdminCategories = () => {
     try {
       if (editingId) {
         await api.put(`/categories/${editingId}`, formData)
-        pushToast('Sikeres', 'Kategória sikeresen frissítve', 'success')
+        pushToast('Kategória frissítve', 'A kategória sikeresen frissítve.', 'success')
       } else {
         await api.post('/categories', formData)
-        pushToast('Sikeres', 'Kategória sikeresen létrehozva', 'success')
+        pushToast('Kategória létrehozva', 'Az új kategória sikeresen létrehozva.', 'success')
       }
       await fetchCategories()
-      setFormData({ name: '', image: '' })
-      setEditingId(null)
-      setShowForm(false)
+      closeFormPanel(() => {
+        setFormData({ name: '', image: '' })
+        setSelectedImageName('')
+        setEditingId(null)
+      })
     } catch (err) {
       console.error('Error saving category:', err)
       const errorMsg = err.response?.data?.error || 'Hiba a kategória mentésekor'
@@ -84,16 +142,69 @@ const AdminCategories = () => {
 
   const handleEdit = (category) => {
     setFormData({ name: category.name, image: category.image })
+    setSelectedImageName(category.image ? category.image.split('/').pop() : '')
     setEditingId(category.id)
-    setShowForm(true)
+    openFormPanel()
+  }
+
+  const openConfirm = ({ title, message, confirmLabel = 'Megerősítés', variant = 'danger', onConfirm }) => {
+    if (closeConfirmTimeoutRef.current) {
+      clearTimeout(closeConfirmTimeoutRef.current)
+      closeConfirmTimeoutRef.current = null
+    }
+    if (openConfirmRafRef.current) {
+      cancelAnimationFrame(openConfirmRafRef.current)
+      openConfirmRafRef.current = null
+    }
+
+    setConfirmDialog({
+      open: true,
+      title,
+      message,
+      confirmLabel,
+      variant,
+      onConfirm,
+    })
+
+    setConfirmMounted(true)
+    setConfirmVisible(false)
+    openConfirmRafRef.current = requestAnimationFrame(() => {
+      setConfirmVisible(true)
+      openConfirmRafRef.current = null
+    })
+  }
+
+  const closeConfirm = () => {
+    if (openConfirmRafRef.current) {
+      cancelAnimationFrame(openConfirmRafRef.current)
+      openConfirmRafRef.current = null
+    }
+
+    setConfirmVisible(false)
+    closeConfirmTimeoutRef.current = setTimeout(() => {
+      setConfirmMounted(false)
+      setConfirmDialog({
+        open: false,
+        title: '',
+        message: '',
+        confirmLabel: 'Megerősítés',
+        variant: 'danger',
+        onConfirm: null,
+      })
+      closeConfirmTimeoutRef.current = null
+    }, CONFIRM_ANIMATION_MS)
+  }
+
+  const handleConfirm = () => {
+    const callback = confirmDialog.onConfirm
+    closeConfirm()
+    if (typeof callback === 'function') callback()
   }
 
   const handleDelete = async (id) => {
-    if (!window.confirm('Biztosan törölni szeretnéd ezt a kategóriát?')) return
-
     try {
       await api.delete(`/categories/${id}`)
-      pushToast('Sikeres', 'Kategória sikeresen törölve', 'success')
+      pushToast('Kategória törölve', 'A kategória sikeresen törölve.', 'success')
       await fetchCategories()
     } catch (err) {
       console.error('Error deleting category:', err)
@@ -101,10 +212,22 @@ const AdminCategories = () => {
     }
   }
 
+  const requestDeleteCategory = (id) => {
+    openConfirm({
+      title: 'Kategória törlése',
+      message: 'Biztosan törölni szeretnéd ezt a kategóriát?',
+      confirmLabel: 'Törlés',
+      variant: 'danger',
+      onConfirm: () => handleDelete(id),
+    })
+  }
+
   const handleCancel = () => {
-    setShowForm(false)
-    setFormData({ name: '', image: '' })
-    setEditingId(null)
+    closeFormPanel(() => {
+      setFormData({ name: '', image: '' })
+      setSelectedImageName('')
+      setEditingId(null)
+    })
   }
 
   return (
@@ -133,7 +256,7 @@ const AdminCategories = () => {
 
           {/* FORM */}
           {showForm && (
-            <div className="bg-white p-6 rounded-xl shadow-md mb-6 text-gray-900">
+            <div className={`bg-white p-6 rounded-xl shadow-md mb-6 text-gray-900 ${formClosing ? 'animate-edit-popup-out pointer-events-none' : 'animate-edit-popup-in'}`}>
               <h3 className="text-xl font-semibold mb-4 text-gray-900">
                 {editingId ? 'Kategória szerkesztése' : 'Új kategória'}
               </h3>
@@ -150,22 +273,45 @@ const AdminCategories = () => {
                 </div>
 
                 <div>
-                  <label className="block text-sm font-medium mb-1 text-gray-900">Kategória képe</label>
-                  {formData.image && (
-                    <div className="mb-3">
-                      <img
-                        src={formData.image}
-                        alt="Category"
-                        className="h-32 w-32 object-cover rounded-md"
-                      />
-                    </div>
-                  )}
+                  <label className="block text-sm font-medium mb-2 text-gray-900">Kategória képe</label>
+
                   <input
+                    ref={imageInputRef}
                     type="file"
                     accept="image/*"
                     onChange={handleImageUpload}
-                    className="w-full p-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-green-500 bg-white text-gray-900"
+                    className="hidden"
                   />
+
+                  <div className="rounded-xl border border-emerald-200 bg-emerald-50/40 p-3">
+                    <div className="flex flex-col sm:flex-row sm:items-center gap-3">
+                      <button
+                        type="button"
+                        onClick={() => imageInputRef.current?.click()}
+                        className="px-4 py-2 rounded-md bg-emerald-100 text-emerald-800 border border-emerald-200 hover:bg-emerald-200 transition-colors text-sm font-medium"
+                      >
+                        {uploadingImage ? 'Feltöltés...' : 'Kép kiválasztása'}
+                      </button>
+
+                      <div className="text-sm text-gray-700 min-h-5">
+                        {selectedImageName
+                          ? `Kiválasztott fájl: ${selectedImageName}`
+                          : formData.image
+                            ? 'Jelenlegi kép beállítva.'
+                            : 'Még nincs kiválasztott kép.'}
+                      </div>
+                    </div>
+
+                    {formData.image && (
+                      <div className="mt-3 rounded-lg overflow-hidden border border-emerald-100 bg-white inline-block">
+                        <img
+                          src={formData.image}
+                          alt="Category"
+                          className="h-36 w-56 object-cover"
+                        />
+                      </div>
+                    )}
+                  </div>
                 </div>
 
                 <div className="flex gap-3">
@@ -189,39 +335,39 @@ const AdminCategories = () => {
 
           <div
             className="grid gap-5 w-full items-start"
-            style={{ gridTemplateColumns: 'repeat(auto-fit, minmax(18rem, 1fr))' }}
+            style={{ gridTemplateColumns: 'repeat(auto-fit, minmax(19rem, 1fr))' }}
           >
             <button
               onClick={() => {
                 setFormData({ name: '', image: '' })
+                setSelectedImageName('')
                 setEditingId(null)
-                setShowForm(true)
+                openFormPanel()
               }}
               className="
                 bg-[#9FE3A8]
-                rounded-xl
+                rounded-2xl
                 w-full h-72
+                border border-emerald-200
                 shadow-md
                 hover:cursor-pointer
-                hover:rotate-1
                 transition-all duration-300
-                hover:shadow-2xl
-                active:shadow-green-500
+                hover:shadow-lg hover:-translate-y-0.5
                 flex flex-col items-center justify-center
                 relative
                 animate-fadein
               "
             >
               <div className="relative flex items-center justify-center w-24 h-24">
-                <div className="absolute w-24 h-24 rounded-full border-4 border-green-400 border-t-transparent animate-spin-slow"></div>
-                <div className="w-20 h-20 bg-green-600 rounded-full flex items-center justify-center shadow-lg z-10">
+                <div className="absolute w-24 h-24 rounded-full border-4 border-emerald-400 border-t-transparent animate-spin-slow"></div>
+                <div className="w-20 h-20 bg-emerald-600 rounded-full flex items-center justify-center shadow-md z-10">
                   <span className="text-white text-4xl select-none">+</span>
                 </div>
               </div>
 
               <div className="mt-6 text-center">
                 <h3 className="text-xl font-semibold text-gray-800">Új kategória</h3>
-                <p className="text-sm text-gray-600 mt-1">Kattints ide új kategória létrehozásához</p>
+                <p className="text-sm text-gray-500 mt-1">Kattints ide új kategória létrehozásához</p>
               </div>
             </button>
 
@@ -233,7 +379,7 @@ const AdminCategories = () => {
               categories.map((category) => (
                 <div
                   key={category.id}
-                  className="animate-fadein w-full h-72 rounded-xl overflow-hidden shadow-md hover:shadow-2xl transition-all duration-300 bg-white relative"
+                  className="animate-fadein w-full h-72 rounded-2xl overflow-hidden border border-gray-100 shadow-sm hover:shadow-lg transition-all duration-300 bg-white relative"
                 >
                   <img
                     src={category.image}
@@ -241,23 +387,30 @@ const AdminCategories = () => {
                     className="w-full h-full object-cover"
                   />
 
-                  <div className="absolute inset-0 bg-linear-to-t from-black/70 via-black/20 to-transparent" />
+                  <div className="absolute inset-0 bg-linear-to-t from-black/55 via-black/10 to-transparent" />
+
+                  <div className="absolute top-3 left-3">
+                    <div className="bg-white/90 backdrop-blur-sm border border-white/70 shadow-sm rounded-full px-3 py-1.5">
+                      <h3 className="text-sm font-semibold text-gray-800 leading-none">{category.name}</h3>
+                    </div>
+                  </div>
 
                   <div className="absolute bottom-0 left-0 right-0 p-4">
-                    <h3 className="inline-block text-lg font-semibold text-gray-900 bg-white/90 px-3 py-1 rounded-md mb-3">{category.name}</h3>
+                    <div className="rounded-xl bg-white/88 backdrop-blur-sm p-3 border border-white/70 shadow-sm">
                     <div className="flex gap-2">
                       <button
                         onClick={() => handleEdit(category)}
-                        className="flex-1 bg-blue-500 hover:bg-blue-600 text-white px-3 py-2 rounded-md transition text-sm"
+                        className="flex-1 bg-emerald-50 hover:bg-emerald-100 text-emerald-700 border border-emerald-200 px-3 py-2 rounded-md transition text-sm"
                       >
                         Szerkesztés
                       </button>
                       <button
-                        onClick={() => handleDelete(category.id)}
-                        className="flex-1 bg-red-500 hover:bg-red-600 text-white px-3 py-2 rounded-md transition text-sm"
+                        onClick={() => requestDeleteCategory(category.id)}
+                        className="flex-1 bg-red-50 hover:bg-red-100 text-red-700 border border-red-200 px-3 py-2 rounded-md transition text-sm"
                       >
                         Törlés
                       </button>
+                    </div>
                     </div>
                   </div>
                 </div>
@@ -266,6 +419,31 @@ const AdminCategories = () => {
           </div>
         </main>
       </div>
+
+      {confirmMounted && (
+        <div className={`fixed inset-0 z-50 flex items-center justify-center bg-black/35 px-4 backdrop-blur-[1px] transition-opacity duration-200 ${confirmVisible ? 'opacity-100' : 'opacity-0 pointer-events-none'}`}>
+          <div className={`w-full max-w-md bg-white rounded-xl shadow-xl border border-gray-200 transition-all duration-200 ${confirmVisible ? 'opacity-100 translate-y-0 scale-100' : 'opacity-0 translate-y-2 scale-95'}`}>
+            <div className="p-5">
+              <h3 className="text-lg font-semibold text-gray-900">{confirmDialog.title}</h3>
+              <p className="mt-2 text-sm text-gray-700">{confirmDialog.message}</p>
+            </div>
+            <div className="px-5 pb-5 flex justify-end gap-2">
+              <button
+                onClick={closeConfirm}
+                className="px-3 py-2 bg-gray-100 text-gray-700 rounded-md hover:bg-gray-200 transition-colors"
+              >
+                Mégse
+              </button>
+              <button
+                onClick={handleConfirm}
+                className={`px-3 py-2 rounded-md border transition-colors ${confirmDialog.variant === 'danger' ? 'bg-red-100 text-red-700 border-red-200 hover:bg-red-200' : 'bg-emerald-100 text-emerald-700 border-emerald-200 hover:bg-emerald-200'}`}
+              >
+                {confirmDialog.confirmLabel}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       <Toast toasts={toasts} removeToast={removeToast} />
 
@@ -284,6 +462,38 @@ const AdminCategories = () => {
         @keyframes fadein {
           from { opacity: 0; transform: translateY(10px); }
           to { opacity: 1; transform: translateY(0); }
+        }
+
+        .animate-edit-popup-in {
+          animation: editPopupIn 0.24s ease-out;
+          transform-origin: top;
+        }
+
+        .animate-edit-popup-out {
+          animation: editPopupOut 0.22s ease-in forwards;
+          transform-origin: top;
+        }
+
+        @keyframes editPopupIn {
+          from {
+            opacity: 0;
+            transform: translateY(8px) scale(0.98);
+          }
+          to {
+            opacity: 1;
+            transform: translateY(0) scale(1);
+          }
+        }
+
+        @keyframes editPopupOut {
+          from {
+            opacity: 1;
+            transform: translateY(0) scale(1);
+          }
+          to {
+            opacity: 0;
+            transform: translateY(8px) scale(0.98);
+          }
         }
       `}</style>
     </div>

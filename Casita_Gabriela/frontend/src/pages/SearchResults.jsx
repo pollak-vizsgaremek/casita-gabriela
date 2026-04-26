@@ -89,6 +89,50 @@ const SearchResults = () => {
     }
   }
 
+  const parseIsoDate = (value) => {
+    if (!value) return null
+    const datePart = String(value).includes('T') ? String(value).split('T')[0] : String(value)
+    const m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(datePart)
+    if (m) return new Date(Number(m[1]), Number(m[2]) - 1, Number(m[3]))
+    const d = new Date(value)
+    if (Number.isNaN(d.getTime())) return null
+    return new Date(d.getFullYear(), d.getMonth(), d.getDate())
+  }
+
+  const statusBlocksAvailability = (status) => {
+    const s = (status || '').toString().toLowerCase()
+    if (!s) return true
+    if (s.includes('rejected') || s.includes('elutas') || s.includes('cancel') || s.includes('lemond')) return false
+    return true
+  }
+
+  const isRoomAvailableForSearch = (room, arrivalParam, departureParam) => {
+    const bookings = Array.isArray(room?.booking) ? room.booking : []
+    const start = parseIsoDate(arrivalParam)
+    const end = parseIsoDate(departureParam)
+
+    if (!start && !end) return true
+
+    // if only one date is provided, treat it as a one-night/day occupancy probe
+    const probeStart = start || end
+    const probeEnd = end || (start ? new Date(start.getFullYear(), start.getMonth(), start.getDate() + 1) : null)
+    if (!probeStart || !probeEnd) return true
+
+    const rangeStart = probeStart.getTime()
+    const rangeEnd = probeEnd.getTime()
+
+    return !bookings.some((b) => {
+      if (!statusBlocksAvailability(b.status)) return false
+      const bStart = parseIsoDate(b.arrival_date || b.arrivalDate)
+      const bEnd = parseIsoDate(b.departure_date || b.departureDate)
+      if (!bStart || !bEnd) return false
+
+      const bookingStart = bStart.getTime()
+      const bookingEnd = bEnd.getTime()
+      return rangeStart < bookingEnd && rangeEnd > bookingStart
+    })
+  }
+
   const filterRooms = () => {
     const params = new URLSearchParams(location.search)
 
@@ -106,14 +150,15 @@ const SearchResults = () => {
     }
 
     if (peopleParam) {
+      const peopleCount = parseInt(peopleParam, 10)
       results = results.filter(room =>
-        room.space >= parseInt(peopleParam)
+        Number(room.space) >= peopleCount
       )
     }
 
-    if (arrivalParam && departureParam) {
+    if (arrivalParam || departureParam) {
       results = results.filter(room => {
-        return true // booking logic later
+        return isRoomAvailableForSearch(room, arrivalParam, departureParam)
       })
     }
 
@@ -175,6 +220,13 @@ const SearchResults = () => {
               type="date"
               value={arrival}
               onChange={(e) => setArrival(e.target.value)}
+              className='p-2 rounded-md border focus:outline-none focus:ring-2 focus:ring-red-400'
+            />
+
+            <input
+              type="date"
+              value={departure}
+              onChange={(e) => setDeparture(e.target.value)}
               className='p-2 rounded-md border focus:outline-none focus:ring-2 focus:ring-red-400'
             />
 

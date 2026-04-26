@@ -44,10 +44,16 @@ const ErrorToast = ({ toasts, removeToast }) => {
           role="alert"
         >
           <div className="p-3 flex items-start gap-3">
-            <div className="flex-shrink-0">
-              <svg className="h-6 w-6 text-red-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 9v2m0 4h.01M21 12A9 9 0 1112 3a9 9 0 019 9z" />
-              </svg>
+            <div className="shrink-0">
+              {t.status === 'success' ? (
+                <svg className="h-6 w-6 text-green-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M5 13l4 4L19 7" />
+                </svg>
+              ) : (
+                <svg className="h-6 w-6 text-red-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 9v2m0 4h.01M21 12A9 9 0 1112 3a9 9 0 019 9z" />
+                </svg>
+              )}
             </div>
             <div className="flex-1">
               <div className="font-semibold text-sm">{t.title || "Hiba"}</div>
@@ -190,6 +196,8 @@ const Room = () => {
   const [guests, setGuests] = useState(1);
   const [acceptedAszf, setAcceptedAszf] = useState(false);
   const [acceptedAdat, setAcceptedAdat] = useState(false);
+  const [bookingSubmitting, setBookingSubmitting] = useState(false);
+  const bookingInFlightRef = useRef(false);
   const [visibleMonth, setVisibleMonth] = useState(() => new Date());
   const [bookingDraftHydrated, setBookingDraftHydrated] = useState(false);
   const isLoggedIn = !!localStorage.getItem("token");
@@ -201,10 +209,28 @@ const Room = () => {
   const [pageLoaded, setPageLoaded] = useState(false);
   const [toasts, setToasts] = useState([]);
   const [showReviewForm, setShowReviewForm] = useState(false);
+  const [reviewSliderIndex, setReviewSliderIndex] = useState(0);
+  const [expandedReviews, setExpandedReviews] = useState({});
   const [reviewStars, setReviewStars] = useState(0);
   const [reviewComment, setReviewComment] = useState("");
   const [reviewSubmitting, setReviewSubmitting] = useState(false);
   const genErrorCode = (prefix) => `${prefix}_${Date.now().toString(36).slice(-6)}`;
+
+  useEffect(() => {
+    const maxIndex = Math.max(0, (room?.reviews || []).length - 3);
+    setReviewSliderIndex((prev) => Math.min(prev, maxIndex));
+  }, [room?.reviews?.length]);
+
+  useEffect(() => {
+    if (room?.name) {
+      document.title = `${room.name} - Casita Gabriela`;
+    } else {
+      document.title = "Szoba - Casita Gabriela";
+    }
+    return () => {
+      document.title = "Casita Gabriela";
+    };
+  }, [room?.name]);
 
   useEffect(() => {
     mountedRef.current = true;
@@ -624,6 +650,8 @@ const Room = () => {
   };
 
   const handleBooking = async () => {
+    if (bookingInFlightRef.current) return;
+
     if (!isLoggedIn) {
       persistBookingDraft();
       navigate("/login", { state: { from: `/room/${id}` } });
@@ -654,6 +682,11 @@ const Room = () => {
       pushToast("Elfogadás szükséges", "Kérlek fogadd el az ÁSZF-et és az Adatkezelési Tájékoztatót.");
       return;
     }
+
+    bookingInFlightRef.current = true;
+    setBookingSubmitting(true);
+
+    try {
     const payload = {
       arrival_date: checkIn,
       departure_date: checkOut,
@@ -711,6 +744,10 @@ const Room = () => {
       payload,
       timestamp: new Date().toISOString(),
     });
+    } finally {
+      bookingInFlightRef.current = false;
+      if (mountedRef.current) setBookingSubmitting(false);
+    }
   };
 
   const onPreviewPointerDown = (e) => {
@@ -802,8 +839,10 @@ const Room = () => {
 
   // New: booking enabled only when dates selected and both checkboxes accepted
   const canBook = !!(checkIn && checkOut && acceptedAszf && acceptedAdat);
-  const bookingButtonEnabled = isLoggedIn ? canBook : true;
-  const bookingButtonLabel = isLoggedIn ? "Foglalás leadása" : "Jelentkezz be a foglaláshoz";
+  const bookingButtonEnabled = !bookingSubmitting && (isLoggedIn ? canBook : true);
+  const bookingButtonLabel = bookingSubmitting
+    ? "Foglalás küldése..."
+    : (isLoggedIn ? "Foglalás leadása" : "Jelentkezz be a foglaláshoz");
 
   return (
     <>
@@ -816,6 +855,7 @@ const Room = () => {
             <div className="lg:col-span-2 flex flex-col gap-6">
               <div className={`bg-[#FFFECE] text-black rounded-xl px-4 py-3 transform transition-all duration-500 ${pageLoaded ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-2'}`}>
                 <h1 className="text-3xl font-mono tracking-wide text-black m-0 mb-1">{room.name}</h1>
+                <p className="text-sm text-gray-600 mb-3">{room.category}</p>
                 {room.reviews && room.reviews.length ? (
                   <div className="flex items-center gap-3 text-sm">
                     <div className="text-yellow-500">
@@ -931,130 +971,209 @@ const Room = () => {
                 <p className="text-sm leading-relaxed">{room.description}</p>
               </div>
               <div className={`bg-[#FFFECE] text-black rounded-xl p-4 shadow-md flex flex-col gap-4 transform transition-all duration-500 ${pageLoaded ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-2'}`} style={{ transitionDelay: pageLoaded ? '200ms' : '0ms' }}>
-                <h2 className="font-semibold text-lg">Legjobb vélemények</h2>
-                {(room.reviews || []).slice(0, 4).map((review) => (
-                  <div key={review.id} className="border-b last:border-b-0 pb-3 last:pb-0">
-                    <div className="flex items-center gap-2 mb-1">
-                      <span className="text-yellow-500">
-                        {"★".repeat(review.stars)}
-                        {"☆".repeat(5 - review.stars)}
-                      </span>
-                      <span className="text-xs text-gray-600">{review.stars}/5</span>
-                    </div>
-                    <p className="text-sm text-gray-800">{review.comment}</p>
-                  </div>
-                ))}
-                <div className="pt-2">
-                  {!showReviewForm ? (
-                    <>
-                      {!alreadyReviewed ? (
-                        <>
-                          {!isLoggedIn ? (
-                            <button
-                              type="button"
-                              onClick={() => pushToast('Bejelentkezés szükséges', 'A vélemény írásáshoz be kell jelentkezned.')}
-                              className="bg-[#6FD98C] text-white px-4 py-2 rounded hover:bg-[#5FCB80] transition-all duration-200 text-sm"
-                            >
-                              Vélemény írása
-                            </button>
-                          ) : !hasBooked ? (
-                            <>
-                              <button type="button" disabled className="bg-gray-300 text-gray-700 px-4 py-2 rounded text-sm">
+                <div className="flex flex-col gap-3">
+                  <h2 className="font-semibold text-lg">Vélemények</h2>
+                  <div className="w-full self-start">
+                    {!showReviewForm ? (
+                      <>
+                        {!alreadyReviewed ? (
+                          <>
+                            {!isLoggedIn ? (
+                              <button
+                                type="button"
+                                onClick={() => pushToast('Bejelentkezés szükséges', 'A vélemény írásáshoz be kell jelentkezned.')}
+                                className="bg-[#6FD98C] text-white px-5 py-2 rounded-full hover:bg-[#5FCB80] transition-all duration-200 text-sm shadow-md hover:shadow-lg"
+                              >
                                 Vélemény írása
                               </button>
-                              <div className="text-sm text-gray-500 mt-2">Előbb foglalj ennél a szobánál, hogy véleményt írj.</div>
-                            </>
-                          ) : (
-                            <button
-                              type="button"
-                              onClick={() => {
-                                setReviewStars(0);
-                                setReviewComment("");
-                                setShowReviewForm(true);
-                              }}
-                              className="bg-[#6FD98C] text-white px-4 py-2 rounded hover:bg-[#5FCB80] transition-all duration-200 text-sm"
-                            >
-                              Vélemény írása
-                            </button>
-                          )}
-                        </>
-                      ) : (
-                        <button type="button" disabled className="bg-gray-300 text-gray-700 px-4 py-2 rounded text-sm">
-                          Már írtál véleményt
-                        </button>
-                      )}
-                    </>
-                  ) : (
-                    <div className="flex flex-col gap-2">
-                      <div className="flex items-center gap-2">
-                        {[1,2,3,4,5].map((s) => {
-                          const filled = reviewStars >= s;
-                          return (
-                            <button
-                              key={s}
-                              type="button"
-                              onClick={() => setReviewStars(s)}
-                              aria-label={`${s} csillag`}
-                              className={`text-3xl leading-none ${filled ? 'text-yellow-400' : 'text-gray-300'} focus:outline-none`}
-                            >
-                              {filled ? '★' : '☆'}
-                            </button>
-                          );
-                        })}
+                            ) : !hasBooked ? (
+                              <div className="flex flex-col items-start">
+                                <button type="button" disabled className="bg-gray-300 text-gray-700 px-4 py-2 rounded-full text-sm cursor-not-allowed">
+                                  Vélemény írása
+                                </button>
+                                <div className="text-sm text-gray-500 mt-2">Előbb foglalj ennél a szobánál, hogy véleményt írj.</div>
+                              </div>
+                            ) : (
+                              <button
+                                type="button"
+                                onClick={() => {
+                                  setReviewStars(0);
+                                  setReviewComment("");
+                                  setShowReviewForm(true);
+                                }}
+                                className="bg-[#6FD98C] text-white px-5 py-2 rounded-full hover:bg-[#5FCB80] transition-all duration-200 text-sm shadow-md hover:shadow-lg"
+                              >
+                                Vélemény írása
+                              </button>
+                            )}
+                          </>
+                        ) : (
+                          <button type="button" disabled className="bg-gray-300 text-gray-700 px-4 py-2 rounded-full text-sm cursor-not-allowed">
+                            Már írtál véleményt
+                          </button>
+                        )}
+                      </>
+                    ) : (
+                      <div className="flex flex-col gap-2 bg-white rounded-lg p-4 border border-gray-200 mx-0">
+                        <div className="flex items-center gap-2">
+                          {[1,2,3,4,5].map((s) => {
+                            const filled = reviewStars >= s;
+                            return (
+                              <button
+                                key={s}
+                                type="button"
+                                onClick={() => setReviewStars(s)}
+                                aria-label={`${s} csillag`}
+                                className={`text-3xl leading-none ${filled ? 'text-yellow-400' : 'text-gray-300'} focus:outline-none`}
+                              >
+                                {filled ? '★' : '☆'}
+                              </button>
+                            );
+                          })}
+                        </div>
+                        <textarea
+                          value={reviewComment}
+                          onChange={(e) => setReviewComment(e.target.value.slice(0, 200))}
+                          className="w-full p-3 rounded border border-gray-300 bg-white"
+                          rows={5}
+                          maxLength={200}
+                          placeholder="Írd ide a véleményed (max 200 karakter)"
+                        />
+                        <div className="text-xs text-gray-600 text-right">
+                          {reviewComment.length}/200 karakter
+                        </div>
+                        <div className="flex gap-2 justify-start">
+                          <button
+                            type="button"
+                            disabled={reviewSubmitting}
+                            onClick={async () => {
+                              if (!reviewComment.trim()) {
+                                pushToast('Hiba', 'A vélemény szövege nem lehet üres.');
+                                return;
+                              }
+                              try {
+                                setReviewSubmitting(true);
+                                const res = await axios.post(`${BACKEND_BASE}/room_reviews`, {
+                                  room_id: room.id,
+                                  stars: reviewStars,
+                                  comment: reviewComment,
+                                }, {
+                                  headers: { Authorization: `Bearer ${localStorage.getItem('token')}` }
+                                });
+                                setReviewComment('');
+                                setReviewStars(5);
+                                setShowReviewForm(false);
+                                pushToast('Köszönjük', 'Véleményed rögzítve lett.', 'success');
+                                if (res.data && res.data.review && room) {
+                                  setRoom((prevRoom) => ({
+                                    ...prevRoom,
+                                    reviews: [res.data.review, ...(prevRoom.reviews || [])]
+                                  }));
+                                }
+                              } catch (err) {
+                                console.error('POST review error', err);
+                                pushToast('Hiba', 'Nem sikerült rögzíteni a véleményt.');
+                              } finally {
+                                setReviewSubmitting(false);
+                              }
+                            }}
+                            className="bg-blue-600 text-white px-4 py-2 rounded-full disabled:opacity-60 hover:bg-blue-700 transition-colors text-sm"
+                          >
+                            Küldés
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => setShowReviewForm(false)}
+                            className="bg-gray-200 text-black px-4 py-2 rounded-full hover:bg-gray-300 transition-colors text-sm"
+                          >
+                            Mégse
+                          </button>
+                        </div>
                       </div>
-                      <textarea
-                        value={reviewComment}
-                        onChange={(e) => setReviewComment(e.target.value)}
-                        className="w-full p-2 rounded border"
-                        rows={3}
-                        maxLength={200}
-                        placeholder="Írd ide a véleményed (max 200 karakter)"
-                      />
-                      <div className="flex gap-2">
-                        <button
-                          type="button"
-                          disabled={reviewSubmitting}
-                          onClick={async () => {
-                            if (!reviewComment.trim()) {
-                              pushToast('Hiba', 'A vélemény szövege nem lehet üres.');
-                              return;
-                            }
-                            try {
-                              setReviewSubmitting(true);
-                              await axios.post(`${BACKEND_BASE}/room_reviews`, {
-                                room_id: room.id,
-                                stars: reviewStars,
-                                comment: reviewComment,
-                              }, {
-                                headers: { Authorization: `Bearer ${localStorage.getItem('token')}` }
-                              });
-                              setReviewComment('');
-                              setReviewStars(5);
-                              setShowReviewForm(false);
-                              pushToast('Köszönjük', 'Véleményed rögzítve lett.');
-                              await fetchRoom();
-                            } catch (err) {
-                              console.error('POST review error', err);
-                              pushToast('Hiba', 'Nem sikerült rögzíteni a véleményt.');
-                            } finally {
-                              setReviewSubmitting(false);
-                            }
-                          }}
-                          className="bg-blue-600 text-white px-3 py-1 rounded disabled:opacity-60"
-                        >
-                          Küldés
-                        </button>
-                        <button
-                          type="button"
-                          onClick={() => setShowReviewForm(false)}
-                          className="bg-gray-200 text-black px-3 py-1 rounded"
-                        >
-                          Mégse
-                        </button>
-                      </div>
-                    </div>
-                  )}
+                    )}
+                  </div>
                 </div>
+                {(room.reviews || []).length > 0 ? (
+                  <div className="flex flex-col gap-3">
+                    <div className="flex items-center gap-3">
+                      <button
+                        type="button"
+                        onClick={() => setReviewSliderIndex(Math.max(0, reviewSliderIndex - 1))}
+                        disabled={reviewSliderIndex === 0 || (room.reviews || []).length <= 3}
+                        className="h-10 w-10 shrink-0 rounded-full border border-gray-300 bg-white text-gray-700 flex items-center justify-center shadow-sm hover:shadow-md hover:bg-gray-50 transition-all disabled:opacity-40 disabled:cursor-not-allowed"
+                        aria-label="Előző vélemények"
+                      >
+                        <span className="text-lg leading-none">←</span>
+                      </button>
+
+                      <div className="relative overflow-hidden flex-1">
+                        <div
+                          className="flex gap-3 transition-transform duration-500 ease-out"
+                          style={{
+                            transform: `translateX(calc(-${reviewSliderIndex} * ((100% - 1.5rem) / 3 + 0.75rem)))`,
+                          }}
+                        >
+                          {(room.reviews || []).map((review) => {
+                            const isExpanded = !!expandedReviews[review.id];
+                            const fullComment = review.comment || "";
+                            const isLong = fullComment.length > 140;
+
+                            return (
+                              <div
+                                key={review.id}
+                                className={`shrink-0 w-[calc((100%-1.5rem)/3)] bg-white rounded-lg border border-gray-200 p-4 shadow-sm hover:shadow-md transition-all duration-300 flex flex-col ${isExpanded ? 'min-h-68 h-auto' : 'h-68'}`}
+                              >
+                                <div className="font-semibold text-gray-900 mb-2 text-sm">{review.user?.name || 'Névtelen'}</div>
+                                <div className="flex items-center gap-2 mb-3">
+                                  <span className="text-yellow-500 text-lg">
+                                    {"★".repeat(review.stars)}
+                                    {"☆".repeat(5 - review.stars)}
+                                  </span>
+                                  <span className="text-xs text-gray-600 font-medium">{review.stars}/5</span>
+                                </div>
+                                <p className={`text-sm text-gray-700 leading-relaxed wrap-anywhere overflow-hidden transition-[max-height] duration-300 ease-in-out ${isLong ? (isExpanded ? 'max-h-96' : 'max-h-18') : 'max-h-96'}`}>
+                                  {fullComment}
+                                </p>
+                                {isLong && (
+                                  <button
+                                    type="button"
+                                    onClick={() =>
+                                      setExpandedReviews((prev) => ({
+                                        ...prev,
+                                        [review.id]: !prev[review.id],
+                                      }))
+                                    }
+                                    className="mt-2 self-start text-xs font-medium text-blue-700 hover:text-blue-900 underline"
+                                  >
+                                    {isExpanded ? 'Kevesebb' : 'Tovább olvasom'}
+                                  </button>
+                                )}
+                              </div>
+                            );
+                          })}
+                        </div>
+                      </div>
+
+                        <button
+                          type="button"
+                          onClick={() => setReviewSliderIndex(Math.min((room.reviews || []).length - 3, reviewSliderIndex + 1))}
+                          disabled={reviewSliderIndex >= (room.reviews || []).length - 3 || (room.reviews || []).length <= 3}
+                          className="h-10 w-10 shrink-0 rounded-full border border-gray-300 bg-white text-gray-700 flex items-center justify-center shadow-sm hover:shadow-md hover:bg-gray-50 transition-all disabled:opacity-40 disabled:cursor-not-allowed"
+                          aria-label="Következő vélemények"
+                        >
+                          <span className="text-lg leading-none">→</span>
+                        </button>
+                    </div>
+
+                    {(room.reviews || []).length > 3 && (
+                      <div className="text-xs text-gray-600 text-center">
+                        {reviewSliderIndex + 1} / {Math.max(1, (room.reviews || []).length - 2)}
+                      </div>
+                    )}
+                  </div>
+                ) : (
+                  <div className="text-sm text-gray-500">Nincsenek vélemények</div>
+                )}
               </div>
             </div>
             <div className="flex flex-col gap-6">

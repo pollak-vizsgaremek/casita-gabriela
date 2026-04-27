@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react'
+import React, { useEffect, useMemo, useState } from 'react'
 import OfferAdmin from '../components/OfferAdmin'
 import { useLocation, useNavigate } from 'react-router'
 import Footer from '../components/Footer'
@@ -7,6 +7,7 @@ import { motion } from "framer-motion"
 
 const SearchResults = () => {
   const [rooms, setRooms] = useState([])
+  const [categories, setCategories] = useState([])
   const [filteredRooms, setFilteredRooms] = useState([])
   const [loading, setLoading] = useState(true)
 
@@ -20,6 +21,11 @@ const SearchResults = () => {
   const [arrival, setArrival] = useState('')
   const [departure, setDeparture] = useState('')
   const [people, setPeople] = useState('')
+
+  const categoryOptions = useMemo(
+    () => categories.map(cat => cat.name),
+    [categories]
+  )
 
   const itemVariants = {
     hidden: { opacity: 0, y: 20 },
@@ -39,15 +45,12 @@ const SearchResults = () => {
   useEffect(() => {
     const params = new URLSearchParams(location.search)
 
-    setCategory(params.get("category") || '')
+    const categoryParams = params.getAll("category")
+    setCategory(categoryParams[0] || params.get("category") || '')
     setArrival(params.get("arrival") || '')
     setDeparture(params.get("departure") || '')
     setPeople(params.get("people") || '')
   }, [location.search])
-
-  useEffect(() => {
-    fetchRooms()
-  }, [])
 
   useEffect(() => {
     if (rooms.length > 0) {
@@ -59,6 +62,11 @@ const SearchResults = () => {
   useEffect(() => {
     setAnimationKey(prev => prev + 1)
   }, [filteredRooms])
+
+  useEffect(() => {
+    fetchRooms()
+    fetchCategories()
+  }, [])
 
   const fetchRooms = async () => {
     try {
@@ -72,10 +80,63 @@ const SearchResults = () => {
     }
   }
 
+  const fetchCategories = async () => {
+    try {
+      const res = await api.get('/categories')
+      setCategories(res.data)
+    } catch (err) {
+      console.error('Error fetching categories:', err)
+    }
+  }
+
+  const parseIsoDate = (value) => {
+    if (!value) return null
+    const datePart = String(value).includes('T') ? String(value).split('T')[0] : String(value)
+    const m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(datePart)
+    if (m) return new Date(Number(m[1]), Number(m[2]) - 1, Number(m[3]))
+    const d = new Date(value)
+    if (Number.isNaN(d.getTime())) return null
+    return new Date(d.getFullYear(), d.getMonth(), d.getDate())
+  }
+
+  const statusBlocksAvailability = (status) => {
+    const s = (status || '').toString().toLowerCase()
+    if (!s) return true
+    if (s.includes('rejected') || s.includes('elutas') || s.includes('cancel') || s.includes('lemond')) return false
+    return true
+  }
+
+  const isRoomAvailableForSearch = (room, arrivalParam, departureParam) => {
+    const bookings = Array.isArray(room?.booking) ? room.booking : []
+    const start = parseIsoDate(arrivalParam)
+    const end = parseIsoDate(departureParam)
+
+    if (!start && !end) return true
+
+    // if only one date is provided, treat it as a one-night/day occupancy probe
+    const probeStart = start || end
+    const probeEnd = end || (start ? new Date(start.getFullYear(), start.getMonth(), start.getDate() + 1) : null)
+    if (!probeStart || !probeEnd) return true
+
+    const rangeStart = probeStart.getTime()
+    const rangeEnd = probeEnd.getTime()
+
+    return !bookings.some((b) => {
+      if (!statusBlocksAvailability(b.status)) return false
+      const bStart = parseIsoDate(b.arrival_date || b.arrivalDate)
+      const bEnd = parseIsoDate(b.departure_date || b.departureDate)
+      if (!bStart || !bEnd) return false
+
+      const bookingStart = bStart.getTime()
+      const bookingEnd = bEnd.getTime()
+      return rangeStart < bookingEnd && rangeEnd > bookingStart
+    })
+  }
+
   const filterRooms = () => {
     const params = new URLSearchParams(location.search)
 
-    const categoryParam = params.get("category")
+    const categoryParam = params.getAll("category")[0] || params.get("category")
     const peopleParam = params.get("people")
     const arrivalParam = params.get("arrival")
     const departureParam = params.get("departure")
@@ -84,19 +145,20 @@ const SearchResults = () => {
 
     if (categoryParam) {
       results = results.filter(room =>
-        room.category.toLowerCase().includes(categoryParam.toLowerCase())
+        room.category?.trim().toLowerCase() === categoryParam.trim().toLowerCase()
       )
     }
 
     if (peopleParam) {
+      const peopleCount = parseInt(peopleParam, 10)
       results = results.filter(room =>
-        room.space >= parseInt(peopleParam)
+        Number(room.space) >= peopleCount
       )
     }
 
-    if (arrivalParam && departureParam) {
+    if (arrivalParam || departureParam) {
       results = results.filter(room => {
-        return true // booking logic later
+        return isRoomAvailableForSearch(room, arrivalParam, departureParam)
       })
     }
 
@@ -120,48 +182,69 @@ const SearchResults = () => {
     <div className='flex flex-col items-center spacer layerAdmin'>
 
       {/* SEARCH BAR */}
-      <div className='w-dvw h-[200px] bg-[#FFFECE]/80 flex flex-col items-center justify-center shadow-md/20 bg-search bg-blend-multiply'>
-      <h1 className='text-white text-4xl text-center p-4'>
-          Találd meg a számodra megfelelő szobát!
-        </h1>
-        <form onSubmit={handleSearch} className='bg-gray-400/80 rounded-md shadow-md mb-4'>
+      <div className='w-full h-[300px] relative flex items-center justify-center overflow-hidden'>
+        <img
+          src="/search.jpg"
+          alt="search background"
+          className="absolute inset-0 w-full h-[120%] object-cover z-0"
+        />
+        <div className='absolute inset-0 bg-black/40 z-10'></div>
 
-          <input
-            type="text"
-            placeholder='Szoba típusa...'
-            value={category}
-            onChange={(e) => setCategory(e.target.value)}
-            className='bg-gray-200 text-gray-900 p-2 m-1 rounded-md'
-          />
+        <div className='relative z-20 text-center text-white px-4'>
+          <h1 className='text-4xl md:text-5xl font-bold mb-3'>
+            Találd meg a számodra megfelelő szobát!
+          </h1>
 
-          <input
-            type="date"
-            value={arrival}
-            onChange={(e) => setArrival(e.target.value)}
-            className='bg-gray-200 text-gray-900 p-2 m-1 rounded-md'
-          />
+          <p className='text-sm md:text-lg opacity-90 mb-5'>
+            Gyors, egyszerű és modern foglalás
+          </p>
 
-          <input
-            type="date"
-            value={departure}
-            onChange={(e) => setDeparture(e.target.value)}
-            className='bg-gray-200 text-gray-900 p-2 m-1 rounded-md'
-          />
+          <form
+            onSubmit={handleSearch}
+            className='bg-white/80 backdrop-blur-md text-gray-800 rounded-xl shadow-xl p-4 grid grid-cols-2 md:grid-cols-5 gap-3 max-w-4xl mx-auto'
+          >
+            <select
+              value={category}
+              onChange={(e) => setCategory(e.target.value)}
+              className='p-2 rounded-md border focus:outline-none focus:ring-2 focus:ring-red-400'
+            >
+              <option value="">Összes kategória</option>
+              {categoryOptions.map((cat) => (
+                <option key={cat} value={cat}>
+                  {cat}
+                </option>
+              ))}
+            </select>
 
-          <input
-            type="number"
-            min={1}
-            placeholder='Létszám...'
-            value={people}
-            onChange={(e) => setPeople(e.target.value)}
-            onKeyDown={(e) => { if (e.key === '-' || e.key === 'e' || e.key === '+') e.preventDefault(); }}
-            className='bg-gray-200 text-gray-900 p-2 m-1 rounded-md'
-          />
+            <input
+              type="date"
+              value={arrival}
+              onChange={(e) => setArrival(e.target.value)}
+              className='p-2 rounded-md border focus:outline-none focus:ring-2 focus:ring-red-400'
+            />
 
-          <button className='bg-red-400 text-white p-2 m-1 rounded-md'>
-            Keresés
-          </button>
-        </form>
+            <input
+              type="date"
+              value={departure}
+              onChange={(e) => setDeparture(e.target.value)}
+              className='p-2 rounded-md border focus:outline-none focus:ring-2 focus:ring-red-400'
+            />
+
+            <input
+              type="number"
+              min={1}
+              placeholder='Létszám'
+              value={people}
+              onChange={(e) => setPeople(e.target.value)}
+              onKeyDown={(e) => { if (e.key === '-' || e.key === 'e' || e.key === '+') e.preventDefault(); }}
+              className='p-2 rounded-md border focus:outline-none focus:ring-2 focus:ring-red-400'
+            />
+
+            <button className='bg-red-500 hover:bg-red-600 text-white rounded-md px-4 py-2 transition font-semibold'>
+              Keresés
+            </button>
+          </form>
+        </div>
       </div>
 
       <div className='w-full h-[180px] flex items-end'> 

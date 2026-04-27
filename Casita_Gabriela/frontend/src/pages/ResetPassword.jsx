@@ -1,0 +1,146 @@
+import React, { useState } from 'react';
+import { useSearchParams, useNavigate } from 'react-router';
+import axios from 'axios';
+import Footer from "../components/Footer";
+
+const ResetPassword = () => {
+  const [searchParams] = useSearchParams();
+  const token = searchParams.get('token');
+  const navigate = useNavigate();
+  const [form, setForm] = useState({ password: "", passwordConfirm: "" });
+  const [message, setMessage] = useState("");
+  const [success, setSuccess] = useState(false);
+  const [passwordErrors, setPasswordErrors] = useState([]);
+
+  const getPasswordErrors = (pw) => {
+    const errs = [];
+    if (!pw || pw.length < 8) errs.push('Legalább 8 karakter hosszú legyen');
+    if (!/[A-Za-z]/.test(pw || '')) errs.push('Tartalmazzon legalább egy betűt');
+    if (!/[0-9]/.test(pw || '')) errs.push('Tartalmazzon legalább egy számjegyet');
+    return errs;
+  };
+
+  const handleChange = (e) => {
+    setForm({ ...form, [e.target.name]: e.target.value });
+  };
+
+  const handleSubmit = async (e) => {
+    e.preventDefault();
+    setMessage("");
+    if (form.password !== form.passwordConfirm) {
+      setMessage("A két jelszó nem egyezik.");
+      return;
+    }
+    if (form.password.length < 6) {
+      setMessage("A jelszónak legalább 6 karakter hosszúnak kell lennie.");
+      return;
+    }
+    const errs = getPasswordErrors(form.password);
+    if (errs.length) {
+      setPasswordErrors(errs);
+      return;
+    }
+    try {
+      const res = await axios.post("http://localhost:6969/reset-password", {
+        token,
+        password: form.password,
+      });
+      setMessage(res.data.message || "Jelszó sikeresen megváltoztatva!");
+      setSuccess(true);
+      setTimeout(() => navigate("/login"), 3000);
+    } catch (err) {
+      const serverMsg = err.response?.data?.error;
+      setMessage(serverMsg || "Hiba történt. Próbáld újra.");
+    }
+  };
+
+  if (!token) {
+    return (
+      <div className='p-0 m-0 gap-0 flex flex-col min-h-screen'>
+        <video autoPlay loop muted playsInline className='video-background absolute inset-0 hidden lg:block'>
+          <source src='/catBack.mp4' type='video/mp4' />
+        </video>
+        <video autoPlay loop muted playsInline className='video-background absolute inset-0 lg:hidden block'>
+          <source src='/SceneResponsive.mp4' type='video/mp4' />
+        </video>
+        <div className='flex flex-col w-dvw grow relative z-10'>
+          <main className='flex items-center justify-center flex-1 m-0'>
+            <div className='fade-in text-black bg-white shadow-md rounded-xl p-4 min-w-[320px] sm:min-w-[400px] w-1/3 flex flex-col items-center mt-10 mb-10'>
+              <p className='text-red-500'>Érvénytelen vagy hiányzó token.</p>
+            </div>
+          </main>
+        </div>
+        <div className='relative z-10'><Footer /></div>
+      </div>
+    );
+  }
+
+  return (
+    <div className='p-0 m-0 gap-0 flex flex-col min-h-screen'>
+      <video autoPlay loop muted playsInline className='video-background absolute inset-0 hidden lg:block'>
+        <source src='/catBack.mp4' type='video/mp4' />
+      </video>
+      <video autoPlay loop muted playsInline className='video-background absolute inset-0 lg:hidden block'>
+        <source src='/SceneResponsive.mp4' type='video/mp4' />
+      </video>
+
+      <div className='flex flex-col w-dvw grow relative z-10'>
+        <main className='flex items-center justify-center flex-1 m-0'>
+          <div className='fade-in text-black bg-white shadow-md rounded-xl p-4 min-w-[320px] sm:min-w-[400px] w-1/3 h-fill min-h flex flex-col items-center mt-10 mb-10'>
+            <p className='text-black mb-4'>Új jelszó megadása</p>
+
+            <form className='w-full flex flex-col items-center' onSubmit={handleSubmit}>
+              <input
+                type='password'
+                name='password'
+                value={form.password}
+                onChange={(e) => { handleChange(e); setPasswordErrors(getPasswordErrors(e.target.value)); }}
+                placeholder='Új jelszó'
+                className='mb-2 p-2 border border-gray-300 rounded w-full'
+                required
+              />
+              {passwordErrors.length > 0 && (
+                <ul className="text-sm text-gray-700 mt-1 mb-1 list-disc list-inside">
+                  {passwordErrors.map((pe, idx) => (
+                    <li key={idx}>{pe}</li>
+                  ))}
+                </ul>
+              )}
+              <input
+                type='password'
+                name='passwordConfirm'
+                value={form.passwordConfirm}
+                onChange={handleChange}
+                placeholder='Új jelszó megerősítése'
+                className='mb-2 p-2 border border-gray-300 rounded w-full'
+                required
+              />
+
+              <button
+                type='submit'
+                className='bg-[#6FD98C] text-white px-4 py-2 rounded hover:-translate-y-px transition-all duration-200 hover:bg-[#5FCB80] hover:cursor-pointer mt-4'
+                disabled={success}
+              >
+                Jelszó mentése
+              </button>
+            </form>
+
+            <p className={`mt-4 ${success ? 'text-green-600' : 'text-red-500'}`}>{message}</p>
+
+            {success && (
+              <p className='mt-2 text-sm text-gray-500'>
+                Átirányítás a bejelentkezéshez...
+              </p>
+            )}
+          </div>
+        </main>
+      </div>
+
+      <div className='relative z-10'>
+        <Footer />
+      </div>
+    </div>
+  );
+};
+
+export default ResetPassword;

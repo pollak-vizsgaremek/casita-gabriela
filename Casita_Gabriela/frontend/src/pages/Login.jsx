@@ -94,6 +94,12 @@ const Login = () => {
 
             <p className='mt-4 text-red-500'>{message}</p>
 
+            <p className='mt-2'>
+              <Link to="/forgot-password" className="text-gray-500 hover:underline text-sm">
+                Elfelejtett jelszó?
+              </Link>
+            </p>
+
             <p className='mt-4'>
               Még nincs fiókod?{" "}
               <Link to="/registration" className="text-red-500 hover:underline">

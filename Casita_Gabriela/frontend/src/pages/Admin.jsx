@@ -59,13 +59,10 @@ const Admin = () => {
 
         {/* MAIN */}
         <main className="px-5 pt-5">
-          <h2 className="text-2xl font-semibold mb-4">Szobák</h2>
+          <h2 className="text-2xl font-semibold mb-4 text-gray-900">Szobák</h2>
 
-          {/* GRID – teljesen balról indul */}
-          <div
-            className="grid gap-5 w-full items-start"
-            style={{ gridTemplateColumns: "repeat(auto-fit, minmax(18rem, 1fr))" }}
-          >
+          {/* KÁRTYÁK – egységes méret és egyenletes hézagok */}
+          <div className="flex flex-wrap gap-5 items-start">
 
             {/* ADD CARD – 1:1 animáció, plusz középen */}
             <button
@@ -73,7 +70,7 @@ const Admin = () => {
               className="
                 bg-[#C0FF95]
                 rounded-xl
-                w-72 h-72
+                w-full sm:w-72 h-72
                 shadow-md
                 hover:cursor-pointer
                 hover:rotate-1
@@ -105,10 +102,10 @@ const Admin = () => {
 
             {/* ROOMS */}
             {loading ? (
-              <p className="text-gray-500 col-span-full">Szobák betöltése...</p>
+              <p className="text-gray-500 w-full">Szobák betöltése...</p>
             ) : (
               rooms.map((room) => (
-                <div key={room.id} className="animate-fadein w-full">
+                <div key={room.id} className="animate-fadein w-full sm:w-72">
                   <OfferAdminEdit
                     id={room.id}
                     name={room.name}

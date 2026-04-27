@@ -25,17 +25,17 @@ const ForgotPassword = () => {
   };
 
   return (
-    <div className='p-0 m-0 gap-0 flex flex-col min-h-screen'>
-      <video autoPlay loop muted playsInline className='video-background absolute inset-0 hidden lg:block'>
+    <div className='p-0 m-0 gap-0 flex flex-col min-h-screen bg-[#f7f3e9] relative'>
+      <video autoPlay loop muted playsInline className='absolute top-0 left-0 w-full h-auto hidden lg:block pointer-events-none' style={{ zIndex: 0 }}>
         <source src='/catBack.mp4' type='video/mp4' />
       </video>
-      <video autoPlay loop muted playsInline className='video-background absolute inset-0 lg:hidden block'>
-        <source src='/SceneResponsive.mp4' type='video/mp4' />
+      <video autoPlay loop muted playsInline className='absolute top-0 left-0 w-full h-auto lg:hidden block pointer-events-none origin-top scale-[1.12]' style={{ zIndex: 0 }}>
+        <source src='/catBack.mp4' type='video/mp4' />
       </video>
 
       <div className='flex flex-col w-dvw grow relative z-10'>
-        <main className='flex items-center justify-center flex-1 m-0'>
-          <div className='fade-in text-black bg-white shadow-md rounded-xl p-4 min-w-[320px] sm:min-w-[400px] w-1/3 h-fill min-h flex flex-col items-center mt-10 mb-10'>
+        <main className='flex items-center justify-center flex-1 m-0 py-16 md:py-24 px-4'>
+          <div className='fade-in text-black bg-white shadow-md rounded-xl p-4 w-[86%] max-w-[420px] lg:w-1/3 flex flex-col items-center mt-32 mb-10 sm:mt-10'>
             <p className='text-black mb-4'>Elfelejtett jelszó</p>
 
             <form className='w-full flex flex-col items-center' onSubmit={handleSubmit}>

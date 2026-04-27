@@ -16,6 +16,17 @@ import {
 
 const prisma = new PrismaClient();
 
+const MS_PER_DAY = 24 * 60 * 60 * 1000;
+
+const getNightCount = (arrival, departure) => {
+  const start = new Date(arrival);
+  const end = new Date(departure);
+  const startUtc = Date.UTC(start.getUTCFullYear(), start.getUTCMonth(), start.getUTCDate());
+  const endUtc = Date.UTC(end.getUTCFullYear(), end.getUTCMonth(), end.getUTCDate());
+  const diff = Math.round((endUtc - startUtc) / MS_PER_DAY);
+  return diff > 0 ? diff : 0;
+};
+
 /* ---------- AUTH (login) ---------- */
 
 export const login = async (req, res) => {
@@ -207,6 +218,20 @@ export const createBooking = async (req, res) => {
         ? parseInt(guests, 10)
         : 1;
 
+    const room = await prisma.room.findUnique({ where: { id: parseInt(room_id, 10) } });
+    if (!room) {
+      return res.status(404).json({ error: "Szoba nem található." });
+    }
+
+    const nights = getNightCount(arrival_date, departure_date);
+    if (!nights) {
+      return res.status(400).json({ error: "Érvénytelen foglalási dátumok." });
+    }
+
+    const user = user_id ? await prisma.users.findUnique({ where: { id: parseInt(user_id, 10) } }) : null;
+    const baseTotal = Number(room.price) * peopleCount * nights;
+    const totalPrice = user?.isFirstTimeUser ? Math.round(baseTotal * 0.85) : baseTotal;
+
     const created = await prisma.booking.create({
       data: {
         room_id: parseInt(room_id, 10),
@@ -214,6 +239,7 @@ export const createBooking = async (req, res) => {
         booking_date: corrected,
         status: status ?? "pending",
         people: peopleCount,
+        total_price: totalPrice,
         arrival_date: new Date(arrival_date),
         departure_date: new Date(departure_date),
       },
@@ -221,10 +247,6 @@ export const createBooking = async (req, res) => {
 
     // --- Email értesítések: felhasználó és admin ---
     try {
-      // lekérjük a szükséges adatokat az email sablonokhoz
-      const room = await prisma.room.findUnique({ where: { id: Number(room_id) } });
-      const user = user_id ? await prisma.users.findUnique({ where: { id: Number(user_id) } }) : null;
-
       // felhasználónak visszaigazoló email
       if (user && user.email) {
         await sendBookingCreatedUser(created, room, user);
@@ -434,6 +456,7 @@ export const getUserBookings = async (req, res) => {
       startDate: b.arrival_date?.toISOString().slice(0, 10),
       endDate: b.departure_date?.toISOString().slice(0, 10),
       guests: b.people,
+      total_price: b.total_price,
       status: b.status,
     }));
 
@@ -788,7 +811,31 @@ export const updateCategory = async (req, res) => {
       return res.status(400).json({ error: "Név és kép szükséges." });
     }
 
-    const category = await prisma.category.update({ where: { id: Number(id) }, data: { name, image } });
+    const categoryId = Number(id);
+    const existing = await prisma.category.findUnique({ where: { id: categoryId } });
+    if (!existing) {
+      return res.status(404).json({ error: "Kategória nem található." });
+    }
+
+    const nextName = String(name).trim();
+    const nextImage = String(image).trim();
+
+    const category = await prisma.$transaction(async (tx) => {
+      const updated = await tx.category.update({
+        where: { id: categoryId },
+        data: { name: nextName, image: nextImage },
+      });
+
+      if (existing.name !== nextName) {
+        await tx.room.updateMany({
+          where: { category: existing.name },
+          data: { category: nextName },
+        });
+      }
+
+      return updated;
+    });
+
     res.json(category);
   } catch (err) {
     if (err.code === "P2002") {
@@ -802,7 +849,21 @@ export const updateCategory = async (req, res) => {
 export const deleteCategory = async (req, res) => {
   try {
     const { id } = req.params;
-    await prisma.category.delete({ where: { id: Number(id) } });
+
+    const categoryId = Number(id);
+    const existing = await prisma.category.findUnique({ where: { id: categoryId } });
+    if (!existing) {
+      return res.status(404).json({ error: "Kategória nem található." });
+    }
+
+    const roomsUsingCategory = await prisma.room.count({ where: { category: existing.name } });
+    if (roomsUsingCategory > 0) {
+      return res.status(409).json({
+        error: `A kategória nem törölhető, mert ${roomsUsingCategory} szoba még ezt használja. Előbb módosítsd a szobák kategóriáját.`,
+      });
+    }
+
+    await prisma.category.delete({ where: { id: categoryId } });
     res.json({ message: "Kategória törölve." });
   } catch (err) {
     if (err.code === "P2025") {

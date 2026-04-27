@@ -208,7 +208,8 @@ const AdminCategories = () => {
       await fetchCategories()
     } catch (err) {
       console.error('Error deleting category:', err)
-      pushToast('Hiba', 'Hiba a kategória törlésénél', 'error')
+      const msg = err.response?.data?.error || 'Hiba a kategória törlésénél'
+      pushToast('Hiba', msg, 'error')
     }
   }
 

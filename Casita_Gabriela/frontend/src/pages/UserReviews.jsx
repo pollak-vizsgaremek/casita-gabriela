@@ -128,17 +128,9 @@ export default function UserReviews() {
 			<Sidebar isOpen={sidebarOpen} onClose={() => setSidebarOpen(false)} userPanel />
 
 			<div className="flex-1 ml-0 md:ml-64">
-				{/* MOBILE HEADER */}
-				<header className="flex items-center justify-between px-5 py-4 border-b bg-white md:hidden">
-					<button onClick={() => setSidebarOpen(s => !s)} className="p-2 rounded-md bg-gray-100 hover:bg-gray-200" aria-label="Menü">
-						<svg className="h-6 w-6 text-gray-700" viewBox="0 0 24 24" fill="none" stroke="currentColor"><path strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" d="M4 6h16M4 12h16M4 18h16" /></svg>
-					</button>
-					<div className="text-lg font-semibold">Értékeléseim</div>
-					<div style={{ width: 36 }} />
-				</header>
-
-				<main className="px-5 pt-5">
-					<h2 className="text-2xl font-semibold mb-4 text-gray-900">Értékeléseim</h2>
+				<main className="px-4 sm:px-6 pt-54 md:pt-5 pb-10">
+					<div className="w-full max-w-5xl">
+					<h2 className="text-xl sm:text-2xl font-semibold mb-4 text-gray-900">Értékeléseim</h2>
 					{loading ? (
 						<div className="text-gray-700">Betöltés...</div>
 					) : error ? (
@@ -148,7 +140,7 @@ export default function UserReviews() {
 					) : (
 						<div className="space-y-4">
 							{reviews.map(r => (
-						<div key={r.id} className="bg-white border border-gray-200 rounded-xl shadow-sm p-5 flex flex-col gap-3 sm:flex-row sm:justify-between sm:items-start">
+						<div key={r.id} className="bg-white border border-gray-200 rounded-xl shadow-sm p-4 sm:p-5 flex flex-col gap-3 sm:flex-row sm:justify-between sm:items-start">
 								<div className="min-w-0 flex-1 text-gray-800">
 									<div><b>Szoba:</b> {r.roomName}</div>
 									<div className="flex items-center gap-3 mt-1">
@@ -159,7 +151,7 @@ export default function UserReviews() {
 									<div><b>Dátum:</b> {r.date || "Nincs adat"}</div>
 								</div>
 								<button
-									className="mt-3 sm:mt-0 bg-red-50 hover:bg-red-100 text-red-700 border border-red-200 px-4 py-2 rounded-lg sm:ml-4 shrink-0 self-start disabled:opacity-50"
+									className="w-full sm:w-auto mt-1 sm:mt-0 bg-red-50 hover:bg-red-100 text-red-700 border border-red-200 px-4 py-2 rounded-lg sm:ml-4 shrink-0 self-start disabled:opacity-50"
 									onClick={() => requestDeleteReview(r.id)}
 									disabled={deleting === r.id}
 								>
@@ -169,6 +161,7 @@ export default function UserReviews() {
 							))}
 						</div>
 					)}
+					</div>
 				</main>
 			</div>
 

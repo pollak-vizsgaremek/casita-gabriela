@@ -158,7 +158,7 @@ const Navigation = () => {
           )}
         </div>
 
-        <div className="ml-auto sm:hidden flex items-center">
+        <div className="ml-auto sm:hidden flex items-center pr-2">
           <button
             aria-label="Menü megnyitása"
             onClick={() => setSidebarOpen(true)}
@@ -187,7 +187,7 @@ const Navigation = () => {
         style={{ zIndex: 1100 }}
       >
         <div className="flex flex-col h-full">
-          <div className="flex items-center justify-end px-4 py-4 border-b border-gray-200">
+          <div className="flex items-center justify-end pl-4 pr-6 py-4 border-b border-gray-200">
             <button
               aria-label="Bezár"
               onClick={() => setSidebarOpen(false)}
@@ -199,7 +199,7 @@ const Navigation = () => {
             </button>
           </div>
 
-          <div className="flex-1 overflow-auto px-4 py-6">
+          <div className="flex-1 overflow-auto pl-4 pr-6 py-6">
             <nav className="flex flex-col gap-3">
               {routes.slice(1, 3).map((r) => (
                 <Link

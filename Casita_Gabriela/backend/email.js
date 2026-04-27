@@ -567,6 +567,24 @@ export const contactForm = async (req, res) => {
   }
 
   try {
+    const now = new Date();
+    const startOfDay = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+
+    const dailyCount = await prisma.form.count({
+      where: {
+        email,
+        created_at: {
+          gte: startOfDay,
+        },
+      },
+    });
+
+    if (dailyCount >= 1) {
+      return res.status(429).json({
+        error: "Naponta legfeljebb 1 üzenetet küldhetsz.",
+      });
+    }
+
     await prisma.form.create({
       data: {
         name,

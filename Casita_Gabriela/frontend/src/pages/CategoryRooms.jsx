@@ -18,6 +18,13 @@ const CategoryRooms = () => {
 
   const { categoryName } = useParams();
   const navigate = useNavigate();
+  const todayStr = useMemo(() => {
+    const now = new Date();
+    const y = now.getFullYear();
+    const m = String(now.getMonth() + 1).padStart(2, "0");
+    const d = String(now.getDate()).padStart(2, "0");
+    return `${y}-${m}-${d}`;
+  }, []);
 
   const selectedCategory = useMemo(() => {
     if (!categoryName) return "";
@@ -85,7 +92,6 @@ const CategoryRooms = () => {
     e.preventDefault();
 
     setSearchError("");
-    const todayStr = new Date().toISOString().slice(0, 10);
     if (arrival && arrival < todayStr) {
       setSearchError("Az érkezési dátum nem lehet a múltban.");
       return;
@@ -116,7 +122,7 @@ const CategoryRooms = () => {
       className="flex flex-col items-center w-full min-h-screen
       bg-linear-to-br from-gray-50 via-white to-gray-100 relative overflow-hidden"
     >
-      <div className="w-full h-[300px] relative flex items-center justify-center overflow-hidden">
+      <div className="w-full h-auto sm:h-[400px] md:h-[340px] relative flex items-center justify-center overflow-hidden py-10 sm:py-0">
         <motion.img
           src={searchImg}
           alt="search background"
@@ -126,12 +132,12 @@ const CategoryRooms = () => {
 
         <div className="absolute inset-0 bg-black/40 z-10"></div>
 
-        <div className="relative z-20 text-center text-white px-4">
-          <h1 className="text-4xl md:text-5xl font-bold mb-3">
+        <div className="relative z-20 text-center text-white px-4 w-full max-w-6xl mx-auto">
+          <h1 className="text-3xl sm:text-4xl md:text-5xl font-bold mb-2 sm:mb-3 leading-tight">
             Találd meg a tökéletes szobát
           </h1>
 
-          <p className="text-sm md:text-lg opacity-90 mb-5">
+          <p className="text-sm sm:text-base md:text-lg opacity-90 mb-3 sm:mb-5">
             Gyors, egyszerű és modern foglalás
           </p>
 
@@ -142,12 +148,12 @@ const CategoryRooms = () => {
           )}
           <form
             onSubmit={handleSearch}
-            className="bg-white/80 backdrop-blur-md text-gray-800 rounded-xl shadow-xl p-4 grid grid-cols-2 md:grid-cols-5 gap-3 max-w-4xl mx-auto"
+            className="bg-white/80 backdrop-blur-md text-gray-800 rounded-xl shadow-xl p-2 sm:p-4 grid grid-cols-2 md:grid-cols-5 gap-1.5 sm:gap-3 max-w-4xl mx-auto"
           >
             <select
               value={category}
               onChange={(e) => setCategory(e.target.value)}
-              className="p-2 rounded-md border focus:outline-none focus:ring-2 focus:ring-red-400"
+              className="w-full p-1.5 sm:p-2 text-xs sm:text-sm rounded-md border focus:outline-none focus:ring-2 focus:ring-red-400 order-1 md:order-1"
             >
               <option value="">Összes kategória</option>
               {categoryOptions.map((cat) => (
@@ -156,20 +162,6 @@ const CategoryRooms = () => {
                 </option>
               ))}
             </select>
-
-            <input
-              type="date"
-              value={arrival}
-              onChange={(e) => setArrival(e.target.value)}
-              className="p-2 rounded-md border focus:outline-none focus:ring-2 focus:ring-red-400"
-            />
-
-            <input
-              type="date"
-              value={departure}
-              onChange={(e) => setDeparture(e.target.value)}
-              className="p-2 rounded-md border focus:outline-none focus:ring-2 focus:ring-red-400"
-            />
 
             <input
               type="number"
@@ -182,18 +174,34 @@ const CategoryRooms = () => {
                   e.preventDefault();
                 }
               }}
-              className="p-2 rounded-md border focus:outline-none focus:ring-2 focus:ring-red-400"
+              className="w-full p-1.5 sm:p-2 text-xs sm:text-sm rounded-md border focus:outline-none focus:ring-2 focus:ring-red-400 order-2 md:order-4"
             />
 
-            <button className="bg-red-500 hover:bg-red-600 text-white rounded-md px-4 py-2 transition font-semibold">
+            <input
+              type="date"
+              min={todayStr}
+              value={arrival}
+              onChange={(e) => setArrival(e.target.value)}
+              className="w-full p-1.5 sm:p-2 text-xs sm:text-sm rounded-md border focus:outline-none focus:ring-2 focus:ring-red-400 order-3 md:order-2"
+            />
+
+            <input
+              type="date"
+              min={arrival || todayStr}
+              value={departure}
+              onChange={(e) => setDeparture(e.target.value)}
+              className="w-full p-1.5 sm:p-2 text-xs sm:text-sm rounded-md border focus:outline-none focus:ring-2 focus:ring-red-400 order-4 md:order-3"
+            />
+
+            <button className="w-full bg-red-500 hover:bg-red-600 text-white rounded-md px-4 py-1.5 sm:py-2 text-xs sm:text-sm transition font-semibold col-span-2 md:col-span-1 order-5 md:order-5">
               Keresés
             </button>
           </form>
         </div>
       </div>
 
-      <div className="w-full max-w-6xl px-6 mt-12 mb-12 mx-auto">
-        <h2 className="text-3xl font-semibold text-gray-800">
+      <div className="w-full max-w-6xl px-4 sm:px-6 mt-8 sm:mt-12 mb-12 mx-auto">
+        <h2 className="text-2xl sm:text-3xl font-semibold text-gray-800">
           {selectedCategory || "Kategória"} szobák
         </h2>
         <div className="w-20 h-1 bg-red-500 mt-2 rounded"></div>
@@ -203,7 +211,7 @@ const CategoryRooms = () => {
             variants={containerVariants}
             initial="hidden"
             animate={loading ? "hidden" : "visible"}
-            className="flex flex-wrap gap-8"
+            className="flex flex-wrap gap-6 sm:gap-8 justify-center lg:justify-start"
           >
             {loading ? (
               <p className="text-gray-600">Szobák betöltése...</p>
@@ -215,7 +223,7 @@ const CategoryRooms = () => {
                   key={`category-room-${room.id}`}
                   variants={cardVariants}
                   whileHover={{ scale: 1.05 }}
-                  className="transition-shadow hover:shadow-2xl rounded-xl"
+                  className="w-[calc(50%-0.75rem)] sm:w-auto transition-shadow hover:shadow-2xl rounded-xl"
                 >
                   <OfferAdmin
                     id={room.id}
@@ -223,6 +231,7 @@ const CategoryRooms = () => {
                     price={room.price}
                     image={Array.isArray(room.images) ? room.images[0] : ""}
                     reviews={room.reviews || []}
+                    className="w-full sm:w-72"
                   />
                 </motion.div>
               ))

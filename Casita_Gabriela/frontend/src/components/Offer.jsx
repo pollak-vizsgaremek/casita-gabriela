@@ -1,12 +1,14 @@
 /*
 import React from 'react';
 import { useNavigate } from 'react-router';
+import { toRoomSlug } from '../utils/roomSlug';
 
 const Offer = ({ id, name, price, image }) => {
   const navigate = useNavigate();
 
   const handleClick = () => {
-    navigate(`/room/${id}`);
+    const slug = toRoomSlug(name);
+    navigate(`/room/${slug || id}`);
   };
 
   return (

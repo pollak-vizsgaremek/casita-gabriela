@@ -1,8 +1,9 @@
 // src/pages/Room.jsx
 import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { useParams, useNavigate } from "react-router";
+import { useParams, useNavigate, useLocation } from "react-router";
 import axios from "axios";
 import Footer from "../components/Footer";
+import { toRoomSlug } from "../utils/roomSlug";
 
 const BACKEND_BASE = "http://localhost:6969";
 const MS_PER_DAY = 24 * 60 * 60 * 1000;
@@ -166,9 +167,11 @@ const MonthCalendar = ({ monthDate, bookings = [], onDayClick, selectedRange, di
 
 /* ---------- Room page ---------- */
 const Room = () => {
-  const { id } = useParams();
+  const { roomRef } = useParams();
   const navigate = useNavigate();
+  const location = useLocation();
   const [room, setRoom] = useState(null);
+  const [resolvedRoomId, setResolvedRoomId] = useState(null);
   const [bookings, setBookings] = useState([]);
   const [loading, setLoading] = useState(true);
   const [successMessage, setSuccessMessage] = useState("");
@@ -214,6 +217,7 @@ const Room = () => {
   const [reviewStars, setReviewStars] = useState(0);
   const [reviewComment, setReviewComment] = useState("");
   const [reviewSubmitting, setReviewSubmitting] = useState(false);
+  const [reviewStarFilter, setReviewStarFilter] = useState(0);
   const genErrorCode = (prefix) => `${prefix}_${Date.now().toString(36).slice(-6)}`;
 
   useEffect(() => {
@@ -235,22 +239,32 @@ const Room = () => {
   useEffect(() => {
     mountedRef.current = true;
     fetchRoom();
-    fetchBookings();
-    const interval = setInterval(() => fetchBookings(), 5000);
     const t = setTimeout(() => setPageLoaded(true), 80);
     return () => {
       mountedRef.current = false;
-      clearInterval(interval);
       clearTimeout(t);
       if (animTimeoutRef.current) clearTimeout(animTimeoutRef.current);
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [id]);
+  }, [roomRef]);
 
-  const bookingDraftKey = useMemo(() => getBookingDraftKey(id), [id]);
+  useEffect(() => {
+    if (!resolvedRoomId) {
+      setBookings([]);
+      return;
+    }
+
+    fetchBookings(resolvedRoomId);
+    const interval = setInterval(() => fetchBookings(resolvedRoomId), 5000);
+    return () => clearInterval(interval);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [resolvedRoomId]);
+
+  const bookingKeyId = resolvedRoomId ?? roomRef;
+  const bookingDraftKey = useMemo(() => getBookingDraftKey(bookingKeyId), [bookingKeyId]);
 
   const persistBookingDraft = useCallback(() => {
-    if (!id) return;
+    if (!bookingKeyId) return;
     const hasDraft = !!(checkIn || checkOut || guests !== 1 || acceptedAszf || acceptedAdat);
     if (!hasDraft) {
       localStorage.removeItem(bookingDraftKey);
@@ -269,10 +283,10 @@ const Room = () => {
         updatedAt: new Date().toISOString(),
       })
     );
-  }, [id, bookingDraftKey, checkIn, checkOut, guests, acceptedAszf, acceptedAdat, visibleMonth]);
+  }, [bookingKeyId, bookingDraftKey, checkIn, checkOut, guests, acceptedAszf, acceptedAdat, visibleMonth]);
 
   useEffect(() => {
-    if (!id) {
+    if (!bookingKeyId) {
       setBookingDraftHydrated(true);
       return;
     }
@@ -295,7 +309,7 @@ const Room = () => {
     } finally {
       setBookingDraftHydrated(true);
     }
-  }, [id, bookingDraftKey]);
+  }, [bookingKeyId, bookingDraftKey]);
 
   useEffect(() => {
     if (!bookingDraftHydrated) return;
@@ -324,8 +338,29 @@ const Room = () => {
     const ERR = genErrorCode("ERR_ROOM_FETCH");
     try {
       setLoading(true);
-      const res = await axios.get(`${BACKEND_BASE}/rooms/${id}`);
-      const data = res.data;
+
+      const isNumericRef = /^\d+$/.test(String(roomRef || ""));
+      let data = null;
+
+      if (isNumericRef) {
+        const res = await axios.get(`${BACKEND_BASE}/rooms/${roomRef}`);
+        data = res.data;
+      } else {
+        const res = await axios.get(`${BACKEND_BASE}/rooms`);
+        const rooms = Array.isArray(res.data) ? res.data : [];
+        data = rooms.find((r) => toRoomSlug(r?.name) === String(roomRef || "").toLowerCase());
+      }
+
+      if (!data) {
+        if (mountedRef.current) {
+          setRoom(null);
+          setResolvedRoomId(null);
+          setBookings([]);
+        }
+        setInitialImageLoaded(true);
+        return;
+      }
+
       const roomData = {
         ...data,
         images: Array.isArray(data.images) ? data.images : data.images ? [data.images] : ["/blob.png"],
@@ -334,6 +369,7 @@ const Room = () => {
       };
       if (!mountedRef.current) return;
       setRoom(roomData);
+      setResolvedRoomId(roomData.id);
       setBottomIndex(0);
       setTopIndex(null);
       setActiveThumbIndex(0);
@@ -361,17 +397,25 @@ const Room = () => {
       const serverData = err?.response?.data || err?.message;
       console.error(ERR, "Error fetching room:", { status, serverData, err });
       pushToast("Hiba a szoba betöltésekor", `Kód: ${ERR}\n${String(serverData).slice(0, 200)}`, status, ERR);
-      if (mountedRef.current) setRoom(null);
+      if (mountedRef.current) {
+        setRoom(null);
+        setResolvedRoomId(null);
+      }
       setInitialImageLoaded(true);
     } finally {
       if (mountedRef.current) setLoading(false);
     }
   };
 
-  const fetchBookings = async () => {
+  const fetchBookings = async (roomId) => {
     const ERR = genErrorCode("ERR_BOOKINGS_FETCH");
+    if (!roomId) {
+      setBookings([]);
+      return;
+    }
+
     try {
-      const res = await axios.get(`${BACKEND_BASE}/booking?room_id=${id}`);
+      const res = await axios.get(`${BACKEND_BASE}/booking?room_id=${roomId}`);
       if (!mountedRef.current) return;
       const data = Array.isArray(res.data) ? res.data : [];
       const normalized = data.map((b) => ({
@@ -654,7 +698,7 @@ const Room = () => {
 
     if (!isLoggedIn) {
       persistBookingDraft();
-      navigate("/login", { state: { from: `/room/${id}` } });
+      navigate("/login", { state: { from: `${location.pathname}${location.search}` } });
       return;
     }
     if (!checkIn || !checkOut) {
@@ -687,6 +731,12 @@ const Room = () => {
     setBookingSubmitting(true);
 
     try {
+    const targetRoomId = Number(resolvedRoomId || room?.id);
+    if (!targetRoomId) {
+      pushToast("Foglalás hiba", "Nem található a szoba azonosítója.");
+      return;
+    }
+
     const payload = {
       arrival_date: checkIn,
       departure_date: checkOut,
@@ -694,7 +744,7 @@ const Room = () => {
       booking_date: new Date(),
       status: "pending",
       user_id: currentUserId || null,
-      room_id: Number(id),
+      room_id: targetRoomId,
     };
     const endpoints = ["/booking", "/bookings"];
     let lastError = null;
@@ -836,6 +886,14 @@ const Room = () => {
 
   const images = room.images && room.images.length > 0 ? room.images : ["/blob.png"];
   const currentRangeStatus = checkRangeStatus(checkIn, checkOut);
+  const allReviews = room?.reviews || [];
+  const filteredReviews = reviewStarFilter === 0
+    ? allReviews
+    : allReviews.filter((review) => Number(review?.stars || 0) === reviewStarFilter);
+  const isReviewFilterActive = reviewStarFilter !== 0;
+  const averageReviewScore = allReviews.length
+    ? Math.round((allReviews.reduce((sum, review) => sum + Number(review?.stars || 0), 0) / allReviews.length) * 10) / 10
+    : 0;
 
   // New: booking enabled only when dates selected and both checkboxes accepted
   const canBook = !!(checkIn && checkOut && acceptedAszf && acceptedAdat);
@@ -850,12 +908,12 @@ const Room = () => {
         className={`flex flex-col min-h-screen w-dvw bg-[#0b1f13] text-[#F1FBF4] layerAdmin transition-all duration-500 ${pageLoaded ? 'opacity-100' : 'opacity-0'}`}
         style={{ backgroundRepeat: 'no-repeat', backgroundPosition: 'center', backgroundSize: 'cover', backgroundAttachment: 'fixed' }}
       >
-        <main className="flex-1 w-full max-w-6xl mx-auto px-4 py-10">
-          <div className="grid grid-cols-1 lg:grid-cols-3 gap-10">
-            <div className="lg:col-span-2 flex flex-col gap-6">
-              <div className={`bg-[#FFFECE] text-black rounded-xl px-4 py-3 transform transition-all duration-500 ${pageLoaded ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-2'}`}>
-                <h1 className="text-3xl font-mono tracking-wide text-black m-0 mb-1">{room.name}</h1>
-                <p className="text-sm text-gray-600 mb-3">{room.category}</p>
+        <main className="flex-1 w-full max-w-7xl mx-auto px-4 sm:px-6 py-8 sm:py-10">
+          <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 sm:gap-8 lg:gap-10">
+            <div className="lg:col-span-2 flex flex-col gap-5 sm:gap-6">
+              <div className={`bg-[#FFFECE] text-black rounded-2xl border border-[#efe9b6] px-4 sm:px-5 py-3.5 sm:py-4 shadow-lg/20 transform transition-all duration-500 ${pageLoaded ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-2'}`}>
+                <h1 className="text-2xl sm:text-3xl font-mono tracking-wide text-black m-0 mb-1">{room.name}</h1>
+                <p className="text-xs sm:text-sm text-gray-600 mb-3">{room.category}</p>
                 {room.reviews && room.reviews.length ? (
                   <div className="flex items-center gap-3 text-sm">
                     <div className="text-yellow-500">
@@ -872,10 +930,10 @@ const Room = () => {
                   <div className="text-sm text-gray-500">Nincsenek vélemények</div>
                 )}
               </div>
-              <div className={`w-full bg-[#FFFECE] rounded-xl overflow-hidden shadow-md/20 relative transform transition-all duration-600 ${pageLoaded ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-3'}`}>
+              <div className={`w-full bg-[#FFFECE] rounded-2xl border border-[#efe9b6] overflow-hidden shadow-lg/20 relative transform transition-all duration-600 ${pageLoaded ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-3'}`}>
                 <div
                   ref={imageContainerRef}
-                  className="relative w-full h-96 bg-[#f6f6f6] flex items-center justify-center touch-none"
+                  className="relative w-full h-72 sm:h-96 bg-[#f6f6f6] flex items-center justify-center touch-none"
                   onPointerDown={onPreviewPointerDown}
                   onPointerMove={onPreviewPointerMove}
                   onPointerUp={onPreviewPointerUp}
@@ -933,7 +991,7 @@ const Room = () => {
                     <button
                       type="button"
                       onClick={() => openLightbox(bottomIndex)}
-                      className="bg-white/95 text-black rounded-full p-2 shadow hover:scale-105 transform transition"
+                      className="bg-white/95 text-black rounded-full p-2.5 shadow-md hover:shadow-lg hover:scale-105 transform transition"
                       title="Nagyítás"
                     >
                       <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -943,7 +1001,7 @@ const Room = () => {
                   </div>
                 </div>
               </div>
-              <div className="flex gap-3 flex-wrap">
+              <div className="flex gap-2.5 sm:gap-3 flex-wrap justify-center sm:justify-start">
                 {images.map((img, index) => {
                   const active = index === activeThumbIndex;
                   const delay = `${index * 40}ms`;
@@ -953,7 +1011,7 @@ const Room = () => {
                       type="button"
                       onClick={() => { changeImage(index); setActiveThumbIndex(index); }}
                       onDoubleClick={() => openLightbox(index)}
-                      className={`w-20 h-16 rounded-md overflow-hidden border transform transition-all duration-200 ${active ? "border-[#6FD98C]" : "border-transparent"}`}
+                      className={`w-20 h-16 rounded-lg overflow-hidden border transform transition-all duration-200 ${active ? "border-[#6FD98C] shadow-md" : "border-transparent hover:border-[#b9c8bf]"}`}
                       style={{
                         transform: active ? "scale(1.06)" : undefined,
                         transition: "transform 120ms ease, opacity 360ms ease",
@@ -966,13 +1024,52 @@ const Room = () => {
                   );
                 })}
               </div>
-              <div className={`bg-[#FFFECE] text-black rounded-xl p-4 shadow-md transform transition-all duration-500 ${pageLoaded ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-2'}`} style={{ transitionDelay: pageLoaded ? '160ms' : '0ms' }}>
+              <div className={`bg-[#FFFECE] text-black rounded-2xl border border-[#efe9b6] p-4 sm:p-5 shadow-lg/20 transform transition-all duration-500 ${pageLoaded ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-2'}`} style={{ transitionDelay: pageLoaded ? '160ms' : '0ms' }}>
                 <h2 className="font-semibold text-lg mb-2">Leírás</h2>
-                <p className="text-sm leading-relaxed">{room.description}</p>
+                <p className="text-sm leading-relaxed text-gray-800">{room.description}</p>
+                <div className="mt-3 inline-flex items-center gap-2 rounded-full bg-white/80 px-3 py-1.5 text-sm border border-[#e7e7d8]">
+                  <span className="font-medium text-gray-700">Klíma:</span>
+                  <span className={`${Number(room.ac_availablity) > 0 ? 'text-green-700' : 'text-red-600'} font-semibold`}>
+                    {Number(room.ac_availablity) > 0 ? 'Elérhető' : 'Nem elérhető'}
+                  </span>
+                </div>
               </div>
-              <div className={`bg-[#FFFECE] text-black rounded-xl p-4 shadow-md flex flex-col gap-4 transform transition-all duration-500 ${pageLoaded ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-2'}`} style={{ transitionDelay: pageLoaded ? '200ms' : '0ms' }}>
+              <div className={`hidden lg:flex bg-[#FFFECE] text-black rounded-2xl border border-[#efe9b6] p-4 sm:p-5 shadow-lg/20 flex-col gap-4 transform transition-all duration-500 ${pageLoaded ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-2'}`} style={{ transitionDelay: pageLoaded ? '200ms' : '0ms' }}>
                 <div className="flex flex-col gap-3">
-                  <h2 className="font-semibold text-lg">Vélemények</h2>
+                  <div className="flex items-center justify-between gap-3 flex-wrap">
+                    <div className="flex items-center gap-2">
+                      <h2 className="font-semibold text-lg">Vélemények</h2>
+                      <span className="inline-flex items-center gap-1 rounded-full bg-white/80 border border-[#e7e7d8] px-2.5 py-1 text-xs font-semibold text-gray-800">
+                        <span className="text-yellow-500">★</span>
+                        <span>{averageReviewScore}/5</span>
+                      </span>
+                    </div>
+                    <div className="flex flex-wrap items-center gap-2">
+                      <button
+                        type="button"
+                        onClick={() => setReviewStarFilter(0)}
+                        className={`px-3 py-1.5 rounded-full text-xs font-medium border transition ${reviewStarFilter === 0 ? 'bg-[#6FD98C] text-white border-[#6FD98C]' : 'bg-white text-gray-700 border-gray-300 hover:bg-gray-50'}`}
+                      >
+                        <span>Összes </span>
+                        <span className="text-gray-500">({allReviews.length})</span>
+                      </button>
+                      {[5, 4, 3, 2, 1].map((star) => {
+                        const count = allReviews.filter((r) => Number(r?.stars || 0) === star).length;
+                        return (
+                          <button
+                            key={`desktop-filter-${star}`}
+                            type="button"
+                            onClick={() => setReviewStarFilter(star)}
+                            className={`px-3 py-1.5 rounded-full text-xs font-medium border transition ${reviewStarFilter === star ? 'bg-[#6FD98C] text-white border-[#6FD98C]' : 'bg-white text-gray-700 border-gray-300 hover:bg-gray-50'}`}
+                          >
+                            <span>{star}</span>
+                            <span className="text-yellow-500">★</span>
+                            <span className="text-gray-500">({count})</span>
+                          </button>
+                        );
+                      })}
+                    </div>
+                  </div>
                   <div className="w-full self-start">
                     {!showReviewForm ? (
                       <>
@@ -1093,92 +1190,135 @@ const Room = () => {
                     )}
                   </div>
                 </div>
-                {(room.reviews || []).length > 0 ? (
-                  <div className="flex flex-col gap-3">
-                    <div className="flex items-center gap-3">
-                      <button
-                        type="button"
-                        onClick={() => setReviewSliderIndex(Math.max(0, reviewSliderIndex - 1))}
-                        disabled={reviewSliderIndex === 0 || (room.reviews || []).length <= 3}
-                        className="h-10 w-10 shrink-0 rounded-full border border-gray-300 bg-white text-gray-700 flex items-center justify-center shadow-sm hover:shadow-md hover:bg-gray-50 transition-all disabled:opacity-40 disabled:cursor-not-allowed"
-                        aria-label="Előző vélemények"
-                      >
-                        <span className="text-lg leading-none">←</span>
-                      </button>
+                {filteredReviews.length > 0 ? (
+                  isReviewFilterActive ? (
+                    <div className="flex flex-col gap-3">
+                      {filteredReviews.map((review) => {
+                        const isExpanded = !!expandedReviews[review.id];
+                        const fullComment = review.comment || "";
+                        const isLong = fullComment.length > 180;
 
-                      <div className="relative overflow-hidden flex-1">
-                        <div
-                          className="flex gap-3 transition-transform duration-500 ease-out"
-                          style={{
-                            transform: `translateX(calc(-${reviewSliderIndex} * ((100% - 1.5rem) / 3 + 0.75rem)))`,
-                          }}
-                        >
-                          {(room.reviews || []).map((review) => {
-                            const isExpanded = !!expandedReviews[review.id];
-                            const fullComment = review.comment || "";
-                            const isLong = fullComment.length > 140;
-
-                            return (
-                              <div
-                                key={review.id}
-                                className={`shrink-0 w-[calc((100%-1.5rem)/3)] bg-white rounded-lg border border-gray-200 p-4 shadow-sm hover:shadow-md transition-all duration-300 flex flex-col ${isExpanded ? 'min-h-68 h-auto' : 'h-68'}`}
+                        return (
+                          <article
+                            key={`desktop-filtered-${review.id}`}
+                            className="w-full bg-white rounded-xl border border-[#e7e7d8] p-4 shadow-sm hover:shadow-md transition-all duration-300"
+                          >
+                            <div className="font-semibold text-gray-900 mb-2 text-sm">{review.user?.name || 'Névtelen'}</div>
+                            <div className="flex items-center gap-2 mb-3">
+                              <span className="text-yellow-500 text-lg">
+                                {"★".repeat(review.stars)}
+                                {"☆".repeat(5 - review.stars)}
+                              </span>
+                              <span className="text-xs text-gray-600 font-medium">{review.stars}/5</span>
+                            </div>
+                            <p className={`text-sm text-gray-700 leading-relaxed wrap-anywhere ${isLong && !isExpanded ? 'line-clamp-4' : ''}`}>
+                              {fullComment}
+                            </p>
+                            {isLong && (
+                              <button
+                                type="button"
+                                onClick={() =>
+                                  setExpandedReviews((prev) => ({
+                                    ...prev,
+                                    [review.id]: !prev[review.id],
+                                  }))
+                                }
+                                className="mt-2 self-start text-xs font-medium text-blue-700 hover:text-blue-900 underline"
                               >
-                                <div className="font-semibold text-gray-900 mb-2 text-sm">{review.user?.name || 'Névtelen'}</div>
-                                <div className="flex items-center gap-2 mb-3">
-                                  <span className="text-yellow-500 text-lg">
-                                    {"★".repeat(review.stars)}
-                                    {"☆".repeat(5 - review.stars)}
-                                  </span>
-                                  <span className="text-xs text-gray-600 font-medium">{review.stars}/5</span>
-                                </div>
-                                <p className={`text-sm text-gray-700 leading-relaxed wrap-anywhere overflow-hidden transition-[max-height] duration-300 ease-in-out ${isLong ? (isExpanded ? 'max-h-96' : 'max-h-18') : 'max-h-96'}`}>
-                                  {fullComment}
-                                </p>
-                                {isLong && (
-                                  <button
-                                    type="button"
-                                    onClick={() =>
-                                      setExpandedReviews((prev) => ({
-                                        ...prev,
-                                        [review.id]: !prev[review.id],
-                                      }))
-                                    }
-                                    className="mt-2 self-start text-xs font-medium text-blue-700 hover:text-blue-900 underline"
-                                  >
-                                    {isExpanded ? 'Kevesebb' : 'Tovább olvasom'}
-                                  </button>
-                                )}
-                              </div>
-                            );
-                          })}
-                        </div>
-                      </div>
-
+                                {isExpanded ? 'Kevesebb' : 'Tovább olvasom'}
+                              </button>
+                            )}
+                          </article>
+                        );
+                      })}
+                    </div>
+                  ) : (
+                    <div className="flex flex-col gap-3">
+                      <div className="flex items-center gap-3">
                         <button
                           type="button"
-                          onClick={() => setReviewSliderIndex(Math.min((room.reviews || []).length - 3, reviewSliderIndex + 1))}
-                          disabled={reviewSliderIndex >= (room.reviews || []).length - 3 || (room.reviews || []).length <= 3}
+                          onClick={() => setReviewSliderIndex(Math.max(0, reviewSliderIndex - 1))}
+                          disabled={reviewSliderIndex === 0 || allReviews.length <= 3}
                           className="h-10 w-10 shrink-0 rounded-full border border-gray-300 bg-white text-gray-700 flex items-center justify-center shadow-sm hover:shadow-md hover:bg-gray-50 transition-all disabled:opacity-40 disabled:cursor-not-allowed"
-                          aria-label="Következő vélemények"
+                          aria-label="Előző vélemények"
                         >
-                          <span className="text-lg leading-none">→</span>
+                          <span className="text-lg leading-none">←</span>
                         </button>
-                    </div>
 
-                    {(room.reviews || []).length > 3 && (
-                      <div className="text-xs text-gray-600 text-center">
-                        {reviewSliderIndex + 1} / {Math.max(1, (room.reviews || []).length - 2)}
+                        <div className="relative overflow-hidden flex-1">
+                          <div
+                            className="flex gap-3 transition-transform duration-500 ease-out"
+                            style={{
+                              transform: `translateX(calc(-${reviewSliderIndex} * ((100% - 1.5rem) / 3 + 0.75rem)))`,
+                            }}
+                          >
+                            {allReviews.map((review) => {
+                              const isExpanded = !!expandedReviews[review.id];
+                              const fullComment = review.comment || "";
+                              const isLong = fullComment.length > 140;
+
+                              return (
+                                <div
+                                  key={review.id}
+                                  className={`shrink-0 w-[calc((100%-1.5rem)/3)] bg-white rounded-xl border border-[#e7e7d8] p-4 shadow-sm hover:shadow-md transition-all duration-300 flex flex-col ${isExpanded ? 'min-h-68 h-auto' : 'h-68'}`}
+                                >
+                                  <div className="font-semibold text-gray-900 mb-2 text-sm">{review.user?.name || 'Névtelen'}</div>
+                                  <div className="flex items-center gap-2 mb-3">
+                                    <span className="text-yellow-500 text-lg">
+                                      {"★".repeat(review.stars)}
+                                      {"☆".repeat(5 - review.stars)}
+                                    </span>
+                                    <span className="text-xs text-gray-600 font-medium">{review.stars}/5</span>
+                                  </div>
+                                  <p className={`text-sm text-gray-700 leading-relaxed wrap-anywhere overflow-hidden transition-[max-height] duration-300 ease-in-out ${isLong ? (isExpanded ? 'max-h-96' : 'max-h-18') : 'max-h-96'}`}>
+                                    {fullComment}
+                                  </p>
+                                  {isLong && (
+                                    <button
+                                      type="button"
+                                      onClick={() =>
+                                        setExpandedReviews((prev) => ({
+                                          ...prev,
+                                          [review.id]: !prev[review.id],
+                                        }))
+                                      }
+                                      className="mt-2 self-start text-xs font-medium text-blue-700 hover:text-blue-900 underline"
+                                    >
+                                      {isExpanded ? 'Kevesebb' : 'Tovább olvasom'}
+                                    </button>
+                                  )}
+                                </div>
+                              );
+                            })}
+                          </div>
+                        </div>
+
+                          <button
+                            type="button"
+                            onClick={() => setReviewSliderIndex(Math.min(allReviews.length - 3, reviewSliderIndex + 1))}
+                            disabled={reviewSliderIndex >= allReviews.length - 3 || allReviews.length <= 3}
+                            className="h-10 w-10 shrink-0 rounded-full border border-gray-300 bg-white text-gray-700 flex items-center justify-center shadow-sm hover:shadow-md hover:bg-gray-50 transition-all disabled:opacity-40 disabled:cursor-not-allowed"
+                            aria-label="Következő vélemények"
+                          >
+                            <span className="text-lg leading-none">→</span>
+                          </button>
                       </div>
-                    )}
-                  </div>
+
+                      {allReviews.length > 3 && (
+                        <div className="text-xs text-gray-600 text-center">
+                          {reviewSliderIndex + 1} / {Math.max(1, allReviews.length - 2)}
+                        </div>
+                      )}
+                    </div>
+                  )
                 ) : (
                   <div className="text-sm text-gray-500">Nincsenek vélemények</div>
                 )}
               </div>
             </div>
-            <div className="flex flex-col gap-6">
+            <div className="flex flex-col gap-5 sm:gap-6 lg:sticky lg:top-24 lg:self-start">
               {/* Booking card */}
-              <div className={`bg-[#FFFECE] text-black rounded-xl p-4 shadow-md transform transition-all duration-500 ${pageLoaded ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-2'}`} style={{ transitionDelay: pageLoaded ? '220ms' : '0ms' }}>
+              <div className={`bg-[#FFFECE] text-black rounded-2xl border border-[#efe9b6] p-4 sm:p-5 shadow-lg/20 transform transition-all duration-500 ${pageLoaded ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-2'}`} style={{ transitionDelay: pageLoaded ? '220ms' : '0ms' }}>
                 <h2 className="font-semibold text-lg">Foglalás</h2>
                 <div className="mt-4">
                   <div className="flex gap-2 items-center mb-3">
@@ -1191,7 +1331,7 @@ const Room = () => {
                       <div className="text-sm font-medium">{checkOut || "-"}</div>
                     </div>
                   </div>
-                  <div className="mt-3 bg-white text-black rounded-lg shadow p-4">
+                  <div className="mt-3 bg-white text-black rounded-xl border border-[#e7e7d8] shadow-sm p-4">
                     <div className="flex items-center justify-center mb-3">
                       <div className="font-medium text-sm">
                         {visibleMonth.toLocaleString("hu-HU", { year: "numeric", month: "long" })}
@@ -1211,7 +1351,7 @@ const Room = () => {
                         <button
                           type="button"
                           onClick={() => setVisibleMonth(new Date(visibleMonth.getFullYear(), visibleMonth.getMonth() - 1, 1))}
-                          className="px-3 py-2 border rounded bg-white hover:bg-gray-50"
+                          className="px-3 py-2 border rounded-lg bg-white hover:bg-gray-50 transition text-sm"
                         >
                           Előző
                         </button>
@@ -1220,7 +1360,7 @@ const Room = () => {
                         <button
                           type="button"
                           onClick={() => setVisibleMonth(new Date(visibleMonth.getFullYear(), visibleMonth.getMonth() + 1, 1))}
-                          className="px-3 py-2 border rounded bg-white hover:bg-gray-50"
+                          className="px-3 py-2 border rounded-lg bg-white hover:bg-gray-50 transition text-sm"
                         >
                           Következő
                         </button>
@@ -1229,7 +1369,7 @@ const Room = () => {
                         <button
                           type="button"
                           onClick={clearSelection}
-                          className="px-3 py-2 border rounded bg-white hover:bg-gray-50 text-red-600 font-medium"
+                          className="px-3 py-2 border rounded-lg bg-white hover:bg-gray-50 transition text-red-600 font-medium text-sm"
                         >
                           Törlés
                         </button>
@@ -1286,7 +1426,7 @@ const Room = () => {
                   <button
                     onClick={handleBooking}
                     disabled={!bookingButtonEnabled}
-                    className={`w-full py-2 rounded transition ${
+                    className={`w-full py-2.5 rounded-lg font-semibold transition ${
                       bookingButtonEnabled
                         ? "bg-[#6FD98C] text-white cursor-pointer hover:bg-[#5FCB80]"
                         : "bg-gray-400 text-white cursor-not-allowed"
@@ -1299,6 +1439,257 @@ const Room = () => {
                   <div className="mt-3 p-3 rounded-md bg-[#d4edda] border border-[#c3e6cb] text-[#155724] font-semibold text-sm">
                     ✔ {successMessage}
                   </div>
+                )}
+              </div>
+
+              <div className={`lg:hidden bg-[#FFFECE] text-black rounded-2xl border border-[#efe9b6] p-4 shadow-lg/20 flex flex-col gap-4 transform transition-all duration-500 ${pageLoaded ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-2'}`} style={{ transitionDelay: pageLoaded ? '240ms' : '0ms' }}>
+                <div className="flex flex-col gap-3">
+                  <div className="flex items-center justify-between gap-3 flex-wrap">
+                    <div className="flex items-center gap-2">
+                      <h2 className="font-semibold text-lg">Vélemények</h2>
+                      <span className="inline-flex items-center gap-1 rounded-full bg-white/80 border border-[#e7e7d8] px-2.5 py-1 text-xs font-semibold text-gray-800">
+                        <span className="text-yellow-500">★</span>
+                        <span>{averageReviewScore}/5</span>
+                      </span>
+                    </div>
+                    <div className="flex flex-wrap items-center gap-2">
+                      <button
+                        type="button"
+                        onClick={() => setReviewStarFilter(0)}
+                        className={`px-3 py-1.5 rounded-full text-xs font-medium border transition ${reviewStarFilter === 0 ? 'bg-[#6FD98C] text-white border-[#6FD98C]' : 'bg-white text-gray-700 border-gray-300 hover:bg-gray-50'}`}
+                      >
+                        <span>Összes </span>
+                        <span className="text-gray-500">({allReviews.length})</span>
+                      </button>
+                      {[5, 4, 3, 2, 1].map((star) => {
+                        const count = allReviews.filter((r) => Number(r?.stars || 0) === star).length;
+                        return (
+                          <button
+                            key={`mobile-filter-${star}`}
+                            type="button"
+                            onClick={() => setReviewStarFilter(star)}
+                            className={`px-3 py-1.5 rounded-full text-xs font-medium border transition ${reviewStarFilter === star ? 'bg-[#6FD98C] text-white border-[#6FD98C]' : 'bg-white text-gray-700 border-gray-300 hover:bg-gray-50'}`}
+                          >
+                            <span>{star}</span>
+                            <span className="text-yellow-500">★</span>
+                            <span className="text-gray-500">({count})</span>
+                          </button>
+                        );
+                      })}
+                    </div>
+                  </div>
+                  <div className="w-full self-start">
+                    {!showReviewForm ? (
+                      <>
+                        {!alreadyReviewed ? (
+                          <>
+                            {!isLoggedIn ? (
+                              <button
+                                type="button"
+                                onClick={() => pushToast('Bejelentkezés szükséges', 'A vélemény írásáshoz be kell jelentkezned.')}
+                                className="bg-[#6FD98C] text-white px-5 py-2 rounded-full hover:bg-[#5FCB80] transition-all duration-200 text-sm shadow-md hover:shadow-lg"
+                              >
+                                Vélemény írása
+                              </button>
+                            ) : !hasBooked ? (
+                              <div className="flex flex-col items-start">
+                                <button type="button" disabled className="bg-gray-300 text-gray-700 px-4 py-2 rounded-full text-sm cursor-not-allowed">
+                                  Vélemény írása
+                                </button>
+                                <div className="text-sm text-gray-500 mt-2">Előbb foglalj ennél a szobánál, hogy véleményt írj.</div>
+                              </div>
+                            ) : (
+                              <button
+                                type="button"
+                                onClick={() => {
+                                  setReviewStars(0);
+                                  setReviewComment("");
+                                  setShowReviewForm(true);
+                                }}
+                                className="bg-[#6FD98C] text-white px-5 py-2 rounded-full hover:bg-[#5FCB80] transition-all duration-200 text-sm shadow-md hover:shadow-lg"
+                              >
+                                Vélemény írása
+                              </button>
+                            )}
+                          </>
+                        ) : (
+                          <button type="button" disabled className="bg-gray-300 text-gray-700 px-4 py-2 rounded-full text-sm cursor-not-allowed">
+                            Már írtál véleményt
+                          </button>
+                        )}
+                      </>
+                    ) : (
+                      <div className="flex flex-col gap-2 bg-white rounded-lg p-4 border border-gray-200 mx-0">
+                        <div className="flex items-center gap-2">
+                          {[1,2,3,4,5].map((s) => {
+                            const filled = reviewStars >= s;
+                            return (
+                              <button
+                                key={s}
+                                type="button"
+                                onClick={() => setReviewStars(s)}
+                                aria-label={`${s} csillag`}
+                                className={`text-3xl leading-none ${filled ? 'text-yellow-400' : 'text-gray-300'} focus:outline-none`}
+                              >
+                                {filled ? '★' : '☆'}
+                              </button>
+                            );
+                          })}
+                        </div>
+                        <textarea
+                          value={reviewComment}
+                          onChange={(e) => setReviewComment(e.target.value.slice(0, 200))}
+                          className="w-full p-3 rounded border border-gray-300 bg-white"
+                          rows={5}
+                          maxLength={200}
+                          placeholder="Írd ide a véleményed (max 200 karakter)"
+                        />
+                        <div className="text-xs text-gray-600 text-right">
+                          {reviewComment.length}/200 karakter
+                        </div>
+                        <div className="flex gap-2 justify-start">
+                          <button
+                            type="button"
+                            disabled={reviewSubmitting}
+                            onClick={async () => {
+                              if (!reviewComment.trim()) {
+                                pushToast('Hiba', 'A vélemény szövege nem lehet üres.');
+                                return;
+                              }
+                              try {
+                                setReviewSubmitting(true);
+                                const res = await axios.post(`${BACKEND_BASE}/room_reviews`, {
+                                  room_id: room.id,
+                                  stars: reviewStars,
+                                  comment: reviewComment,
+                                }, {
+                                  headers: { Authorization: `Bearer ${localStorage.getItem('token')}` }
+                                });
+                                setReviewComment('');
+                                setReviewStars(5);
+                                setShowReviewForm(false);
+                                pushToast('Köszönjük', 'Véleményed rögzítve lett.', 'success');
+                                if (res.data && res.data.review && room) {
+                                  setRoom((prevRoom) => ({
+                                    ...prevRoom,
+                                    reviews: [res.data.review, ...(prevRoom.reviews || [])]
+                                  }));
+                                }
+                              } catch (err) {
+                                console.error('POST review error', err);
+                                pushToast('Hiba', 'Nem sikerült rögzíteni a véleményt.');
+                              } finally {
+                                setReviewSubmitting(false);
+                              }
+                            }}
+                            className="bg-blue-600 text-white px-4 py-2 rounded-full disabled:opacity-60 hover:bg-blue-700 transition-colors text-sm"
+                          >
+                            Küldés
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => setShowReviewForm(false)}
+                            className="bg-gray-200 text-black px-4 py-2 rounded-full hover:bg-gray-300 transition-colors text-sm"
+                          >
+                            Mégse
+                          </button>
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                </div>
+
+                {filteredReviews.length > 0 ? (
+                  isReviewFilterActive ? (
+                    <div className="flex flex-col gap-3">
+                      {filteredReviews.map((review) => {
+                        const isExpanded = !!expandedReviews[review.id];
+                        const fullComment = review.comment || "";
+                        const isLong = fullComment.length > 160;
+
+                        return (
+                          <article
+                            key={`mobile-filtered-${review.id}`}
+                            className="bg-white rounded-xl border border-[#e7e7d8] p-4 shadow-sm transition-all duration-300 flex flex-col"
+                          >
+                            <div className="font-semibold text-gray-900 mb-2 text-sm">{review.user?.name || 'Névtelen'}</div>
+                            <div className="flex items-center gap-2 mb-3">
+                              <span className="text-yellow-500 text-lg">
+                                {"★".repeat(review.stars)}
+                                {"☆".repeat(5 - review.stars)}
+                              </span>
+                              <span className="text-xs text-gray-600 font-medium">{review.stars}/5</span>
+                            </div>
+                            <p className={`text-sm text-gray-700 leading-relaxed wrap-anywhere ${isLong && !isExpanded ? 'line-clamp-4' : ''}`}>
+                              {fullComment}
+                            </p>
+                            {isLong && (
+                              <button
+                                type="button"
+                                onClick={() =>
+                                  setExpandedReviews((prev) => ({
+                                    ...prev,
+                                    [review.id]: !prev[review.id],
+                                  }))
+                                }
+                                className="mt-2 self-start text-xs font-medium text-blue-700 hover:text-blue-900 underline"
+                              >
+                                {isExpanded ? 'Kevesebb' : 'Tovább olvasom'}
+                              </button>
+                            )}
+                          </article>
+                        );
+                      })}
+                    </div>
+                  ) : (
+                    <div className="relative -mx-4">
+                      <div className="flex gap-4 overflow-x-auto px-[calc((100vw-16rem)/2)] pb-3 snap-x snap-mandatory scrollbar-hide">
+                        {allReviews.map((review) => {
+                        const isExpanded = !!expandedReviews[review.id];
+                        const fullComment = review.comment || "";
+                        const isLong = fullComment.length > 140;
+
+                          return (
+                            <article
+                              key={review.id}
+                              className="shrink-0 w-64 snap-center bg-white rounded-xl border border-[#e7e7d8] p-4 shadow-sm transition-all duration-300 flex flex-col"
+                            >
+                            <div className="font-semibold text-gray-900 mb-2 text-sm">{review.user?.name || 'Névtelen'}</div>
+                            <div className="flex items-center gap-2 mb-3">
+                              <span className="text-yellow-500 text-lg">
+                                {"★".repeat(review.stars)}
+                                {"☆".repeat(5 - review.stars)}
+                              </span>
+                              <span className="text-xs text-gray-600 font-medium">{review.stars}/5</span>
+                            </div>
+                            <p className={`text-sm text-gray-700 leading-relaxed wrap-anywhere overflow-hidden transition-[max-height] duration-300 ease-in-out ${isLong ? (isExpanded ? 'max-h-96' : 'max-h-24') : 'max-h-96'}`}>
+                              {fullComment}
+                            </p>
+                            {isLong && (
+                              <button
+                                type="button"
+                                onClick={() =>
+                                  setExpandedReviews((prev) => ({
+                                    ...prev,
+                                    [review.id]: !prev[review.id],
+                                  }))
+                                }
+                                className="mt-2 self-start text-xs font-medium text-blue-700 hover:text-blue-900 underline"
+                              >
+                                {isExpanded ? 'Kevesebb' : 'Tovább olvasom'}
+                              </button>
+                            )}
+                            </article>
+                          );
+                        })}
+                      </div>
+
+                      <div className="pointer-events-none absolute left-0 top-0 bottom-3 w-8 bg-linear-to-r from-[#FFFECE] via-[#FFFECE]/80 to-transparent" />
+                      <div className="pointer-events-none absolute right-0 top-0 bottom-3 w-8 bg-linear-to-l from-[#FFFECE] via-[#FFFECE]/80 to-transparent" />
+                    </div>
+                  )
+                ) : (
+                  <div className="text-sm text-gray-500">Nincsenek vélemények</div>
                 )}
               </div>
             </div>

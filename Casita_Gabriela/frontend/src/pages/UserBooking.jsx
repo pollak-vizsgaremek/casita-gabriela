@@ -8,6 +8,11 @@ export default function UserBooking() {
 	const CONFIRM_ANIMATION_MS = 220;
 	const DAY_MS = 24 * 60 * 60 * 1000;
 	const REJECTED_TRASH_KEY = "userPanelRejectedBookingTrash";
+	const formatCurrency = (value) => {
+		const amount = Number(value);
+		if (!Number.isFinite(amount)) return "-";
+		return `${amount.toLocaleString("hu-HU")} Ft`;
+	};
 	const location = useLocation();
 	const [bookings, setBookings] = useState([]);
 	const [loading, setLoading] = useState(true);
@@ -273,18 +278,19 @@ export default function UserBooking() {
 	};
 
 	const renderBookingCard = (b, { canCancel, canDeleteRejected = true }) => (
-		<div key={b.id} className={`${getCardClass(b)} border rounded-xl shadow-sm p-5 flex flex-col md:flex-row md:items-center md:justify-between`}>
-			<div className="text-gray-800 space-y-1">
+		<div key={b.id} className={`${getCardClass(b)} border rounded-xl shadow-sm p-4 sm:p-5 flex flex-col gap-3 md:flex-row md:items-center md:justify-between`}>
+			<div className="text-gray-800 grid grid-cols-1 sm:grid-cols-2 gap-x-6 gap-y-1 flex-1">
 				<div><b>Szoba:</b> {b.roomName}</div>
 				<div><b>Érkezés:</b> {b.startDate}</div>
 				<div><b>Távozás:</b> {b.endDate}</div>
 				<div><b>Vendégek:</b> {b.guests}</div>
+				<div><b><i>Végösszeg:</i></b> <i>{formatCurrency(b.total_price)}</i></div>
 				<div><b>Státusz:</b> {getDisplayedStatus(b)}</div>
-				{b.isRejected && <div className="text-sm text-red-700">A foglalást a szállásadó elutasította.</div>}
+				{b.isRejected && <div className="text-sm text-red-700 sm:col-span-2">A foglalást a szállásadó elutasította.</div>}
 			</div>
 			{b.isRejected && canDeleteRejected ? (
 				<button
-					className="mt-3 md:mt-0 bg-red-100 hover:bg-red-200 text-red-700 border border-red-200 px-4 py-2 rounded-lg disabled:opacity-50"
+					className="w-full sm:w-auto mt-1 md:mt-0 bg-red-100 hover:bg-red-200 text-red-700 border border-red-200 px-4 py-2 rounded-lg disabled:opacity-50"
 					onClick={() => requestCancelBooking(b)}
 					disabled={canceling === b.id}
 				>
@@ -292,14 +298,14 @@ export default function UserBooking() {
 				</button>
 			) : canCancel ? (
 				<button
-					className="mt-3 md:mt-0 bg-red-50 hover:bg-red-100 text-red-700 border border-red-200 px-4 py-2 rounded-lg disabled:opacity-50"
+					className="w-full sm:w-auto mt-1 md:mt-0 bg-red-50 hover:bg-red-100 text-red-700 border border-red-200 px-4 py-2 rounded-lg disabled:opacity-50"
 					onClick={() => requestCancelBooking(b)}
 					disabled={canceling === b.id}
 				>
 					{canceling === b.id ? "Lemondás..." : "Foglalás lemondása"}
 				</button>
 			) : (
-				<div className="mt-3 md:mt-0 text-sm text-gray-500">Lezárt foglalás</div>
+				<div className="mt-1 md:mt-0 text-sm text-gray-500">Lezárt foglalás</div>
 			)}
 		</div>
 	);
@@ -309,17 +315,9 @@ export default function UserBooking() {
 			<Sidebar isOpen={sidebarOpen} onClose={() => setSidebarOpen(false)} userPanel />
 
 			<div className="flex-1 ml-0 md:ml-64">
-				{/* MOBILE HEADER */}
-				<header className="flex items-center justify-between px-5 py-4 border-b bg-white md:hidden">
-					<button onClick={() => setSidebarOpen(s => !s)} className="p-2 rounded-md bg-gray-100 hover:bg-gray-200" aria-label="Menü">
-						<svg className="h-6 w-6 text-gray-700" viewBox="0 0 24 24" fill="none" stroke="currentColor"><path strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" d="M4 6h16M4 12h16M4 18h16" /></svg>
-					</button>
-					<div className="text-lg font-semibold">Foglalásaim</div>
-					<div style={{ width: 36 }} />
-				</header>
-
-				<main className="px-5 pt-5">
-					<h2 className="text-2xl font-semibold mb-4 text-gray-900">Foglalásaim</h2>
+				<main className="px-4 sm:px-6 pt-54 md:pt-5 pb-10">
+					<div className="w-full max-w-5xl">
+					<h2 className="text-xl sm:text-2xl font-semibold mb-4 text-gray-900">Foglalásaim</h2>
 					{loading ? (
 						<div className="text-gray-700">Betöltés...</div>
 					) : error ? (
@@ -373,6 +371,7 @@ export default function UserBooking() {
 							</section>
 						</div>
 					)}
+					</div>
 				</main>
 			</div>
 

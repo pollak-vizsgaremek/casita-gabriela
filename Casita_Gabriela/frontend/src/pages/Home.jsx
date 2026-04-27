@@ -18,6 +18,13 @@ const Home = () => {
   const [searchError, setSearchError] = useState("");
 
   const navigate = useNavigate();
+  const todayStr = useMemo(() => {
+    const now = new Date();
+    const y = now.getFullYear();
+    const m = String(now.getMonth() + 1).padStart(2, "0");
+    const d = String(now.getDate()).padStart(2, "0");
+    return `${y}-${m}-${d}`;
+  }, []);
 
   const currentUser = localStorage.getItem("user")
     ? JSON.parse(localStorage.getItem("user"))
@@ -58,7 +65,34 @@ const Home = () => {
       ).length;
 
       return { ...cat, count };
-    });
+    }).filter((cat) => (cat.count || 0) > 0);
+  }, [categoryDefs, rooms]);
+
+  const categorySearchOptions = useMemo(() => {
+    const names = [];
+    const seen = new Set();
+
+    const addName = (value) => {
+      const name = String(value || "").trim();
+      if (!name) return;
+      const key = name.toLowerCase();
+      if (seen.has(key)) return;
+      seen.add(key);
+      names.push(name);
+    };
+
+    (categoryDefs || [])
+      .filter((c) =>
+        (rooms || []).some(
+          (r) =>
+            (r?.category || "").trim().toLowerCase() ===
+            String(c?.name || "").trim().toLowerCase()
+        )
+      )
+      .forEach((c) => addName(c?.name));
+    (rooms || []).forEach((r) => addName(r?.category));
+
+    return names;
   }, [categoryDefs, rooms]);
 
   const fetchRooms = async () => {
@@ -86,7 +120,6 @@ const Home = () => {
     e.preventDefault();
 
     setSearchError("");
-    const todayStr = new Date().toISOString().slice(0, 10);
     if (arrival && arrival < todayStr) {
       setSearchError("Az érkezési dátum nem lehet a múltban.");
       return;
@@ -113,11 +146,11 @@ const Home = () => {
   }
 
   return (
-    <div className='flex flex-col items-center w-full min-h-screen 
+    <div className='flex flex-col items-center w-full min-h-screen
       bg-linear-to-br from-gray-50 via-white to-gray-100 relative overflow-hidden'>
 
       {/* HERO */}
-      <div className="w-full h-[300px] relative flex items-center justify-center overflow-hidden">
+      <div className="w-full h-auto sm:h-[400px] md:h-[340px] relative flex items-center justify-center overflow-hidden py-10 sm:py-0">
         {/* IMAGE */}
         <motion.img
           src={searchImg}
@@ -130,12 +163,12 @@ const Home = () => {
         <div className="absolute inset-0 bg-black/40 z-10"></div>
 
         {/* CONTENT */}
-        <div className="relative z-20 text-center text-white px-4">
-          <h1 className="text-4xl md:text-5xl font-bold mb-3">
+        <div className="relative z-20 text-center text-white px-4 w-full max-w-6xl mx-auto">
+          <h1 className="text-3xl sm:text-4xl md:text-5xl font-bold mb-2 sm:mb-3 leading-tight">
             Találd meg a tökéletes szobát
           </h1>
 
-          <p className="text-sm md:text-lg opacity-90 mb-5">
+          <p className="text-sm sm:text-base md:text-lg opacity-90 mb-3 sm:mb-5">
             Gyors, egyszerű és modern foglalás
           </p>
 
@@ -146,34 +179,20 @@ const Home = () => {
           )}
           <form
             onSubmit={handleSearch}
-            className="bg-white/80 backdrop-blur-md text-gray-800 rounded-xl shadow-xl p-4 grid grid-cols-2 md:grid-cols-5 gap-3 max-w-4xl mx-auto"
+            className="bg-white/80 backdrop-blur-md text-gray-800 rounded-xl shadow-xl p-2 sm:p-4 grid grid-cols-2 md:grid-cols-5 gap-1.5 sm:gap-3 max-w-4xl mx-auto"
           >
             <select
               value={category}
               onChange={(e) => setCategory(e.target.value)}
-              className="p-2 rounded-md border focus:outline-none focus:ring-2 focus:ring-red-400"
+              className="w-full p-1.5 sm:p-2 text-xs sm:text-sm rounded-md border focus:outline-none focus:ring-2 focus:ring-red-400 order-1 md:order-1"
             >
               <option value="">Összes kategória</option>
-              {categories.map((cat) => (
-                <option key={cat.name} value={cat.name}>
-                  {cat.name}
+              {categorySearchOptions.map((catName) => (
+                <option key={catName} value={catName}>
+                  {catName}
                 </option>
               ))}
             </select>
-
-            <input
-              type="date"
-              value={arrival}
-              onChange={(e) => setArrival(e.target.value)}
-              className="p-2 rounded-md border focus:outline-none focus:ring-2 focus:ring-red-400"
-            />
-
-            <input
-              type="date"
-              value={departure}
-              onChange={(e) => setDeparture(e.target.value)}
-              className="p-2 rounded-md border focus:outline-none focus:ring-2 focus:ring-red-400"
-            />
 
             <input
               type="number"
@@ -185,10 +204,26 @@ const Home = () => {
                 if (e.key === "-" || e.key === "e" || e.key === "+")
                   e.preventDefault();
               }}
-              className="p-2 rounded-md border focus:outline-none focus:ring-2 focus:ring-red-400"
+              className="w-full p-1.5 sm:p-2 text-xs sm:text-sm rounded-md border focus:outline-none focus:ring-2 focus:ring-red-400 order-2 md:order-4"
             />
 
-            <button className="bg-red-500 hover:bg-red-600 text-white rounded-md px-4 py-2 transition font-semibold">
+            <input
+              type="date"
+              min={todayStr}
+              value={arrival}
+              onChange={(e) => setArrival(e.target.value)}
+              className="w-full p-1.5 sm:p-2 text-xs sm:text-sm rounded-md border focus:outline-none focus:ring-2 focus:ring-red-400 order-3 md:order-2"
+            />
+
+            <input
+              type="date"
+              min={arrival || todayStr}
+              value={departure}
+              onChange={(e) => setDeparture(e.target.value)}
+              className="w-full p-1.5 sm:p-2 text-xs sm:text-sm rounded-md border focus:outline-none focus:ring-2 focus:ring-red-400 order-4 md:order-3"
+            />
+
+            <button className="w-full bg-red-500 hover:bg-red-600 text-white rounded-md px-4 py-1.5 sm:py-2 text-xs sm:text-sm transition font-semibold col-span-2 md:col-span-1 order-5 md:order-5">
               Keresés
             </button>
           </form>
@@ -196,15 +231,15 @@ const Home = () => {
       </div>
 
       {/* CONTENT */}
-      <div className="w-full max-w-6xl px-6 mt-12 mb-6 mx-auto">
+      <div className="w-full max-w-6xl px-4 sm:px-6 mt-8 sm:mt-12 mb-6 mx-auto">
         {isFirstTimeUser && (
-          <div className="m-6 p-6 bg-[#FFFECE] border border-gray-100 rounded-2xl shadow-lg flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
+          <div className="mt-3 mb-8 p-4 sm:p-6 bg-[#FFFECE] border border-gray-100 rounded-2xl shadow-lg flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
             <div className="flex items-start md:items-center gap-4">
               <div className="bg-white text-red-600 p-3 rounded-lg text-2xl font-extrabold">
                 15%
               </div>
               <div>
-                <div className="text-2xl font-semibold text-gray-900">
+                <div className="text-lg sm:text-2xl font-semibold text-gray-900 leading-tight">
                   15% kedvezmény az első foglalásodra
                 </div>
                 <div className="text-sm text-gray-600 mt-1">
@@ -220,44 +255,50 @@ const Home = () => {
           </div>
         )}
 
-        <h2 className="text-3xl font-semibold text-gray-800">Kiemelt szobák</h2>
+        <h2 className="text-2xl sm:text-3xl font-semibold text-gray-800">Kiemelt szobák</h2>
         <div className="w-20 h-1 bg-red-500 mt-2 rounded"></div>
 
-        <div className="mt-6">
-          <motion.div
-            variants={containerVariants}
-            initial="hidden"
-            animate={loading ? "hidden" : "visible"}
-            className="flex flex-wrap gap-8"
-          >
-            {loading ? (
-              <p className="text-gray-600">Szobák betöltése...</p>
-            ) : (
-              rooms
-                .filter((r) => r.isHighlighted)
-                .map((room) => (
-                  <motion.div
-                    key={`highlight-${room.id}`}
-                    variants={cardVariants}
-                    whileHover={{ scale: 1.05 }}
-                    className="transition-shadow hover:shadow-2xl rounded-xl"
-                  >
-                    <OfferAdmin
-                      id={room.id}
-                      name={room.name}
-                      price={room.price}
-                      image={Array.isArray(room.images) ? room.images[0] : ""}
-                      reviews={room.reviews || []}
-                    />
-                  </motion.div>
-                ))
-            )}
-          </motion.div>
+        <div className="relative mt-6 -mx-4 sm:mx-0">
+          {loading ? (
+            <p className="text-gray-600 px-4">Szobák betöltése...</p>
+          ) : (
+            <>
+              <motion.div
+                variants={containerVariants}
+                initial="hidden"
+                animate="visible"
+                className="flex sm:flex-wrap gap-4 sm:gap-8 sm:justify-start overflow-x-auto sm:overflow-x-visible px-[calc((100vw-11rem)/2)] sm:px-0 pb-3 sm:pb-0 snap-x snap-mandatory sm:snap-none scrollbar-hide"
+              >
+                {rooms
+                  .filter((r) => r.isHighlighted)
+                  .map((room) => (
+                    <motion.div
+                      key={`highlight-${room.id}`}
+                      variants={cardVariants}
+                      whileHover={{ scale: 1.05 }}
+                      className="shrink-0 w-44 sm:w-auto snap-center transition-shadow hover:shadow-2xl rounded-xl"
+                    >
+                      <OfferAdmin
+                        id={room.id}
+                        name={room.name}
+                        price={room.price}
+                        image={Array.isArray(room.images) ? room.images[0] : ""}
+                        reviews={room.reviews || []}
+                        className="w-full sm:w-72"
+                      />
+                    </motion.div>
+                  ))}
+              </motion.div>
+
+              <div className="pointer-events-none absolute left-0 top-0 bottom-3 w-10 sm:hidden bg-linear-to-r from-white via-white/80 to-transparent" />
+              <div className="pointer-events-none absolute right-0 top-0 bottom-3 w-10 sm:hidden bg-linear-to-l from-white via-white/80 to-transparent" />
+            </>
+          )}
         </div>
       </div>
 
-      <div className="w-full max-w-6xl px-6 mt-8 mb-12 mx-auto">
-        <h3 className="text-2xl font-semibold text-gray-700">Kategóriák</h3>
+      <div className="w-full max-w-6xl px-4 sm:px-6 mt-8 mb-12 mx-auto">
+        <h3 className="text-xl sm:text-2xl font-semibold text-gray-700">Kategóriák</h3>
         <div className="w-16 h-1 bg-gray-300 mt-2 rounded"></div>
 
         <div className="mt-6">

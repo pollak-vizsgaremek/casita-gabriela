@@ -32,6 +32,21 @@ const Registration = () => {
     return errs;
   };
 
+  const isAtLeast18 = (birthDateStr) => {
+    if (!birthDateStr) return false;
+    const birthDate = new Date(birthDateStr);
+    if (isNaN(birthDate.getTime())) return false;
+    const today = new Date();
+    const age = today.getFullYear() - birthDate.getFullYear();
+    const monthDiff = today.getMonth() - birthDate.getMonth();
+    const dayDiff = today.getDate() - birthDate.getDate();
+    
+    if (monthDiff < 0 || (monthDiff === 0 && dayDiff < 0)) {
+      return age - 1 >= 18;
+    }
+    return age >= 18;
+  };
+
   const validateAll = () => {
     const newErrors = [];
 
@@ -43,6 +58,13 @@ const Registration = () => {
 
     // Email
     if (!form.email.trim()) newErrors.push("Az email mező üres.");
+
+    // Születési dátum
+    if (!form.birth_date) {
+      newErrors.push("A születési dátum mező üres.");
+    } else if (!isAtLeast18(form.birth_date)) {
+      newErrors.push("Regisztrációhoz legalább 18 évesnek kell lenned.");
+    }
 
     // Jelszó
     const pwErrs = getPasswordErrors(form.password);
@@ -122,7 +144,7 @@ const Registration = () => {
   };
 
   return (
-    <div className='p-0 m-0 gap-0 flex flex-col min-h-screen'>
+    <div className='p-0 m-0 gap-0 flex flex-col min-h-screen bg-[#f7f3e9] relative'>
       <style>
         {`
           input[type="date"] {
@@ -137,16 +159,16 @@ const Registration = () => {
         `}
       </style>
 
-      <video autoPlay loop muted playsInline className='video-background absolute inset-0 hidden lg:block'>
+      <video autoPlay loop muted playsInline className='absolute top-0 left-0 w-full h-auto hidden lg:block pointer-events-none' style={{ zIndex: 0 }}>
         <source src='/catBack.mp4' type='video/mp4' />
       </video>
-      <video autoPlay loop muted playsInline className='video-background absolute inset-0 lg:hidden block'>
-        <source src='/SceneResponsive.mp4' type='video/mp4' />
+      <video autoPlay loop muted playsInline className='absolute top-0 left-0 w-full h-auto lg:hidden block pointer-events-none origin-top scale-[1.12]' style={{ zIndex: 0 }}>
+        <source src='/catBack.mp4' type='video/mp4' />
       </video>
 
       <div className='flex flex-col w-dvw grow relative z-10'>
-        <main className='flex items-center justify-center flex-1 m-0'>
-          <div className='fade-in text-black bg-white shadow-md rounded-xl p-4 min-w-[320px] sm:min-w-[400px] w-1/3 h-fill min-h flex flex-col items-center mt-10 mb-10'>
+        <main className='flex items-center justify-center flex-1 m-0 px-4 py-6 sm:px-4 sm:py-8'>
+          <div className='fade-in text-black bg-white shadow-md rounded-xl p-4 w-[86%] max-w-[420px] lg:w-1/3 flex flex-col items-center mt-48 mb-2 sm:mt-6 sm:mb-6'>
             <p className='text-black mb-4'>Regisztráció</p>
 
             {message && (
@@ -178,7 +200,7 @@ const Registration = () => {
                 value={form.passwordRepeat} onChange={handleChange} disabled={disabled} />
 
               {passwordErrors.length > 0 && (
-                <ul className="text-sm text-gray-700 mt-1 mb-1 list-disc list-inside self-start">
+                <ul className="text-sm text-gray-700 mt-3 mb-4 ml-1 space-y-1.5 list-disc list-inside self-start">
                   {passwordErrors.map((pe, idx) => (
                     <li key={idx}>{pe}</li>
                   ))}
@@ -233,7 +255,7 @@ const Registration = () => {
             </form>
 
             {errors.length > 0 && (
-              <ul className="mt-4 text-sm text-red-600 self-start list-disc list-inside">
+              <ul className="mt-6 mb-2 text-sm text-red-600 self-start ml-1 space-y-1.5 list-disc list-inside">
                 {errors.map((e, i) => (
                   <li key={i}>{e}</li>
                 ))}

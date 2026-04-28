@@ -84,9 +84,6 @@ const Contact = () => {
 
         {/* HEADLINE */}
         <div className="mb-8 sm:mb-10 text-center sm:text-left">
-          <span className="inline-block mb-3 px-3 py-1 rounded-full bg-[#6FD98C]/20 text-[#2f7a46] text-xs sm:text-sm font-semibold tracking-wide uppercase">
-            Kapcsolat
-          </span>
           <h1 className="text-3xl sm:text-4xl lg:text-[2.7rem] leading-tight font-extrabold tracking-tight text-[#1f1f1f]">
             Lépj velünk kapcsolatba
           </h1>

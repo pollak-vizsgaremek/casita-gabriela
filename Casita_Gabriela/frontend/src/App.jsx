@@ -47,7 +47,7 @@ const App = () => {
                     <Route path="/registration" element={<Registration />} />
                     <Route path="/verify" element={<Verify />} />
 
-                    <Route path="/room/:id" element={<Room />} />
+                    <Route path="/room/:roomRef" element={<Room />} />
                     <Route path="/booking-success" element={<BookingSuccess />} />
                     <Route path="/search" element={<SearchResults />} />
                     <Route path="/category/:categoryName" element={<CategoryRooms />} />

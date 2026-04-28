@@ -93,28 +93,107 @@ const Sidebar = ({ isOpen, onClose, userPanel }) => {
   ];
   const items = userPanel ? userItems : adminItems;
 
+  const profileName = userPanel
+    ? (() => { try { const u = JSON.parse(localStorage.getItem('user')); return u?.name || 'Felhasználó'; } catch { return 'Felhasználó'; } })()
+    : 'Admin';
+
+  if (userPanel) {
+    return (
+      <>
+        {/* Mobile navbar under main navbar */}
+        <div
+          className="md:hidden fixed left-0 right-0 bg-white border-b border-gray-200 shadow-sm"
+          style={{ top: '10dvh', zIndex: 45 }}
+          onClick={(e) => e.stopPropagation()}
+        >
+          <div className="px-4 pt-2.5 pb-2 text-center border-b border-gray-100">
+            <div className="text-lg font-semibold text-gray-800 leading-tight">{profileName}</div>
+            <div className="text-sm text-gray-500 mt-0.5">Saját fiók</div>
+          </div>
+          <nav className="px-3 pb-4 pt-2 flex flex-wrap items-center justify-center gap-2">
+            {items.map((it) => (
+              <NavLink
+                key={it.to}
+                to={it.to}
+                className={({ isActive }) =>
+                  `inline-flex items-center gap-2 px-3 py-2 rounded-full text-sm border transition-colors ${isActive ? 'bg-[#E6F9E9] text-green-800 border-[#bfe9c8] font-medium' : 'bg-white text-gray-700 border-gray-200 hover:bg-gray-50'}`
+                }
+              >
+                <span className="shrink-0 text-green-700">{it.icon}</span>
+                <span>{it.label}</span>
+                {it.countKey && counts[it.countKey] > 0 && (
+                  <span className="bg-red-500 text-white text-[10px] font-bold rounded-full min-w-5 h-5 flex items-center justify-center px-1">
+                    {counts[it.countKey]}
+                  </span>
+                )}
+              </NavLink>
+            ))}
+          </nav>
+        </div>
+
+        {/* Desktop sidebar */}
+        <aside
+          className="hidden md:block bg-white text-black shadow-md z-40 md:shadow-none md:fixed w-64"
+          style={{
+            top: '10dvh',
+            left: 0,
+            height: 'calc(100dvh - 10dvh)'
+          }}
+          onClick={(e) => e.stopPropagation()}
+        >
+          <div className="h-full flex flex-col">
+            <div className="px-4 py-4 border-b flex items-center justify-between bg-white">
+              <div>
+                <div className="text-lg font-semibold">{profileName}</div>
+                <div className="text-xs text-gray-500 mt-1">Saját fiók</div>
+              </div>
+            </div>
+
+            <nav className="flex-1 overflow-auto p-2 sm:p-3">
+              {items.map((it) => (
+                <NavLink
+                  key={it.to}
+                  to={it.to}
+                  className={({ isActive }) =>
+                    `flex items-center gap-3 px-3 py-2 rounded-md mb-1 transition-colors ${isActive ? 'bg-[#E6F9E9] text-green-800 font-medium' : 'text-gray-700 hover:bg-gray-100'}`
+                  }
+                >
+                  <span className="shrink-0 text-green-700">{it.icon}</span>
+                  <span className="text-sm flex-1">{it.label}</span>
+                  {it.countKey && counts[it.countKey] > 0 && (
+                    <span className="bg-red-500 text-white text-xs font-bold rounded-full min-w-5 h-5 flex items-center justify-center px-1">
+                      {counts[it.countKey]}
+                    </span>
+                  )}
+                </NavLink>
+              ))}
+            </nav>
+          </div>
+        </aside>
+      </>
+    );
+  }
+
   return (
     <aside
       className={`
         bg-white text-black shadow-md z-40 transform transition-transform duration-200
         ${isOpen ? 'translate-x-0' : '-translate-x-full'}
         md:translate-x-0 md:shadow-none md:fixed
-        w-64 fixed
+        w-72 max-w-[86vw] md:w-64 fixed
       `}
       style={{
-        top: '10dvh',                 // NAVBAR ALATTI KEZDÉS
+        top: '10dvh',
         left: 0,
-        height: 'calc(100dvh - 10dvh)' // TELJES MAGASSÁG NAVBAR NÉLKÜL
+        height: 'calc(100dvh - 10dvh)'
       }}
       onClick={(e) => e.stopPropagation()}
     >
       <div className="h-full flex flex-col">
-
-        {/* HEADER + X ICON */}
         <div className="px-4 py-4 border-b flex items-center justify-between bg-white">
           <div>
-            <div className="text-lg font-semibold">{userPanel ? (() => { try { const u = JSON.parse(localStorage.getItem('user')); return u?.name || 'Felhasználó'; } catch { return 'Felhasználó'; } })() : 'Admin'}</div>
-            <div className="text-xs text-gray-500 mt-1">{userPanel ? 'Saját fiók' : 'Vezérlőpult'}</div>
+            <div className="text-lg font-semibold">{profileName}</div>
+            <div className="text-xs text-gray-500 mt-1">Vezérlőpult</div>
           </div>
 
           <button
@@ -131,8 +210,7 @@ const Sidebar = ({ isOpen, onClose, userPanel }) => {
           </button>
         </div>
 
-        {/* NAVIGATION */}
-        <nav className="flex-1 overflow-auto p-2">
+        <nav className="flex-1 overflow-auto p-2 sm:p-3">
           {items.map((it) => (
             <NavLink
               key={it.to}
@@ -154,7 +232,6 @@ const Sidebar = ({ isOpen, onClose, userPanel }) => {
             </NavLink>
           ))}
         </nav>
-
       </div>
     </aside>
   )

@@ -233,23 +233,15 @@ export default function UserData() {
 			<Sidebar isOpen={sidebarOpen} onClose={() => setSidebarOpen(false)} userPanel />
 
 			<div className="flex-1 ml-0 md:ml-64">
-				{/* MOBILE HEADER */}
-				<header className="flex items-center justify-between px-5 py-4 border-b bg-white md:hidden">
-					<button onClick={() => setSidebarOpen(s => !s)} className="p-2 rounded-md bg-gray-100 hover:bg-gray-200" aria-label="Menü">
-						<svg className="h-6 w-6 text-gray-700" viewBox="0 0 24 24" fill="none" stroke="currentColor"><path strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" d="M4 6h16M4 12h16M4 18h16" /></svg>
-					</button>
-					<div className="text-lg font-semibold">Adataim</div>
-					<div style={{ width: 36 }} />
-				</header>
-
-				<main className="px-5 pt-5 pb-10">
-					<h2 className="text-2xl font-semibold mb-4 text-gray-900">Adataim</h2>
+				<main className="px-4 sm:px-6 pt-54 md:pt-5 pb-10">
+					<div className="w-full max-w-3xl">
+					<h2 className="text-xl sm:text-2xl font-semibold mb-4 text-gray-900">Adataim</h2>
 					{loading ? (
 						<div className="text-gray-700">Betöltés...</div>
 					) : error ? (
 						<div className="text-red-500">{error}</div>
 					) : user ? (
-						<form className="max-w-md space-y-4" onSubmit={handleSubmit}>
+						<form className="space-y-4 bg-white border border-gray-200 rounded-xl shadow-sm p-4 sm:p-6" onSubmit={handleSubmit}>
 							<div>
 								<label className="block mb-1 font-medium text-gray-700">Név</label>
 								<input
@@ -363,13 +355,13 @@ export default function UserData() {
 								className="w-full border border-gray-300 rounded-lg px-3 py-2 text-gray-900 bg-gray-50"
 							/>
 						</div>
-						<div className="flex items-center justify-between">
+						<div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
 							<Link to="/forgot-password" className="text-sm text-gray-500 hover:underline">
 								Elfelejtett jelszó?
 							</Link>
 							<button
 								type="submit"
-								className="bg-emerald-50 hover:bg-emerald-100 text-emerald-700 border border-emerald-200 px-4 py-2 rounded-lg disabled:opacity-50"
+								className="w-full sm:w-auto bg-emerald-50 hover:bg-emerald-100 text-emerald-700 border border-emerald-200 px-4 py-2 rounded-lg disabled:opacity-50"
 								disabled={saving}
 							>
 								{saving ? "Mentés..." : "Mentés"}
@@ -378,6 +370,7 @@ export default function UserData() {
 							{success && <div className="text-green-600 mt-2">Sikeres mentés!</div>}
 						</form>
 					) : null}
+					</div>
 				</main>
 			</div>
 

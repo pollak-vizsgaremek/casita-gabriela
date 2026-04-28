@@ -21,11 +21,42 @@ const SearchResults = () => {
   const [arrival, setArrival] = useState('')
   const [departure, setDeparture] = useState('')
   const [people, setPeople] = useState('')
+  const [searchError, setSearchError] = useState('')
 
-  const categoryOptions = useMemo(
-    () => categories.map(cat => cat.name),
-    [categories]
-  )
+  const todayStr = useMemo(() => {
+    const now = new Date()
+    const y = now.getFullYear()
+    const m = String(now.getMonth() + 1).padStart(2, '0')
+    const d = String(now.getDate()).padStart(2, '0')
+    return `${y}-${m}-${d}`
+  }, [])
+
+  const categoryOptions = useMemo(() => {
+    const names = []
+    const seen = new Set()
+
+    const addName = (value) => {
+      const name = String(value || '').trim()
+      if (!name) return
+      const key = name.toLowerCase()
+      if (seen.has(key)) return
+      seen.add(key)
+      names.push(name)
+    }
+
+    categories
+      .filter((cat) =>
+        rooms.some(
+          (room) =>
+            String(room?.category || '').trim().toLowerCase() ===
+            String(cat?.name || '').trim().toLowerCase()
+        )
+      )
+      .forEach(cat => addName(cat?.name))
+    rooms.forEach(room => addName(room?.category))
+
+    return names
+  }, [categories, rooms])
 
   const itemVariants = {
     hidden: { opacity: 0, y: 20 },
@@ -91,12 +122,17 @@ const SearchResults = () => {
 
   const parseIsoDate = (value) => {
     if (!value) return null
+
+    const d = new Date(value)
+    if (!Number.isNaN(d.getTime())) {
+      return new Date(d.getFullYear(), d.getMonth(), d.getDate())
+    }
+
     const datePart = String(value).includes('T') ? String(value).split('T')[0] : String(value)
     const m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(datePart)
     if (m) return new Date(Number(m[1]), Number(m[2]) - 1, Number(m[3]))
-    const d = new Date(value)
-    if (Number.isNaN(d.getTime())) return null
-    return new Date(d.getFullYear(), d.getMonth(), d.getDate())
+
+    return null
   }
 
   const statusBlocksAvailability = (status) => {
@@ -168,6 +204,20 @@ const SearchResults = () => {
   const handleSearch = (e) => {
     e.preventDefault()
 
+    setSearchError('')
+    if (arrival && arrival < todayStr) {
+      setSearchError('Az érkezési dátum nem lehet a múltban.')
+      return
+    }
+    if (departure && departure < todayStr) {
+      setSearchError('A távozási dátum nem lehet a múltban.')
+      return
+    }
+    if (arrival && departure && departure <= arrival) {
+      setSearchError('A távozási dátumnak később kell lennie, mint az érkezési dátumnak.')
+      return
+    }
+
     const params = new URLSearchParams()
 
     if (category) params.append("category", category)
@@ -179,10 +229,10 @@ const SearchResults = () => {
   }
 
   return (
-    <div className='flex flex-col items-center spacer layerAdmin'>
+    <div className='flex flex-col items-center w-full min-h-screen bg-linear-to-br from-gray-50 via-white to-gray-100 relative overflow-hidden'>
 
       {/* SEARCH BAR */}
-      <div className='w-full h-[300px] relative flex items-center justify-center overflow-hidden'>
+      <div className='w-full h-auto sm:h-[400px] md:h-[340px] relative flex items-center justify-center overflow-hidden py-10 sm:py-0'>
         <img
           src="/search.jpg"
           alt="search background"
@@ -190,23 +240,29 @@ const SearchResults = () => {
         />
         <div className='absolute inset-0 bg-black/40 z-10'></div>
 
-        <div className='relative z-20 text-center text-white px-4'>
-          <h1 className='text-4xl md:text-5xl font-bold mb-3'>
+        <div className='relative z-20 text-center text-white px-4 w-full max-w-6xl mx-auto'>
+          <h1 className='text-3xl sm:text-4xl md:text-5xl font-bold mb-2 sm:mb-3 leading-tight'>
             Találd meg a számodra megfelelő szobát!
           </h1>
 
-          <p className='text-sm md:text-lg opacity-90 mb-5'>
+          <p className='text-sm sm:text-base md:text-lg opacity-90 mb-3 sm:mb-5'>
             Gyors, egyszerű és modern foglalás
           </p>
 
+          {searchError && (
+            <div className="text-base md:text-lg text-white mb-3 font-medium">
+              {searchError}
+            </div>
+          )}
+
           <form
             onSubmit={handleSearch}
-            className='bg-white/80 backdrop-blur-md text-gray-800 rounded-xl shadow-xl p-4 grid grid-cols-2 md:grid-cols-5 gap-3 max-w-4xl mx-auto'
+            className='bg-white/80 backdrop-blur-md text-gray-800 rounded-xl shadow-xl p-2 sm:p-4 grid grid-cols-2 md:grid-cols-5 gap-1.5 sm:gap-3 max-w-4xl mx-auto'
           >
             <select
               value={category}
               onChange={(e) => setCategory(e.target.value)}
-              className='p-2 rounded-md border focus:outline-none focus:ring-2 focus:ring-red-400'
+              className='w-full p-1.5 sm:p-2 text-xs sm:text-sm rounded-md border focus:outline-none focus:ring-2 focus:ring-red-400 order-1 md:order-1'
             >
               <option value="">Összes kategória</option>
               {categoryOptions.map((cat) => (
@@ -217,73 +273,82 @@ const SearchResults = () => {
             </select>
 
             <input
-              type="date"
-              value={arrival}
-              onChange={(e) => setArrival(e.target.value)}
-              className='p-2 rounded-md border focus:outline-none focus:ring-2 focus:ring-red-400'
-            />
-
-            <input
-              type="date"
-              value={departure}
-              onChange={(e) => setDeparture(e.target.value)}
-              className='p-2 rounded-md border focus:outline-none focus:ring-2 focus:ring-red-400'
-            />
-
-            <input
               type="number"
               min={1}
               placeholder='Létszám'
               value={people}
               onChange={(e) => setPeople(e.target.value)}
               onKeyDown={(e) => { if (e.key === '-' || e.key === 'e' || e.key === '+') e.preventDefault(); }}
-              className='p-2 rounded-md border focus:outline-none focus:ring-2 focus:ring-red-400'
+              className='w-full p-1.5 sm:p-2 text-xs sm:text-sm rounded-md border focus:outline-none focus:ring-2 focus:ring-red-400 order-2 md:order-4'
             />
 
-            <button className='bg-red-500 hover:bg-red-600 text-white rounded-md px-4 py-2 transition font-semibold'>
+            <input
+              type="date"
+              min={todayStr}
+              value={arrival}
+              onChange={(e) => setArrival(e.target.value)}
+              className='w-full p-1.5 sm:p-2 text-xs sm:text-sm rounded-md border focus:outline-none focus:ring-2 focus:ring-red-400 order-3 md:order-2'
+            />
+
+            <input
+              type="date"
+              min={arrival || todayStr}
+              value={departure}
+              onChange={(e) => setDeparture(e.target.value)}
+              className='w-full p-1.5 sm:p-2 text-xs sm:text-sm rounded-md border focus:outline-none focus:ring-2 focus:ring-red-400 order-4 md:order-3'
+            />
+
+            <button className='w-full bg-red-500 hover:bg-red-600 text-white rounded-md px-4 py-1.5 sm:py-2 text-xs sm:text-sm transition font-semibold col-span-2 md:col-span-1 order-5 md:order-5'>
               Keresés
             </button>
           </form>
         </div>
       </div>
 
-      <div className='w-full h-[180px] flex items-end'> 
-        <div className='w-dvw flex items-center justify-center gap-4 px-6'> 
+      <div className='w-full h-[110px] sm:h-40 flex items-end'> 
+        <div className='w-full flex items-center justify-center gap-3 sm:gap-4 px-4 sm:px-6'> 
           <hr className='flex-1 border-t-2 border-[#4f4f4f]/70' /> 
-          <h1 className='text-shadow-lg/10 font-mono text-[#4f4f4f] text-4xl text-center whitespace-nowrap'>KERESÉSI TALÁLATOK</h1> 
+          <h1 className='text-shadow-lg/10 font-mono text-[#4f4f4f] text-xl sm:text-3xl md:text-4xl text-center whitespace-nowrap'>KERESÉSI TALÁLATOK</h1> 
           <hr className='flex-1 border-t-2 border-[#4f4f4f]/70' /> 
         </div> 
       </div>
 
-      <h1 className='text-3xl mt-2 text-[#4f4f4f]'>
+      <h1 className='text-2xl sm:text-3xl mt-1 sm:mt-2 text-[#4f4f4f]'>
          {filteredRooms.length}
       </h1>
 
-      <motion.div
-        key={animationKey} // 🔥 THIS forces stagger replay
-        variants={containerVariants}
-        initial="hidden"
-        animate="visible"
-        className='flex flex-wrap justify-center gap-8 p-4'
-      >
-        {loading ? (
-          <p>Betöltés...</p>
-        ) : filteredRooms.length === 0 ? (
-          <p>Nincs találat.</p>
-        ) : (
-          filteredRooms.map(room => (
-            <motion.div key={room.id} variants={itemVariants}>
-              <OfferAdmin
-                id={room.id}
-                name={room.name}
-                price={room.price}
-                image={Array.isArray(room.images) ? room.images[0] : ''}
-                reviews={room.reviews || []}
-              />
-            </motion.div>
-          ))
-        )}
-      </motion.div>
+      <div className='w-full max-w-6xl px-4 sm:px-6 mt-4 sm:mt-6 mb-8 sm:mb-10 mx-auto'>
+        <motion.div
+          key={animationKey}
+          variants={containerVariants}
+          initial="hidden"
+          animate="visible"
+          className='flex flex-wrap justify-center lg:justify-start gap-6 sm:gap-8'
+        >
+          {loading ? (
+            <p className='text-gray-600'>Betöltés...</p>
+          ) : filteredRooms.length === 0 ? (
+            <p className='text-gray-600'>Nincs találat.</p>
+          ) : (
+            filteredRooms.map(room => (
+              <motion.div
+                key={room.id}
+                variants={itemVariants}
+                className='w-[calc(50%-0.75rem)] sm:w-auto transition-shadow hover:shadow-2xl rounded-xl'
+              >
+                <OfferAdmin
+                  id={room.id}
+                  name={room.name}
+                  price={room.price}
+                  image={Array.isArray(room.images) ? room.images[0] : ''}
+                  reviews={room.reviews || []}
+                  className='w-full sm:w-72'
+                />
+              </motion.div>
+            ))
+          )}
+        </motion.div>
+      </div>
 
       <Footer />
     </div>

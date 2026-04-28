@@ -1,3 +1,4 @@
+// middleware.js
 import jwt from "jsonwebtoken";
 import { PrismaClient } from "./generated/prisma/client.js";
 

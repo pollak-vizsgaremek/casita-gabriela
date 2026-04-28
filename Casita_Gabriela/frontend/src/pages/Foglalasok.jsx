@@ -30,14 +30,23 @@ const formatDate = (iso) => {
   }
 };
 
-const BookingRow = ({ b, onApprove, onReject, onChangeStatus }) => {
+const formatCurrency = (value) => {
+  const amount = Number(value);
+  if (!Number.isFinite(amount)) return '-';
+  return `${amount.toLocaleString('hu-HU')} Ft`;
+};
+
+const BookingRow = ({ b, onApprove, onReject, onChangeStatus, roomNameById, userNameById }) => {
+  const roomLabel = b?.room?.name || roomNameById.get(b.room_id) || (b.room_id ? `#${b.room_id}` : '-');
+  const userLabel = b?.users?.name || userNameById.get(b.user_id) || (b.user_id ? `#${b.user_id}` : '-');
+
   return (
     <div className="bg-white border rounded-md p-3 shadow-sm flex flex-col md:flex-row md:items-center gap-3">
       <div className="flex-1">
         <div className="text-sm text-gray-600">Foglalás #<span className="font-medium text-gray-800">{b.id}</span></div>
         <div className="text-sm text-gray-700 mt-1">
-          <span className="font-semibold">Szoba:</span> {b.room_id ?? '-'} &nbsp; • &nbsp;
-          <span className="font-semibold">Felhasználó:</span> {b.user_id ?? '-'}
+          <span className="font-semibold">Szoba:</span> {roomLabel} &nbsp; • &nbsp;
+          <span className="font-semibold">Felhasználó:</span> {userLabel}
         </div>
         <div className="text-sm text-gray-600 mt-1">
           <span className="font-semibold">Érkezés:</span> {formatDate(b.arrival_date)} &nbsp; • &nbsp;
@@ -45,7 +54,10 @@ const BookingRow = ({ b, onApprove, onReject, onChangeStatus }) => {
         </div>
         <div className="text-sm text-gray-600 mt-1">
           <span className="font-semibold">Foglalva:</span> {formatDate(b.booking_date)} &nbsp; • &nbsp;
-          <span className="font-semibold">Férőhely:</span> {b.people ?? '-'}
+          <span className="font-semibold">Vendégek:</span> {b.people ?? '-'}
+        </div>
+        <div className="text-sm text-gray-600 mt-1">
+          <span className="font-semibold italic">Végösszeg:</span> <span className="italic">{formatCurrency(b.total_price)}</span>
         </div>
       </div>
 
@@ -116,6 +128,8 @@ const CollapsibleGroup = ({ title, count, openByDefault = false, children, title
 const Foglalasok = () => {
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [bookings, setBookings] = useState([]);
+  const [roomNameById, setRoomNameById] = useState(new Map());
+  const [userNameById, setUserNameById] = useState(new Map());
   const [loading, setLoading] = useState(true);
   const [updatingId, setUpdatingId] = useState(null);
   const [confirmMounted, setConfirmMounted] = useState(false);
@@ -152,12 +166,31 @@ const Foglalasok = () => {
   const fetchBookings = async () => {
     try {
       setLoading(true);
-      const res = await api.get('/booking');
+      const [bookingsRes, roomsRes, usersRes] = await Promise.allSettled([
+        api.get('/booking'),
+        api.get('/rooms'),
+        api.get('/admin/users'),
+      ]);
+
+      if (bookingsRes.status !== 'fulfilled') {
+        throw bookingsRes.reason;
+      }
+
       // ensure array
-      const data = Array.isArray(res.data) ? res.data : [];
+      const data = Array.isArray(bookingsRes.value.data) ? bookingsRes.value.data : [];
       // sort by booking_date desc for display
       data.sort((a, b) => new Date(b.booking_date) - new Date(a.booking_date));
       setBookings(data);
+
+      if (roomsRes.status === 'fulfilled') {
+        const rooms = Array.isArray(roomsRes.value.data) ? roomsRes.value.data : [];
+        setRoomNameById(new Map(rooms.map((r) => [r.id, r.name])));
+      }
+
+      if (usersRes.status === 'fulfilled') {
+        const users = Array.isArray(usersRes.value.data) ? usersRes.value.data : [];
+        setUserNameById(new Map(users.map((u) => [u.id, u.name])));
+      }
     } catch (err) {
       console.error('Error fetching bookings:', err);
     } finally {
@@ -342,6 +375,8 @@ const Foglalasok = () => {
                           onApprove={handleApprove}
                           onReject={handleReject}
                           onChangeStatus={handleChangeStatus}
+                          roomNameById={roomNameById}
+                          userNameById={userNameById}
                         />
                       </div>
                     ))}
@@ -361,6 +396,8 @@ const Foglalasok = () => {
                         onApprove={handleApprove}
                         onReject={handleReject}
                         onChangeStatus={handleChangeStatus}
+                        roomNameById={roomNameById}
+                        userNameById={userNameById}
                       />
                     </div>
                   ))
@@ -379,6 +416,8 @@ const Foglalasok = () => {
                         onApprove={handleApprove}
                         onReject={handleReject}
                         onChangeStatus={handleChangeStatus}
+                        roomNameById={roomNameById}
+                        userNameById={userNameById}
                       />
                     </div>
                   ))
@@ -395,6 +434,8 @@ const Foglalasok = () => {
                         onApprove={handleApprove}
                         onReject={handleReject}
                         onChangeStatus={handleChangeStatus}
+                        roomNameById={roomNameById}
+                        userNameById={userNameById}
                       />
                     </div>
                   ))}

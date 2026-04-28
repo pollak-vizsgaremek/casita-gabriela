@@ -670,7 +670,7 @@ const AdminKezeles = () => {
   }
 
   return (
-    <div className="relative page-container">
+    <div className="relative page-container min-h-screen">
       <style>{`
 /* Entrance animation */
 @keyframes fadeInUp {
@@ -742,6 +742,13 @@ const AdminKezeles = () => {
 .toast-error { background: #dc2626; }
 `}</style>
 
+      {/* Full-page fixed background to prevent white gap while scrolling */}
+      <div
+        aria-hidden
+        className="fixed inset-0 layerAdmin bg-no-repeat bg-center bg-cover"
+        style={{ zIndex: -20 }}
+      />
+
       {/* SINGLE floating button rendered once; position adjusts by JS viewport flag */}
       <button
         onClick={() => navigate("/admin")}
@@ -786,13 +793,8 @@ const AdminKezeles = () => {
 
       {/* Main content */}
       <div
-        className="w-full spacer layerAdmin p-8 bg-gray-50 min-h-screen"
+        className="w-full p-8 min-h-screen"
         style={{
-          backgroundAttachment: "fixed", // háttér legyen fixed, hogy ne maradjon fehér csík scrollnál
-          backgroundSize: "cover",
-          backgroundPosition: "center",
-          backgroundRepeat: "no-repeat",
-          minHeight: "100vh",
           pointerEvents: "auto",
           paddingBottom: "8rem",
         }}

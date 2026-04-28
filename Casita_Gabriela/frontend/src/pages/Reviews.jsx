@@ -148,53 +148,71 @@ const Reviews = () => {
     <div className="flex min-h-screen w-dvw bg-[#f7faf7]">
       <Sidebar isOpen={sidebarOpen} onClose={() => setSidebarOpen(false)} />
 
-      <div className="flex-1 ml-0 md:ml-64 p-6">
-        <h1 className="text-2xl font-semibold mb-4 text-gray-900">Értékelések kezelése</h1>
+      <div className="flex-1 ml-0 md:ml-64">
 
-        <div className="mb-4 max-w-md">
-          <label className="block text-sm font-medium text-gray-700 mb-1">Szűrés szoba szerint</label>
-          <select
-            value={selectedRoomId}
-            onChange={(e) => setSelectedRoomId(e.target.value)}
-            className="w-full bg-white text-gray-900 border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-green-500"
+        {/* MOBILE HEADER */}
+        <header className="flex items-center justify-between px-5 py-4 border-b bg-white md:hidden">
+          <button
+            onClick={() => setSidebarOpen((s) => !s)}
+            className="p-2 rounded-md bg-gray-100 hover:bg-gray-200"
+            aria-label="Menü"
           >
-            <option value="">Összes szoba</option>
-            {rooms.map((room) => (
-              <option key={room.id} value={room.id}>
-                {room.name}
-              </option>
-            ))}
-          </select>
-        </div>
+            <svg className="h-6 w-6 text-gray-700" viewBox="0 0 24 24" fill="none" stroke="currentColor">
+              <path strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" d="M4 6h16M4 12h16M4 18h16" />
+            </svg>
+          </button>
+          <div className="text-lg font-semibold">Értékelések kezelése</div>
+          <div style={{ width: 36 }} />
+        </header>
 
-        {loading ? (
-          <div>Betöltés...</div>
-        ) : (
-          <div className="space-y-4">
-            {reviews.length === 0 && <div className="text-gray-600">Nincsenek értékelések.</div>}
-            {reviews.map((r) => (
-              <div key={r.id} className="bg-white p-4 rounded shadow flex flex-col gap-3 sm:flex-row sm:justify-between sm:items-start">
-                <div className="min-w-0 flex-1">
-                  <div className="text-sm font-semibold text-gray-900 wrap-anywhere">
-                    {r.user ? r.user.name : r.user_id ? `id:${r.user_id}` : 'Ismeretlen'}
-                  </div>
-                  <div className="flex items-center gap-3">
-                    <div className="text-yellow-500 font-bold">{"★".repeat(r.stars)}{"☆".repeat(5 - r.stars)}</div>
-                    <div className="text-sm text-gray-600">{r.stars}/5</div>
-                  </div>
-                  <p className="mt-2 text-gray-800 wrap-anywhere whitespace-pre-wrap">{r.comment}</p>
-                  <div className="mt-2 text-xs text-gray-500">
-                    <div> {r.room ? r.room.name : r.room_id}</div>
-                    <div className="text-gray-400">ID: {r.id}</div>
-                  </div>
-                </div>
-                <div className="sm:ml-4 shrink-0 self-start">
-                  <button onClick={() => requestDeleteReview(r.id)} className="bg-red-100 text-red-700 border border-red-200 px-3 py-1 rounded hover:bg-red-200 transition-colors">Törlés</button>
-                </div>
-              </div>
-            ))}
+        <main className="px-5 pt-5">
+          <h1 className="text-2xl font-semibold mb-4 text-gray-900">Értékelések kezelése</h1>
+
+          <div className="mb-4 max-w-md">
+            <label className="block text-sm font-medium text-gray-700 mb-1">Szűrés szoba szerint</label>
+            <select
+              value={selectedRoomId}
+              onChange={(e) => setSelectedRoomId(e.target.value)}
+              className="w-full bg-white text-gray-900 border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-green-500"
+            >
+              <option value="">Összes szoba</option>
+              {rooms.map((room) => (
+                <option key={room.id} value={room.id}>
+                  {room.name}
+                </option>
+              ))}
+            </select>
           </div>
-        )}
+
+          {loading ? (
+            <div>Betöltés...</div>
+          ) : (
+            <div className="space-y-4">
+              {reviews.length === 0 && <div className="text-gray-600">Nincsenek értékelések.</div>}
+              {reviews.map((r) => (
+                <div key={r.id} className="bg-white p-4 rounded shadow flex flex-col gap-3 sm:flex-row sm:justify-between sm:items-start">
+                  <div className="min-w-0 flex-1">
+                    <div className="text-sm font-semibold text-gray-900 wrap-anywhere">
+                      {r.user ? r.user.name : r.user_id ? `id:${r.user_id}` : 'Ismeretlen'}
+                    </div>
+                    <div className="flex items-center gap-3">
+                      <div className="text-yellow-500 font-bold">{"★".repeat(r.stars)}{"☆".repeat(5 - r.stars)}</div>
+                      <div className="text-sm text-gray-600">{r.stars}/5</div>
+                    </div>
+                    <p className="mt-2 text-gray-800 wrap-anywhere whitespace-pre-wrap">{r.comment}</p>
+                    <div className="mt-2 text-xs text-gray-500">
+                      <div> {r.room ? r.room.name : r.room_id}</div>
+                      <div className="text-gray-400">ID: {r.id}</div>
+                    </div>
+                  </div>
+                  <div className="sm:ml-4 shrink-0 self-start">
+                    <button onClick={() => requestDeleteReview(r.id)} className="bg-red-100 text-red-700 border border-red-200 px-3 py-1 rounded hover:bg-red-200 transition-colors">Törlés</button>
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+        </main>
       </div>
 
       {confirmMounted && (

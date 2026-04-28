@@ -1,6 +1,9 @@
 import nodemailer from "nodemailer";
+
 import jwt from "jsonwebtoken";
+
 import { PrismaClient } from "./generated/prisma/client.js";
+
 import bcrypt from "bcrypt";
 
 const prisma = new PrismaClient();
@@ -102,6 +105,7 @@ export const registerInit = async (req, res) => {
     }
 
     const existing = await prisma.users.findUnique({ where: { email } });
+
     if (existing) {
       return res.status(400).json({ error: "Ezzel az email címmel már regisztráltak." });
     }
@@ -136,13 +140,14 @@ export const registerInit = async (req, res) => {
 
     const html = buildEmailHtml("Regisztráció megerősítése", preface, contentHtml);
 
-    await mailer.sendMail({
+    const info = await mailer.sendMail({
       from: `"Casa Gabriel" <${process.env.EMAIL_USER}>`,
       to: email,
       subject: "Regisztráció megerősítése",
       html,
     });
 
+    console.log("EMAIL SEND OK: registerInit to", email, info?.messageId || "");
     res.json({ message: "Megerősítő email elküldve. Kérjük, ellenőrizd a postaládádat." });
   } catch (err) {
     console.error("REGISTER-INIT ERROR:", err);
@@ -153,11 +158,13 @@ export const registerInit = async (req, res) => {
 export const verifyRegistration = async (req, res) => {
   try {
     const { token } = req.query;
+
     if (!token) {
       return res.status(400).json({ error: "Hiányzó token." });
     }
 
     let payload;
+
     try {
       payload = jwt.verify(token, process.env.JWT_SECRET);
     } catch (err) {
@@ -165,6 +172,7 @@ export const verifyRegistration = async (req, res) => {
     }
 
     const existing = await prisma.users.findUnique({ where: { email: payload.email } });
+
     if (existing) {
       return res.status(400).json({ error: "Ezzel az email címmel már regisztráltak." });
     }
@@ -213,12 +221,14 @@ export const sendBookingCreatedUser = async (booking, room, user) => {
 
     const html = buildEmailHtml("Foglalás beérkezett", preface, contentHtml);
 
-    await mailer.sendMail({
+    const info = await mailer.sendMail({
       from: `"Casa Gabriel" <${process.env.EMAIL_USER}>`,
       to: user.email,
       subject: "Foglalás beérkezett - Casa Gabriel",
       html,
     });
+
+    console.log("EMAIL SEND OK: sendBookingCreatedUser to", user.email, info?.messageId || "");
   } catch (err) {
     console.error("SEND BOOKING CREATED USER ERROR:", err);
   }
@@ -248,12 +258,14 @@ export const sendBookingCreatedAdmin = async (booking, room, user) => {
 
     const html = buildEmailHtml("Új foglalás érkezett", preface, contentHtml);
 
-    await mailer.sendMail({
+    const info = await mailer.sendMail({
       from: `"Casa Gabriel" <${process.env.EMAIL_USER}>`,
       to: ADMIN_EMAIL,
       subject: "Új foglalás érkezett - Casa Gabriel",
       html,
     });
+
+    console.log("EMAIL SEND OK: sendBookingCreatedAdmin to", ADMIN_EMAIL, info?.messageId || "");
   } catch (err) {
     console.error("SEND BOOKING CREATED ADMIN ERROR:", err);
   }
@@ -281,12 +293,14 @@ export const sendBookingApproved = async (booking, room, user) => {
 
     const html = buildEmailHtml("Foglalás elfogadva", preface, contentHtml);
 
-    await mailer.sendMail({
+    const info = await mailer.sendMail({
       from: `"Casa Gabriel" <${process.env.EMAIL_USER}>`,
       to: user.email,
       subject: "Foglalás elfogadva - Casa Gabriel",
       html,
     });
+
+    console.log("EMAIL SEND OK: sendBookingApproved to", user.email, info?.messageId || "");
   } catch (err) {
     console.error("SEND BOOKING APPROVED ERROR:", err);
   }
@@ -315,12 +329,14 @@ export const sendBookingRejected = async (booking, room, user, reason = null) =>
 
     const html = buildEmailHtml("Foglalás elutasítva", preface, contentHtml);
 
-    await mailer.sendMail({
+    const info = await mailer.sendMail({
       from: `"Casa Gabriel" <${process.env.EMAIL_USER}>`,
       to: user.email,
       subject: "Foglalás elutasítva - Casa Gabriel",
       html,
     });
+
+    console.log("EMAIL SEND OK: sendBookingRejected to", user.email, info?.messageId || "");
   } catch (err) {
     console.error("SEND BOOKING REJECTED ERROR:", err);
   }
@@ -350,12 +366,14 @@ export const sendBookingCancelledByUser = async (booking, room, user) => {
 
     const html = buildEmailHtml("Foglalás lemondva (felhasználó)", preface, contentHtml);
 
-    await mailer.sendMail({
+    const info = await mailer.sendMail({
       from: `"Casa Gabriel" <${process.env.EMAIL_USER}>`,
       to: ADMIN_EMAIL,
       subject: "Foglalás lemondva - Casa Gabriel",
       html,
     });
+
+    console.log("EMAIL SEND OK: sendBookingCancelledByUser to", ADMIN_EMAIL, info?.messageId || "");
   } catch (err) {
     console.error("SEND BOOKING CANCELLED BY USER ERROR:", err);
   }
@@ -385,12 +403,14 @@ export const sendUserProfileUpdated = async (user) => {
 
     const html = buildEmailHtml("Fiókadataid frissültek", preface, contentHtml);
 
-    await mailer.sendMail({
+    const info = await mailer.sendMail({
       from: `"Casa Gabriel" <${process.env.EMAIL_USER}>`,
       to: user.email,
       subject: "Fiókadataid frissültek - Casa Gabriel",
       html,
     });
+
+    console.log("EMAIL SEND OK: sendUserProfileUpdated to", user.email, info?.messageId || "");
   } catch (err) {
     console.error("SEND USER PROFILE UPDATED ERROR:", err);
   }
@@ -417,12 +437,14 @@ export const sendUserUpdatedByAdmin = async (user) => {
 
     const html = buildEmailHtml("Fiókadataid módosultak", preface, contentHtml);
 
-    await mailer.sendMail({
+    const info = await mailer.sendMail({
       from: `"Casa Gabriel" <${process.env.EMAIL_USER}>`,
       to: user.email,
       subject: "Fiókadataid módosultak - Casa Gabriel",
       html,
     });
+
+    console.log("EMAIL SEND OK: sendUserUpdatedByAdmin to", user.email, info?.messageId || "");
   } catch (err) {
     console.error("SEND USER UPDATED BY ADMIN ERROR:", err);
   }
@@ -442,12 +464,14 @@ export const sendPasswordChangedEmail = async (user) => {
 
     const html = buildEmailHtml("Jelszó megváltozott", preface, contentHtml);
 
-    await mailer.sendMail({
+    const info = await mailer.sendMail({
       from: `"Casa Gabriel" <${process.env.EMAIL_USER}>`,
       to: user.email,
       subject: "Jelszó megváltozott - Casa Gabriel",
       html,
     });
+
+    console.log("EMAIL SEND OK: sendPasswordChangedEmail to", user.email, info?.messageId || "");
   } catch (err) {
     console.error("SEND PASSWORD CHANGED EMAIL ERROR:", err);
   }
@@ -475,14 +499,101 @@ export const sendReviewCreatedAdmin = async (review, room, user) => {
 
     const html = buildEmailHtml("Új értékelés érkezett", preface, contentHtml);
 
-    await mailer.sendMail({
+    const info = await mailer.sendMail({
       from: `"Casa Gabriel" <${process.env.EMAIL_USER}>`,
       to: ADMIN_EMAIL,
       subject: "Új értékelés érkezett - Casa Gabriel",
       html,
     });
+
+    console.log("EMAIL SEND OK: sendReviewCreatedAdmin to", ADMIN_EMAIL, info?.messageId || "");
   } catch (err) {
     console.error("SEND REVIEW CREATED ADMIN ERROR:", err);
+  }
+};
+
+/* ---------- Új: Email változás értesítések ---------- */
+
+/**
+ * sendEmailChangedOld
+ * Rövid értesítés a régi email címre: "Az email címed megváltozott".
+ * params: { name, oldEmail, newEmail, byAdmin (optional boolean) }
+ */
+export const sendEmailChangedOld = async (params) => {
+  try {
+    const { name, oldEmail, newEmail, byAdmin = false } = params;
+
+    if (!oldEmail) {
+      console.warn("sendEmailChangedOld called without oldEmail, skipping.");
+      return;
+    }
+
+    const preface = `Kedves ${name || "Felhasználó"}, értesítünk, hogy a fiókodhoz tartozó email cím megváltozott.`;
+    const contentHtml = `
+      <p style="margin:0 0 10px 0;">Ez az értesítés azért érkezik, mert a fiókodhoz tartozó email címet megváltoztattuk.</p>
+      <table role="presentation" style="width:100%;margin-top:8px;border-collapse:collapse;color:#444;">
+        <tr><td style="padding:6px 0;width:160px;"><strong>Régi email:</strong></td><td style="padding:6px 0;">${oldEmail || "—"}</td></tr>
+        <tr><td style="padding:6px 0;"><strong>Új email:</strong></td><td style="padding:6px 0;">${newEmail || "—"}</td></tr>
+      </table>
+      <p style="margin-top:12px;color:#666;">${byAdmin ? "Az emailt az admin módosította." : "Ha nem te kezdeményezted ezt a változtatást, kérjük, azonnal vedd fel velünk a kapcsolatot."}</p>
+    `;
+
+    const html = buildEmailHtml("Email cím megváltozott", preface, contentHtml);
+
+    const info = await mailer.sendMail({
+      from: `"Casa Gabriel" <${process.env.EMAIL_USER}>`,
+      to: oldEmail,
+      subject: "Értesítés: email címed megváltozott - Casa Gabriel",
+      html,
+    });
+
+    console.log("EMAIL SEND OK: sendEmailChangedOld to", oldEmail, info?.messageId || "");
+  } catch (err) {
+    console.error("SEND EMAIL CHANGED OLD ERROR:", err);
+  }
+};
+
+/**
+ * sendEmailChangedNew
+ * Teljes értesítés az új email címre: profil részletek + értesítés, hogy az email megváltozott.
+ * - user: a frissített user objektum
+ * - previousEmail: a régi email cím (string)
+ * - opts: opcionális objektum, pl. { byAdmin: true }
+ */
+export const sendEmailChangedNew = async (user, previousEmail = null, opts = {}) => {
+  try {
+    if (!user || !user.email) {
+      console.warn("sendEmailChangedNew called without valid user.email, skipping.");
+      return;
+    }
+
+    const byAdmin = opts.byAdmin || false;
+
+    const preface = `Kedves ${user.name || "Felhasználó"}, üdvözlünk az új email címeden. Az adataid frissültek.`;
+    const contentHtml = `
+      <p style="margin:0 0 10px 0;">Az alábbi fiók adatai módosultak, és mostantól erre az email címre érkeznek az értesítések:</p>
+      <table role="presentation" style="width:100%;margin-top:8px;border-collapse:collapse;color:#444;">
+        <tr><td style="padding:6px 0;width:160px;"><strong>Név:</strong></td><td style="padding:6px 0;">${user.name || "—"}</td></tr>
+        <tr><td style="padding:6px 0;"><strong>Új email:</strong></td><td style="padding:6px 0;">${user.email || "—"}</td></tr>
+        <tr><td style="padding:6px 0;"><strong>Régi email:</strong></td><td style="padding:6px 0;">${previousEmail || "—"}</td></tr>
+        <tr><td style="padding:6px 0;"><strong>Telefonszám:</strong></td><td style="padding:6px 0;">${user.phone_number || "—"}</td></tr>
+        <tr><td style="padding:6px 0;"><strong>Cím:</strong></td><td style="padding:6px 0;">${user.address || "—"}</td></tr>
+      </table>
+      <p style="margin-top:12px;color:#666;">${byAdmin ? "Az emailt és/vagy egyéb adatokat az admin módosította." : "Ha nem te kezdeményezted ezt a változtatást, kérjük, azonnal vedd fel velünk a kapcsolatot."}</p>
+    `;
+
+    const html = buildEmailHtml("Fiókadataid és email címed frissült", preface, contentHtml);
+
+    const info = await mailer.sendMail({
+      from: `"Casa Gabriel" <${process.env.EMAIL_USER}>`,
+      to: user.email,
+      subject: "Fiókadataid és email címed frissült - Casa Gabriel",
+      html,
+    });
+
+    console.log("EMAIL SEND OK: sendEmailChangedNew to", user.email, info?.messageId || "");
+  } catch (err) {
+    console.error("SEND EMAIL CHANGED NEW ERROR:", err);
   }
 };
 
@@ -491,7 +602,9 @@ export const sendReviewCreatedAdmin = async (review, room, user) => {
 export const forgotPassword = async (req, res) => {
   try {
     const { email } = req.body;
+
     const user = await prisma.users.findUnique({ where: { email } });
+
     if (!user) {
       return res.status(400).json({ error: "Nincs ilyen email címmel regisztrált felhasználó." });
     }
@@ -512,13 +625,14 @@ export const forgotPassword = async (req, res) => {
 
     const html = buildEmailHtml("Jelszó visszaállítás", preface, contentHtml);
 
-    await mailer.sendMail({
+    const info = await mailer.sendMail({
       from: `"Casa Gabriel" <${process.env.EMAIL_USER}>`,
       to: email,
       subject: "Jelszó visszaállítás",
       html,
     });
 
+    console.log("EMAIL SEND OK: forgotPassword to", email, info?.messageId || "");
     res.json({ message: "Jelszó visszaállító email elküldve!" });
   } catch (err) {
     console.error("FORGOT-PASSWORD ERROR:", err);
@@ -529,11 +643,13 @@ export const forgotPassword = async (req, res) => {
 export const resetPassword = async (req, res) => {
   try {
     const { token, password } = req.body;
+
     if (!token || !password) {
       return res.status(400).json({ error: "Hiányzó adatok." });
     }
 
     let payload;
+
     try {
       payload = jwt.verify(token, process.env.JWT_SECRET);
     } catch {
@@ -541,6 +657,7 @@ export const resetPassword = async (req, res) => {
     }
 
     const hashed = await bcrypt.hash(password, 10);
+
     await prisma.users.update({ where: { id: payload.id }, data: { password: hashed } });
 
     // Küldünk értesítést a felhasználónak, hogy a jelszó sikeresen megváltozott
@@ -562,29 +679,12 @@ export const resetPassword = async (req, res) => {
 
 export const contactForm = async (req, res) => {
   const { name, email, phone, subject, message } = req.body;
+
   if (!name || !email || !phone || !subject || !message) {
     return res.status(400).json({ error: "Minden mező kötelező!" });
   }
 
   try {
-    const now = new Date();
-    const startOfDay = new Date(now.getFullYear(), now.getMonth(), now.getDate());
-
-    const dailyCount = await prisma.form.count({
-      where: {
-        email,
-        created_at: {
-          gte: startOfDay,
-        },
-      },
-    });
-
-    if (dailyCount >= 1) {
-      return res.status(429).json({
-        error: "Naponta legfeljebb 1 üzenetet küldhetsz.",
-      });
-    }
-
     await prisma.form.create({
       data: {
         name,
@@ -610,23 +710,27 @@ export const contactForm = async (req, res) => {
     `;
     const adminHtml = buildEmailHtml(`Új kapcsolatfelvétel: ${subject}`, adminPreface, adminContent);
 
-    await mailer.sendMail({
+    const infoAdmin = await mailer.sendMail({
       from: `"Casa Gabriel" <${process.env.EMAIL_USER}>`,
       to: ADMIN_EMAIL,
       subject: `Új kapcsolatfelvétel: ${subject}`,
       html: adminHtml,
     });
 
+    console.log("EMAIL SEND OK: contactForm to admin", ADMIN_EMAIL, infoAdmin?.messageId || "");
+
     const userPreface = `Kedves ${name}, köszönjük, hogy felvetted velünk a kapcsolatot.`;
     const userContent = `<p style="margin:0 0 8px 0;">Hamarosan válaszolunk a megkeresésedre.</p>`;
     const userHtml = buildEmailHtml("Üzeneted megkaptuk", userPreface, userContent);
 
-    await mailer.sendMail({
+    const infoUser = await mailer.sendMail({
       from: `"Casa Gabriel" <${process.env.EMAIL_USER}>`,
       to: email,
       subject: "Köszönjük az üzeneted!",
       html: userHtml,
     });
+
+    console.log("EMAIL SEND OK: contactForm to user", email, infoUser?.messageId || "");
 
     res.json({ message: "Üzenet sikeresen elküldve!" });
   } catch (err) {

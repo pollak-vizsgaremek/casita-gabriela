@@ -13,11 +13,11 @@ model booking {
   arrival_date   DateTime @db.Date
   departure_date DateTime @db.Date
   people         Int
-  total_price    Int      @default(0)
   booking_date   DateTime @db.DateTime(0)
   status         String   @db.VarChar(50)
   user_id        Int
   room_id        Int
+  total_price    Int      @default(0)
   users          users    @relation(fields: [user_id], references: [id], onUpdate: Restrict, map: "booking_ibfk_1")
   room           room     @relation(fields: [room_id], references: [id], onUpdate: Restrict, map: "booking_ibfk_2")
 
@@ -26,33 +26,39 @@ model booking {
 }
 
 model form {
-  id           Int    @id @default(autoincrement())
-  name         String @db.Text
-  email        String @db.VarChar(50)
-  phone_number String @db.VarChar(20)
-  topic        String @db.VarChar(50)
-  description  String @db.VarChar(1000)
+  id           Int      @id @default(autoincrement())
+  name         String   @db.Text
+  email        String   @db.VarChar(50)
+  phone_number String   @db.VarChar(20)
+  topic        String   @db.VarChar(50)
+  description  String   @db.VarChar(1000)
   created_at   DateTime @default(now()) @db.DateTime(0)
 }
 
 model category {
-  id             Int           @id @default(autoincrement())
-  name           String        @unique @db.VarChar(50)
-  image          String        @db.LongText
+  id    Int    @id @default(autoincrement())
+  name  String @unique @db.VarChar(50)
+  image String @db.LongText
+
+  rooms room[] @relation("RoomCategory")
 }
 
 model room {
-  id             Int           @id @default(autoincrement())
-  name           String        @db.VarChar(30)
-  description    String        @db.VarChar(1000)
+  id             Int    @id @default(autoincrement())
+  name           String @db.VarChar(30)
+  description    String @db.VarChar(1000)
   price          Int
   ac_availablity Int
-  category       String        @db.VarChar(20)
-  space          Int
-  images         String        @db.LongText
-  isHighlighted  Boolean       @default(false)
-  booking        booking[]
-  room_review    room_review[]
+
+  category     Int?
+  category_rel category? @relation("RoomCategory", fields: [category], references: [id])
+
+  space         Int
+  images        String  @db.LongText
+  isHighlighted Boolean @default(false)
+
+  booking     booking[]
+  room_review room_review[]
 }
 
 model room_review {
@@ -79,6 +85,6 @@ model users {
   email           String        @unique(map: "unique_email") @db.VarChar(50)
   isAdmin         Boolean?      @default(false)
   isFirstTimeUser Boolean?      @default(true)
-  room_review     room_review[]
   booking         booking[]
+  room_review     room_review[]
 }

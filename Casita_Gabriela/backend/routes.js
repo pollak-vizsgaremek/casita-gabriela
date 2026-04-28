@@ -1,3 +1,4 @@
+// routes.js
 import {
   login,
   getRooms,

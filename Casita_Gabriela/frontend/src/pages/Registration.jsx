@@ -1,4 +1,5 @@
 // Registration.jsx
+
 import React, { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import axios from 'axios';
@@ -22,6 +23,7 @@ const Registration = () => {
   const [passwordErrors, setPasswordErrors] = useState([]);
   const [message, setMessage] = useState(null);
   const [disabled, setDisabled] = useState(false);
+
   const navigate = useNavigate();
 
   const getPasswordErrors = (pw) => {
@@ -40,7 +42,6 @@ const Registration = () => {
     const age = today.getFullYear() - birthDate.getFullYear();
     const monthDiff = today.getMonth() - birthDate.getMonth();
     const dayDiff = today.getDate() - birthDate.getDate();
-    
     if (monthDiff < 0 || (monthDiff === 0 && dayDiff < 0)) {
       return age - 1 >= 18;
     }
@@ -145,23 +146,22 @@ const Registration = () => {
 
   return (
     <div className='p-0 m-0 gap-0 flex flex-col min-h-screen bg-[#f7f3e9] relative'>
-      <style>
-        {`
-          input[type="date"] {
-            appearance: none;
-            -webkit-appearance: none;
-            position: relative;
-          }
-          input[type="date"]::-webkit-calendar-picker-indicator {
-            filter: invert(0.3);
-            cursor: pointer;
-          }
-        `}
-      </style>
+      <style>{`
+        input[type="date"] {
+          appearance: none;
+          -webkit-appearance: none;
+          position: relative;
+        }
+        input[type="date"]::-webkit-calendar-picker-indicator {
+          filter: invert(0.3);
+          cursor: pointer;
+        }
+      `}</style>
 
       <video autoPlay loop muted playsInline className='absolute top-0 left-0 w-full h-auto hidden lg:block pointer-events-none' style={{ zIndex: 0 }}>
         <source src='/catBack.mp4' type='video/mp4' />
       </video>
+
       <video autoPlay loop muted playsInline className='absolute top-0 left-0 w-full h-auto lg:hidden block pointer-events-none origin-top scale-[1.12]' style={{ zIndex: 0 }}>
         <source src='/catBack.mp4' type='video/mp4' />
       </video>
@@ -171,14 +171,7 @@ const Registration = () => {
           <div className='fade-in text-black bg-white shadow-md rounded-xl p-4 w-[86%] max-w-[420px] lg:w-1/3 flex flex-col items-center mt-48 mb-2 sm:mt-6 sm:mb-6'>
             <p className='text-black mb-4'>Regisztráció</p>
 
-            {message && (
-              <div className="w-full mb-4 p-3 bg-green-50 border border-green-200 text-green-800 rounded">
-                {message}
-              </div>
-            )}
-
             <form className='w-full flex flex-col items-center' onSubmit={handleSubmit}>
-              
               <input name="name" type='text' placeholder='Teljes név'
                 className='mb-2 p-2 border border-gray-300 rounded w-full'
                 value={form.name} onChange={handleChange} disabled={disabled} />
@@ -260,6 +253,12 @@ const Registration = () => {
                   <li key={i}>{e}</li>
                 ))}
               </ul>
+            )}
+
+            {message && (
+              <div className="w-full mt-4 p-3 bg-green-50 border border-green-200 text-green-800 rounded">
+                {message}
+              </div>
             )}
 
             <p className='mt-4'>

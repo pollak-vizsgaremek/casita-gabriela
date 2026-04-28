@@ -4,14 +4,17 @@ import React, { useState, useEffect, useRef } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import api from "../services/api";
 
+
 const AdminKezeles = () => {
   const { id } = useParams();
   const navigate = useNavigate();
+
 
   const TITLE_MAX = 30; // schema: room.name varchar(30)
   const DESC_MAX = 1000; // schema: room.description varchar(1000)
   const CAPACITY_MAX = 999; // reasonable upper bound based on schema int
   const PRICE_MAX = 10000000; // arbitrary large cap to avoid overflow
+
 
   const [formData, setFormData] = useState({
     title: "",
@@ -23,6 +26,7 @@ const AdminKezeles = () => {
     ac_availablity: 0,
   });
 
+
   // categories as objects { id, name }
   const [categories, setCategories] = useState([]);
   const [mainImageFile, setMainImageFile] = useState(null);
@@ -33,11 +37,14 @@ const AdminKezeles = () => {
   const [isEditing, setIsEditing] = useState(false);
   const [initialLoad, setInitialLoad] = useState(true);
 
+
   const mainInputRef = useRef(null);
   const extraInputRef = useRef(null);
 
+
   const [isDraggingFile, setIsDraggingFile] = useState(false);
   const dragCounter = useRef(0);
+
 
   // toast for bottom-right error/info messages
   const [toast, setToast] = useState({
@@ -46,11 +53,13 @@ const AdminKezeles = () => {
     type: "info",
   });
 
+
   // single-button rendering state based on viewport width
   const [isMobileViewport, setIsMobileViewport] = useState(() => {
     if (typeof window === "undefined") return false;
     return window.matchMedia("(max-width: 767px)").matches;
   });
+
 
   useEffect(() => {
     const mq = window.matchMedia("(max-width: 767px)");
@@ -63,6 +72,7 @@ const AdminKezeles = () => {
     };
   }, []);
 
+
   // Ensure page/body background covers full viewport and stays fixed to avoid white gap on scroll
   useEffect(() => {
     const prevBodyBgAttachment = document.body.style.backgroundAttachment;
@@ -70,12 +80,14 @@ const AdminKezeles = () => {
     const prevBodyBgPos = document.body.style.backgroundPosition;
     const prevBodyMinHeight = document.body.style.minHeight;
 
+
     document.documentElement.style.height = "100%";
     document.body.style.minHeight = "100%";
     document.body.style.backgroundAttachment = "fixed";
     document.body.style.backgroundSize = "cover";
     document.body.style.backgroundPosition = "center";
     // leave background image itself to global CSS or parent layout; we only ensure sizing/attachment
+
 
     return () => {
       // restore previous values on unmount
@@ -87,6 +99,7 @@ const AdminKezeles = () => {
     };
   }, []);
 
+
   useEffect(() => {
     // load categories first so we can map names/ids when fetching a room
     loadCategories().then(() => {
@@ -96,6 +109,7 @@ const AdminKezeles = () => {
         setInitialLoad(false);
       }
     });
+
 
     const onDragEnter = (e) => {
       e.preventDefault();
@@ -108,6 +122,7 @@ const AdminKezeles = () => {
       }
     };
 
+
     const onDragLeave = (e) => {
       e.preventDefault();
       dragCounter.current -= 1;
@@ -117,7 +132,9 @@ const AdminKezeles = () => {
       }
     };
 
+
     const onDragOver = (e) => e.preventDefault();
+
 
     const onDrop = (e) => {
       e.preventDefault();
@@ -125,10 +142,12 @@ const AdminKezeles = () => {
       setIsDraggingFile(false);
     };
 
+
     window.addEventListener("dragenter", onDragEnter);
     window.addEventListener("dragleave", onDragLeave);
     window.addEventListener("dragover", onDragOver);
     window.addEventListener("drop", onDrop);
+
 
     return () => {
       window.removeEventListener("dragenter", onDragEnter);
@@ -137,8 +156,10 @@ const AdminKezeles = () => {
       window.removeEventListener("drop", onDrop);
     };
 
+
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [id]);
+
 
   const loadCategories = async () => {
     try {
@@ -161,6 +182,7 @@ const AdminKezeles = () => {
     }
   };
 
+
   const fetchRoom = async () => {
     if (!id) return;
     try {
@@ -169,8 +191,10 @@ const AdminKezeles = () => {
       const response = await api.get(`/rooms/${id}`);
       const room = response.data;
 
+
       // images
       const parsedImages = parseImagesFromServer(room.images);
+
 
       // Determine category id to set into formData.type
       // Backend may return category as number in room.category or nested relation room.category_rel
@@ -195,6 +219,7 @@ const AdminKezeles = () => {
         categoryId = "";
       }
 
+
       setFormData({
         title: room.name || "",
         description: room.description || "",
@@ -204,6 +229,7 @@ const AdminKezeles = () => {
         isHighlighted: room.isHighlighted ?? false,
         ac_availablity: room.ac_availablity ?? 0,
       });
+
 
       if (parsedImages.length > 0) {
         setMainImagePreview(parsedImages[0]);
@@ -217,6 +243,7 @@ const AdminKezeles = () => {
         setMainImageFile(null);
         setExtraImages([]);
       }
+
 
       setIsEditing(true);
     } catch (err) {
@@ -232,6 +259,7 @@ const AdminKezeles = () => {
       setInitialLoad(false);
     }
   };
+
 
   const parseImagesFromServer = (imagesField) => {
     if (!imagesField) return [];
@@ -256,6 +284,7 @@ const AdminKezeles = () => {
     }
   };
 
+
   const normalizePreview = (s) => {
     if (!s) return null;
     if (s.startsWith("data:")) return s;
@@ -263,6 +292,7 @@ const AdminKezeles = () => {
     if (s.startsWith("/")) return `${window.location.origin}${s}`;
     return s;
   };
+
 
   const handleInputChange = (e) => {
     const { name, type, checked, value } = e.target;
@@ -300,6 +330,7 @@ const AdminKezeles = () => {
     }));
   };
 
+
   const handleMainDrop = (e) => {
     e.preventDefault();
     const file = e.dataTransfer.files?.[0];
@@ -308,6 +339,7 @@ const AdminKezeles = () => {
     setIsDraggingFile(false);
   };
 
+
   const handleMainFile = (file) => {
     setMainImageFile(file);
     const reader = new FileReader();
@@ -315,15 +347,18 @@ const AdminKezeles = () => {
     reader.readAsDataURL(file);
   };
 
+
   const handleMainImageChange = (e) => {
     const file = e.target.files?.[0];
     if (file) handleMainFile(file);
   };
 
+
   const handleRemoveMainImage = () => {
     setMainImageFile(null);
     setMainImagePreview(null);
   };
+
 
   const handleExtraDrop = (e) => {
     e.preventDefault();
@@ -332,6 +367,7 @@ const AdminKezeles = () => {
     dragCounter.current = 0;
     setIsDraggingFile(false);
   };
+
 
   const handleAddExtraFiles = (files) => {
     const newExtras = files.map((file, idx) => {
@@ -351,15 +387,18 @@ const AdminKezeles = () => {
     setExtraImages((prev) => [...prev, ...newExtras]);
   };
 
+
   const handleExtraInputChange = (e) => {
     const files = Array.from(e.target.files || []);
     if (files.length) handleAddExtraFiles(files);
     e.target.value = "";
   };
 
+
   const handleRemoveExtraImage = (idToRemove) => {
     setExtraImages((prev) => prev.filter((img) => img.id !== idToRemove));
   };
+
 
   const moveExtraImage = (id, direction) => {
     setExtraImages((prev) => {
@@ -374,6 +413,7 @@ const AdminKezeles = () => {
       return newArr;
     });
   };
+
 
   const uploadFilesToServer = async (files) => {
     if (!files || files.length === 0) return [];
@@ -400,6 +440,7 @@ const AdminKezeles = () => {
     }
   };
 
+
   const collectImagesForSave = async () => {
     const imagesToSave = [];
     if (mainImageFile) {
@@ -412,6 +453,7 @@ const AdminKezeles = () => {
           : mainImagePreview
       );
     }
+
 
     for (const ex of extraImages) {
       if (ex.file) {
@@ -426,8 +468,10 @@ const AdminKezeles = () => {
       }
     }
 
+
     return imagesToSave;
   };
+
 
   const showToast = (text, type = "info", duration = 4000) => {
     setToast({ visible: true, text, type });
@@ -436,8 +480,10 @@ const AdminKezeles = () => {
     }, duration);
   };
 
+
   const handleSubmit = async (e) => {
     if (e && typeof e.preventDefault === "function") e.preventDefault();
+
 
     // client-side validation: if any required field missing, show toast bottom-right and don't call backend
     if (
@@ -463,10 +509,12 @@ const AdminKezeles = () => {
       return;
     }
 
+
     setLoading(true);
     setMessage("");
     try {
       const imagesPaths = await collectImagesForSave();
+
 
       // roomData must send category as id (Int) according to schema
       const roomData = {
@@ -479,6 +527,7 @@ const AdminKezeles = () => {
         isHighlighted: formData.isHighlighted,
         ac_availablity: formData.ac_availablity ? 1 : 0,
       };
+
 
       if (isEditing && id) {
         try {
@@ -495,6 +544,7 @@ const AdminKezeles = () => {
           if (backendMsg) showToast(`Backend hiba: ${backendMsg}`, "error");
           throw putErr;
         }
+
 
         const fresh = await api.get(`/rooms/${id}`);
         const parsed = parseImagesFromServer(fresh.data.images);
@@ -609,6 +659,7 @@ const AdminKezeles = () => {
         }
       }
 
+
       await loadCategories();
     } catch (err) {
       console.error("Full error object during save:", err);
@@ -624,6 +675,7 @@ const AdminKezeles = () => {
       setLoading(false);
     }
   };
+
 
   const handleDelete = async () => {
     if (!isEditing || !id) return;
@@ -661,6 +713,7 @@ const AdminKezeles = () => {
     }
   };
 
+
   if (initialLoad) {
     return (
       <div className="flex items-center justify-center min-h-screen w-dvw bg-[#0b1f13]">
@@ -668,6 +721,7 @@ const AdminKezeles = () => {
       </div>
     );
   }
+
 
   return (
     <div className="relative page-container min-h-screen">
@@ -680,6 +734,7 @@ const AdminKezeles = () => {
 .fade-in-up { animation: fadeInUp 640ms cubic-bezier(.2,.9,.2,1) both; }
 .fade-in-up.delay-1 { animation-delay: 80ms; }
 .fade-in-up.delay-2 { animation-delay: 160ms; }
+
 
 /* SINGLE floating button styling */
 .floating-btn {
@@ -708,8 +763,10 @@ const AdminKezeles = () => {
   .floating-btn { width: 46px; height: 46px; }
 }
 
+
 .desc-area { height: 18rem; min-height: 10rem; max-height: 28rem; }
 @media (max-width: 767px) { .desc-area { height: 12rem; } }
+
 
 @keyframes slideIn {
   from { opacity: 0; transform: translateY(8px); }
@@ -717,15 +774,19 @@ const AdminKezeles = () => {
 }
 .extra-image-item { animation: slideIn 0.3s ease-out; }
 
+
 .main-image { width: 100%; height: auto; max-height: 20rem; object-fit: cover; display: block; border-radius: 0.5rem; }
 @media (max-width: 420px) { .main-image { max-height: 24rem; } }
 
+
 .thumb-image { width: 100%; height: 100%; object-fit: cover; display: block; }
+
 
 @media (max-width: 640px) {
   .yellow-card { width: calc(100% + 2rem); margin-left: -1rem; margin-right: -1rem; padding-left: 1.25rem; padding-right: 1.25rem; border-radius: 0.5rem; }
   .inner-white { width: calc(100% + 1.5rem); margin-left: -0.75rem; margin-right: -0.75rem; padding-left: 0.75rem; padding-right: 0.75rem; }
 }
+
 
 /* toast styles */
 .toast-box {
@@ -742,12 +803,14 @@ const AdminKezeles = () => {
 .toast-error { background: #dc2626; }
 `}</style>
 
+
       {/* Full-page fixed background to prevent white gap while scrolling */}
       <div
         aria-hidden
         className="fixed inset-0 layerAdmin bg-no-repeat bg-center bg-cover"
         style={{ zIndex: -20 }}
       />
+
 
       {/* SINGLE floating button rendered once; position adjusts by JS viewport flag */}
       <button
@@ -780,6 +843,7 @@ const AdminKezeles = () => {
         </svg>
       </button>
 
+
       {/* Drag overlay */}
       <div
         aria-hidden
@@ -790,6 +854,7 @@ const AdminKezeles = () => {
         }}
         className="fixed inset-0 bg-blue-500 z-40"
       />
+
 
       {/* Main content */}
       <div
@@ -827,6 +892,7 @@ const AdminKezeles = () => {
                   </div>
                 </div>
 
+
                 <div>
                   <label className="block text-sm font-semibold text-gray-700 mb-2">
                     Szoba leírása
@@ -844,6 +910,7 @@ const AdminKezeles = () => {
                     {formData.description.length}/{DESC_MAX}
                   </div>
                 </div>
+
 
                 <div className="grid grid-cols-3 gap-4">
                   <div>
@@ -864,6 +931,7 @@ const AdminKezeles = () => {
                     >
                       <option value="">Válassz kategóriát...</option>
 
+
                       {/* If the current type is set but not in categories, try to show it as a temporary option */}
                       {formData.type &&
                         !categories.some((c) => c.id === formData.type) && (
@@ -872,6 +940,7 @@ const AdminKezeles = () => {
                           </option>
                         )}
 
+
                       {categories.map((c) => (
                         <option key={c.id} value={c.id}>
                           {c.name}
@@ -879,6 +948,7 @@ const AdminKezeles = () => {
                       ))}
                     </select>
                   </div>
+
 
                   <div>
                     <label className="block text-xs font-semibold text-gray-700 mb-2">
@@ -922,6 +992,7 @@ const AdminKezeles = () => {
                     </div>
                   </div>
 
+
                   <div>
                     <label className="block text-xs font-semibold text-gray-700 mb-2">
                       Ár (Ft/fő/éj)
@@ -958,6 +1029,7 @@ const AdminKezeles = () => {
                   </div>
                 </div>
 
+
                 {/* Kiemelt checkbox */}
                 <div className="flex items-center gap-2 mt-4">
                   <input
@@ -975,6 +1047,7 @@ const AdminKezeles = () => {
                     Kiemelt szoba
                   </label>
                 </div>
+
 
                 {/* AC availability checkbox (ÚJ) */}
                 <div className="flex items-center gap-2 mt-2">
@@ -999,6 +1072,7 @@ const AdminKezeles = () => {
                   </label>
                 </div>
 
+
                 <div className="flex flex-col gap-2">
                   <button
                     type="button"
@@ -1013,6 +1087,7 @@ const AdminKezeles = () => {
                       : "Szoba hozzáadása"}
                   </button>
 
+
                   {isEditing && (
                     <button
                       type="button"
@@ -1024,6 +1099,7 @@ const AdminKezeles = () => {
                     </button>
                   )}
                 </div>
+
 
                 {message && (
                   <div
@@ -1039,6 +1115,7 @@ const AdminKezeles = () => {
               </div>
             </div>
 
+
             {/* Right: main image preview + extra images controls */}
             <div
               className="yellow-card bg-[#FFFECE] p-8 rounded-lg shadow-md/40 fade-in-up delay-2"
@@ -1050,6 +1127,7 @@ const AdminKezeles = () => {
                 <h2 className="text-lg font-semibold text-gray-800 mb-2">
                   Szoba képe
                 </h2>
+
 
                 <div
                   className={`inner-white w-full transition-shadow duration-150 ${
@@ -1091,6 +1169,7 @@ const AdminKezeles = () => {
                   )}
                 </div>
 
+
                 <div className="w-full flex gap-3 justify-center">
                   <button
                     type="button"
@@ -1099,6 +1178,7 @@ const AdminKezeles = () => {
                   >
                     {mainImagePreview ? "Kép cseréje" : "Kép feltöltése"}
                   </button>
+
 
                   {mainImagePreview && (
                     <button
@@ -1111,6 +1191,7 @@ const AdminKezeles = () => {
                   )}
                 </div>
 
+
                 <input
                   ref={mainInputRef}
                   id="mainImageInput"
@@ -1119,6 +1200,7 @@ const AdminKezeles = () => {
                   onChange={handleMainImageChange}
                   className="hidden"
                 />
+
 
                 <div
                   className={`inner-white w-full mt-4 bg-white p-4 rounded-md border border-gray-200 transition-shadow duration-150 ${
@@ -1167,6 +1249,7 @@ const AdminKezeles = () => {
                     </div>
                   </div>
 
+
                   <input
                     ref={extraInputRef}
                     id="extraImagesInput"
@@ -1176,6 +1259,7 @@ const AdminKezeles = () => {
                     onChange={handleExtraInputChange}
                     className="hidden"
                   />
+
 
                   {extraImages.length === 0 ? (
                     <p className="text-gray-500 text-sm">
@@ -1202,6 +1286,7 @@ const AdminKezeles = () => {
                             )}
                           </div>
 
+
                           <div className="flex-1">
                             <p className="text-sm font-medium">
                               {img.file?.name || `Kép ${idx + 1}`}
@@ -1210,6 +1295,7 @@ const AdminKezeles = () => {
                               Előnézet
                             </div>
                           </div>
+
 
                           <div className="flex items-center gap-2">
                             <button
@@ -1222,6 +1308,7 @@ const AdminKezeles = () => {
                               ▲
                             </button>
 
+
                             <button
                               type="button"
                               onClick={() => moveExtraImage(img.id, "down")}
@@ -1231,6 +1318,7 @@ const AdminKezeles = () => {
                             >
                               ▼
                             </button>
+
 
                             <button
                               type="button"
@@ -1246,6 +1334,7 @@ const AdminKezeles = () => {
                     </div>
                   )}
                 </div>
+
 
                 <div className="w-full mt-4">
                   <h3 className="text-sm font-semibold text-gray-700 mb-2">
@@ -1280,9 +1369,11 @@ const AdminKezeles = () => {
             </div>
           </div>
 
+
           {/* Removed Ratings and Reservations sections as requested */}
         </div>
       </div>
+
 
       {/* Toast / bottom-right small box for errors and info */}
       {toast.visible && (
@@ -1303,5 +1394,6 @@ const AdminKezeles = () => {
     </div>
   );
 };
+
 
 export default AdminKezeles;

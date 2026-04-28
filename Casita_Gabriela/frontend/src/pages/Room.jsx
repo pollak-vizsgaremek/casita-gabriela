@@ -1318,7 +1318,7 @@ const Room = () => {
             </div>
             <div className="flex flex-col gap-5 sm:gap-6 lg:sticky lg:top-24 lg:self-start">
               {/* Booking card */}
-              <div className={`bg-[#FFFECE] text-black rounded-2xl border border-[#efe9b6] p-4 sm:p-5 shadow-lg/20 transform transition-all duration-500 ${pageLoaded ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-2'}`} style={{ transitionDelay: pageLoaded ? '220ms' : '0ms' }}>
+              <div className={`bg-[#FFFECE] text-black rounded-2xl border border-[#efe9b6] p-4 sm:p-5 shadow-lg/20 transform transition-all duration-500 max-h-[85vh] overflow-y-auto ${pageLoaded ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-2'}`} style={{ transitionDelay: pageLoaded ? '220ms' : '0ms', scrollbarWidth: 'thin', scrollbarColor: '#d4af37 #f5f5dc' }}>
                 <h2 className="font-semibold text-lg">Foglalás</h2>
                 <div className="mt-4">
                   <div className="flex gap-2 items-center mb-3">
@@ -1378,7 +1378,7 @@ const Room = () => {
                   </div>
                 </div>
                 {currentRangeStatus.blocked && <p className="text-sm text-red-600 mt-2">A kiválasztott időszak átfed egy jóváhagyott foglalással.</p>}
-                {currentRangeStatus.pending && <p className="text-sm text-yellow-600 mt-2">A kiválasztott időszakra már van függő foglalás.</p>}
+                {currentRangeStatus.pending && !bookingSubmitting && <p className="text-sm text-yellow-600 mt-2">A kiválasztott időszakra már van függő foglalás.</p>}
                 <div className="mt-4 flex items-center gap-3">
                   <div>
                     <label className="text-xs text-gray-600">Vendégek</label>

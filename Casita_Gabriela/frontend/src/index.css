@@ -245,3 +245,37 @@ body {
 .scrollbar-hide::-webkit-scrollbar {
   display: none;
 }
+
+/* Logo and nav gap scaling rules
+   - default desktop sizes
+   - <=1000px: first reduction
+   - <=900px: further reduction and nav gaps shrink
+   - 700..601px: logo ~small (approx half of desktop)
+   - <=640px: prevent further shrinking; increase to ~130% of previous small size
+*/
+.site-logo { height: 56px; transition: height 160ms ease; }
+.footer-logo { height: 64px; transition: height 160ms ease; }
+.nav-links { gap: 1rem; }
+
+@media (max-width: 1000px) {
+  .site-logo { height: 40px; }
+  .nav-links { gap: 0.9rem; }
+}
+
+@media (max-width: 900px) {
+  .site-logo { height: 32px; }
+  .nav-links { gap: 0.6rem; }
+}
+
+@media (max-width: 700px) and (min-width: 601px) {
+  .site-logo { height: 24px; }
+  .nav-links { gap: 0.45rem; }
+}
+
+@media (max-width: 640px) {
+  /* Do not shrink further; increase ~30% from the small size (24px -> ~31px) */
+  .site-logo { height: 31px; }
+  .nav-links { gap: 0.45rem; }
+  /* footer logo scales down slightly when footer narrows */
+  .footer-logo { height: 48px; }
+}

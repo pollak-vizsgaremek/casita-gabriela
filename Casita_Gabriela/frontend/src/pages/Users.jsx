@@ -5,171 +5,202 @@ import api from "../services/api";
 import Toast, { useToast } from "../components/Toast";
 
 const Users = () => {
-const CONFIRM_ANIMATION_MS = 220;
-const EDIT_ANIMATION_MS = 220;
-const location = useLocation();
-const [sidebarOpen, setSidebarOpen] = useState(false);
-const [users, setUsers] = useState([]);
-const [loading, setLoading] = useState(true);
-const [editingId, setEditingId] = useState(null);
-const [closingEditId, setClosingEditId] = useState(null);
-const [editData, setEditData] = useState({});
-const [search, setSearch] = useState("");
-const [confirmMounted, setConfirmMounted] = useState(false);
-const [confirmVisible, setConfirmVisible] = useState(false);
-const closeConfirmTimeoutRef = useRef(null);
-const openConfirmRafRef = useRef(null);
-const [confirmDialog, setConfirmDialog] = useState({
-open: false,
-title: "",
-message: "",
-confirmLabel: "Megerősítés",
-variant: "danger",
-onConfirm: null,
-});
-const { toasts, pushToast, removeToast } = useToast();
-const closeEditTimeoutRef = useRef(null);
+	// Felhasználók admin oldala: listázás, szerkesztés és törlés
+	const CONFIRM_ANIMATION_MS = 220;
+	const EDIT_ANIMATION_MS = 220;
+	const location = useLocation();
 
-useEffect(() => { setSidebarOpen(false); }, [location.pathname]);
-useEffect(() => { fetchUsers(); }, []);
-useEffect(() => {
-return () => {
-if (closeConfirmTimeoutRef.current) clearTimeout(closeConfirmTimeoutRef.current);
-if (openConfirmRafRef.current) cancelAnimationFrame(openConfirmRafRef.current);
-if (closeEditTimeoutRef.current) clearTimeout(closeEditTimeoutRef.current);
-};
-}, []);
+	// UI állapotok: sidebar, lista, töltés és szerkesztéshez szükséges id-k
+	const [sidebarOpen, setSidebarOpen] = useState(false);
+	const [users, setUsers] = useState([]);
+	const [loading, setLoading] = useState(true);
+	const [editingId, setEditingId] = useState(null);
+	const [closingEditId, setClosingEditId] = useState(null);
+	const [editData, setEditData] = useState({});
+	const [search, setSearch] = useState("");
 
-const fetchUsers = async () => {
-try {
-setLoading(true);
-const res = await api.get("/admin/users");
-setUsers(Array.isArray(res.data) ? res.data : []);
-} catch (err) {
-console.error("Error fetching users:", err);
-} finally {
-setLoading(false);
-}
-};
+	// Confirm modal és címkék az animációkhoz
+	const [confirmMounted, setConfirmMounted] = useState(false);
+	const [confirmVisible, setConfirmVisible] = useState(false);
+	const closeConfirmTimeoutRef = useRef(null);
+	const openConfirmRafRef = useRef(null);
+	const [confirmDialog, setConfirmDialog] = useState({
+		open: false,
+		title: "",
+		message: "",
+		confirmLabel: "Megerősítés",
+		variant: "danger",
+		onConfirm: null,
+	});
+	const { toasts, pushToast, removeToast } = useToast();
+	const closeEditTimeoutRef = useRef(null);
 
-const startEdit = (user) => {
-if (closeEditTimeoutRef.current) {
-clearTimeout(closeEditTimeoutRef.current);
-closeEditTimeoutRef.current = null;
-}
-setClosingEditId(null);
-setEditingId(user.id);
-setEditData({ name: user.name, email: user.email, phone_number: user.phone_number || "", address: user.address || "", isAdmin: user.isAdmin || false });
-};
 
-const closeEditPanel = () => {
-if (editingId === null || editingId === undefined) return;
-setClosingEditId(editingId);
-if (closeEditTimeoutRef.current) clearTimeout(closeEditTimeoutRef.current);
-closeEditTimeoutRef.current = setTimeout(() => {
-setEditingId(null);
-setClosingEditId(null);
-setEditData({});
-closeEditTimeoutRef.current = null;
-}, EDIT_ANIMATION_MS);
-};
+	// Sidebar bezárása útvonalváltáskor
+	useEffect(() => { setSidebarOpen(false); }, [location.pathname]);
+
+	// Felhasználók betöltése komponens mountkor
+	useEffect(() => { fetchUsers(); }, []);
+
+	// Cleanup: időzítők és raf-ek törlése unmountkor
+	useEffect(() => {
+		return () => {
+			if (closeConfirmTimeoutRef.current) clearTimeout(closeConfirmTimeoutRef.current);
+			if (openConfirmRafRef.current) cancelAnimationFrame(openConfirmRafRef.current);
+			if (closeEditTimeoutRef.current) clearTimeout(closeEditTimeoutRef.current);
+		};
+	}, []);
+
+
+	// Szerver hívás: felhasználók lekérése az admin listához
+	const fetchUsers = async () => {
+		try {
+			setLoading(true);
+			const res = await api.get("/admin/users");
+			setUsers(Array.isArray(res.data) ? res.data : []);
+		} catch (err) {
+			console.error("Error fetching users:", err);
+		} finally {
+			setLoading(false);
+		}
+	};
+
+
+	// Szerkesztés indítása: megnyitjuk az edit panelt és feltöltjük az adatokat
+	const startEdit = (user) => {
+		if (closeEditTimeoutRef.current) {
+			clearTimeout(closeEditTimeoutRef.current);
+			closeEditTimeoutRef.current = null;
+		}
+		setClosingEditId(null);
+		setEditingId(user.id);
+		setEditData({ name: user.name, email: user.email, phone_number: user.phone_number || "", address: user.address || "", isAdmin: user.isAdmin || false });
+	};
+
+
+	// Edit panel bezárása animáltan
+	const closeEditPanel = () => {
+		if (editingId === null || editingId === undefined) return;
+		setClosingEditId(editingId);
+		if (closeEditTimeoutRef.current) clearTimeout(closeEditTimeoutRef.current);
+		closeEditTimeoutRef.current = setTimeout(() => {
+			setEditingId(null);
+			setClosingEditId(null);
+			setEditData({});
+			closeEditTimeoutRef.current = null;
+		}, EDIT_ANIMATION_MS);
+	};
 
 const cancelEdit = () => { closeEditPanel(); };
 
-const saveEdit = async (id) => {
-try {
-await api.put(`/admin/users/${id}`, editData);
-closeEditPanel();
-await fetchUsers();
-pushToast("Sikeres módosítás", "A felhasználó adatai sikeresen frissítve.", "success");
-} catch (err) {
-console.error("Error updating user:", err);
-alert("Hiba a felhasználó frissítésekor.");
-}
-};
 
-const openConfirm = ({ title, message, confirmLabel = "Megerősítés", variant = "danger", onConfirm }) => {
-if (closeConfirmTimeoutRef.current) {
-clearTimeout(closeConfirmTimeoutRef.current);
-closeConfirmTimeoutRef.current = null;
-}
-if (openConfirmRafRef.current) {
-cancelAnimationFrame(openConfirmRafRef.current);
-openConfirmRafRef.current = null;
-}
-setConfirmDialog({
-open: true,
-title,
-message,
-confirmLabel,
-variant,
-onConfirm,
-});
-setConfirmMounted(true);
-setConfirmVisible(false);
-openConfirmRafRef.current = requestAnimationFrame(() => {
-setConfirmVisible(true);
-openConfirmRafRef.current = null;
-});
-};
+	// Felhasználó mentése szerverre (PUT) és lista frissítése
+	const saveEdit = async (id) => {
+		try {
+			await api.put(`/admin/users/${id}`, editData);
+			closeEditPanel();
+			await fetchUsers();
+			pushToast("Sikeres módosítás", "A felhasználó adatai sikeresen frissítve.", "success");
+		} catch (err) {
+			console.error("Error updating user:", err);
+			alert("Hiba a felhasználó frissítésekor.");
+		}
+	};
 
-const closeConfirm = () => {
-if (openConfirmRafRef.current) {
-cancelAnimationFrame(openConfirmRafRef.current);
-openConfirmRafRef.current = null;
-}
-setConfirmVisible(false);
-closeConfirmTimeoutRef.current = setTimeout(() => {
-setConfirmMounted(false);
-setConfirmDialog({
-open: false,
-title: "",
-message: "",
-confirmLabel: "Megerősítés",
-variant: "danger",
-onConfirm: null,
-});
-closeConfirmTimeoutRef.current = null;
-}, CONFIRM_ANIMATION_MS);
-};
 
-const handleConfirm = () => {
-const callback = confirmDialog.onConfirm;
-closeConfirm();
-if (typeof callback === "function") callback();
-};
+	// Megerősítő modal megnyitása (animált)
+	const openConfirm = ({ title, message, confirmLabel = "Megerősítés", variant = "danger", onConfirm }) => {
+		if (closeConfirmTimeoutRef.current) {
+			clearTimeout(closeConfirmTimeoutRef.current);
+			closeConfirmTimeoutRef.current = null;
+		}
+		if (openConfirmRafRef.current) {
+			cancelAnimationFrame(openConfirmRafRef.current);
+			openConfirmRafRef.current = null;
+		}
+		setConfirmDialog({
+			open: true,
+			title,
+			message,
+			confirmLabel,
+			variant,
+			onConfirm,
+		});
+		setConfirmMounted(true);
+		setConfirmVisible(false);
+		openConfirmRafRef.current = requestAnimationFrame(() => {
+			setConfirmVisible(true);
+			openConfirmRafRef.current = null;
+		});
+	};
 
-const deleteUser = async (user) => {
-try {
-await api.delete(`/admin/users/${user.id}`);
-await fetchUsers();
-pushToast("Sikeres törlés", "A felhasználó sikeresen törölve.", "success");
-} catch (err) {
-console.error("Error deleting user:", err);
-alert("Hiba a felhasználó törlésekor.");
-}
-};
 
-const requestDeleteUser = (user) => {
-openConfirm({
-title: "Felhasználó törlése",
-message: `Biztosan törölni szeretnéd a felhasználót: ${user.name} (${user.email})?\n\nEz törli az összes foglalását és értékelését is!`,
-confirmLabel: "Törlés",
-variant: "danger",
-onConfirm: () => deleteUser(user),
-});
-};
+	// Confirm modal bezárása: animált unmount
+	const closeConfirm = () => {
+		if (openConfirmRafRef.current) {
+			cancelAnimationFrame(openConfirmRafRef.current);
+			openConfirmRafRef.current = null;
+		}
+		setConfirmVisible(false);
+		closeConfirmTimeoutRef.current = setTimeout(() => {
+			setConfirmMounted(false);
+			setConfirmDialog({
+				open: false,
+				title: "",
+				message: "",
+				confirmLabel: "Megerősítés",
+				variant: "danger",
+				onConfirm: null,
+			});
+			closeConfirmTimeoutRef.current = null;
+		}, CONFIRM_ANIMATION_MS);
+	};
 
-const filtered = users.filter((u) => {
-const q = search.toLowerCase();
-return u.name?.toLowerCase().includes(q) || u.email?.toLowerCase().includes(q) || String(u.id).includes(q);
-});
+
+	// A confirm gomb eseménye: bezárjuk a modalt és meghívjuk a callbacket
+	const handleConfirm = () => {
+		const callback = confirmDialog.onConfirm;
+		closeConfirm();
+		if (typeof callback === "function") callback();
+	};
+
+
+	// Felhasználó törlése a szerverről, majd lista frissítése
+	const deleteUser = async (user) => {
+		try {
+			await api.delete(`/admin/users/${user.id}`);
+			await fetchUsers();
+			pushToast("Sikeres törlés", "A felhasználó sikeresen törölve.", "success");
+		} catch (err) {
+			console.error("Error deleting user:", err);
+			alert("Hiba a felhasználó törlésekor.");
+		}
+	};
+
+
+	// Törlés kérése: megnyitjuk a confirm modalt a felhasználó törléséhez
+	const requestDeleteUser = (user) => {
+		openConfirm({
+			title: "Felhasználó törlése",
+			message: `Biztosan törölni szeretnéd a felhasználót: ${user.name} (${user.email})?\n\nEz törli az összes foglalását és értékelését is!`,
+			confirmLabel: "Törlés",
+			variant: "danger",
+			onConfirm: () => deleteUser(user),
+		});
+	};
+
+
+	// Keresés alkalmazása a felhasználókra (név, email, ID)
+	const filtered = users.filter((u) => {
+		const q = search.toLowerCase();
+		return u.name?.toLowerCase().includes(q) || u.email?.toLowerCase().includes(q) || String(u.id).includes(q);
+	});
 
 return (
 <div className="flex min-h-screen w-dvw bg-[#f7faf7] text-black">
 <Sidebar isOpen={sidebarOpen} onClose={() => setSidebarOpen(false)} />
 <div className="flex-1 ml-0 md:ml-64">
-{/* Mobile header */}
+{/* Mobil header */}
 <header className="flex items-center justify-between px-5 py-4 border-b bg-white md:hidden">
 <button onClick={() => setSidebarOpen((s) => !s)} className="p-2 rounded-md bg-gray-100 hover:bg-gray-200" aria-label="Menü">
 <svg className="h-6 w-6 text-gray-700" viewBox="0 0 24 24" fill="none" stroke="currentColor"><path strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" d="M4 6h16M4 12h16M4 18h16" /></svg>
@@ -181,7 +212,7 @@ return (
 <div className="p-6">
 <h1 className="text-2xl font-semibold mb-4 hidden md:block">Felhasználók kezelése</h1>
 
-{/* Search */}
+{/* Keresés */}
 <div className="mb-4">
 <input
 type="text"
@@ -201,9 +232,9 @@ className="w-full max-w-md px-4 py-2 border rounded-lg focus:outline-none focus:
 {filtered.map((user) => (
 <div key={user.id} className="bg-white border rounded-lg p-4 shadow-sm">
 {editingId === user.id ? (
-/* EDIT MODE */
+/* EDIT MÓD */
 <div className={`space-y-3 ${closingEditId === user.id ? 'animate-edit-popup-out pointer-events-none' : 'animate-edit-popup-in'}`}>
-{/* header showing user id during edit mode */}
+{/* header, amin a user id látható szerkesztési módban */}
 <div className="flex items-center gap-2 mb-1">
 <span className="font-semibold text-gray-800">{editData.name}</span>
 {editData.isAdmin && <span className="text-xs bg-yellow-100 text-yellow-800 px-2 py-0.5 rounded">Admin</span>}
@@ -213,22 +244,42 @@ className="w-full max-w-md px-4 py-2 border rounded-lg focus:outline-none focus:
 <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
 <div>
 <label className="text-xs text-gray-500 font-medium">Név</label>
-<input className="w-full px-3 py-2 border rounded-md text-sm" value={editData.name} onChange={(e) => setEditData({ ...editData, name: e.target.value })} />
+<input
+	className="w-full px-3 py-2 border rounded-md text-sm"
+	value={editData.name}
+	maxLength={40}
+	onChange={(e) => setEditData({ ...editData, name: String(e.target.value).slice(0, 40) })}
+/>
 </div>
 
 <div>
 <label className="text-xs text-gray-500 font-medium">Email</label>
-<input className="w-full px-3 py-2 border rounded-md text-sm" value={editData.email} onChange={(e) => setEditData({ ...editData, email: e.target.value })} />
+<input
+	className="w-full px-3 py-2 border rounded-md text-sm"
+	value={editData.email}
+	maxLength={50}
+	onChange={(e) => setEditData({ ...editData, email: String(e.target.value).slice(0, 50) })}
+/>
 </div>
 
 <div>
 <label className="text-xs text-gray-500 font-medium">Telefonszám</label>
-<input className="w-full px-3 py-2 border rounded-md text-sm" value={editData.phone_number} onChange={(e) => setEditData({ ...editData, phone_number: e.target.value })} />
+<input
+	className="w-full px-3 py-2 border rounded-md text-sm"
+	value={editData.phone_number}
+	maxLength={20}
+	onChange={(e) => setEditData({ ...editData, phone_number: String(e.target.value).slice(0, 20) })}
+/>
 </div>
 
 <div>
 <label className="text-xs text-gray-500 font-medium">Cím</label>
-<input className="w-full px-3 py-2 border rounded-md text-sm" value={editData.address} onChange={(e) => setEditData({ ...editData, address: e.target.value })} />
+<input
+	className="w-full px-3 py-2 border rounded-md text-sm"
+	value={editData.address}
+	maxLength={50}
+	onChange={(e) => setEditData({ ...editData, address: String(e.target.value).slice(0, 50) })}
+/>
 </div>
 </div>
 
@@ -243,7 +294,7 @@ className="w-full max-w-md px-4 py-2 border rounded-lg focus:outline-none focus:
 </div>
 </div>
 ) : (
-/* VIEW MODE */
+/* VIEW MÓD */
 <div className="flex flex-col md:flex-row md:items-center gap-3">
 <div className="flex-1">
 <div className="flex items-center gap-2 mb-1">

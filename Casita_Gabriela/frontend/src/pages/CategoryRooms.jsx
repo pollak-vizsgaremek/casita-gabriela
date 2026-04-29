@@ -1,3 +1,4 @@
+// Kategória oldal: a kiválasztott kategória szobáinak listázása és kereső
 import React, { useEffect, useMemo, useState } from "react";
 import OfferAdmin from "../components/OfferAdmin";
 import Footer from "../components/Footer";
@@ -18,6 +19,7 @@ const CategoryRooms = () => {
 
   const { categoryName } = useParams();
   const navigate = useNavigate();
+  // Mai dátum ISO formátumban (keresési mezők min attribútumához)
   const todayStr = useMemo(() => {
     const now = new Date();
     const y = now.getFullYear();
@@ -26,6 +28,7 @@ const CategoryRooms = () => {
     return `${y}-${m}-${d}`;
   }, []);
 
+  // URL-ből dekódolt kategória neve, ha van
   const selectedCategory = useMemo(() => {
     if (!categoryName) return "";
 
@@ -57,6 +60,7 @@ const CategoryRooms = () => {
     },
   };
 
+  // A kategória alapján szűrt szobák listája
   const filteredRooms = useMemo(() => {
     if (!selectedCategory) return [];
 
@@ -66,16 +70,19 @@ const CategoryRooms = () => {
     );
   }, [rooms, selectedCategory]);
 
+  // Kategória opciók gyűjtése a betöltött szobákból
   const categoryOptions = useMemo(
     () =>
       [...new Set(rooms.map((room) => room.category?.trim()).filter(Boolean))],
     [rooms]
   );
 
+  // Oldal betöltésekor szobák lekérése
   useEffect(() => {
     fetchRooms();
   }, []);
 
+  // Szobák lekérése a backend-ről
   const fetchRooms = async () => {
     try {
       setLoading(true);
@@ -88,6 +95,7 @@ const CategoryRooms = () => {
     }
   };
 
+  // Keresés kezdeményezése a megadott mezők alapján
   const handleSearch = (e) => {
     e.preventDefault();
 

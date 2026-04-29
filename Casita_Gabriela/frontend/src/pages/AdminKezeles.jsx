@@ -11,16 +11,16 @@ const AdminKezeles = () => {
   const navigate = useNavigate();
 
 
-  const TITLE_MAX = 30; // schema: room.name varchar(30)
-  const DESC_MAX = 1000; // schema: room.description varchar(1000)
-  const CAPACITY_MAX = 999; // reasonable upper bound based on schema int
-  const PRICE_MAX = 10000000; // arbitrary large cap to avoid overflow
+  const TITLE_MAX = 30;
+  const DESC_MAX = 1000;
+  const CAPACITY_MAX = 999;
+  const PRICE_MAX = 10000000;
 
 
   const [formData, setFormData] = useState({
     title: "",
     description: "",
-    type: "", // will store category id (number) or '' when none
+    type: "",
     capacity: "",
     price: "",
     isHighlighted: false,
@@ -28,11 +28,11 @@ const AdminKezeles = () => {
   });
 
 
-  // categories as objects { id, name }
+  // Kategóriák tömb objektumokkal: { id, name }
   const [categories, setCategories] = useState([]);
   const [mainImageFile, setMainImageFile] = useState(null);
   const [mainImagePreview, setMainImagePreview] = useState(null);
-  const [extraImages, setExtraImages] = useState([]); // {id, file|null, preview}
+  const [extraImages, setExtraImages] = useState([]);
   const [loading, setLoading] = useState(false);
   const [, setMessage] = useState("");
   const [isEditing, setIsEditing] = useState(false);
@@ -51,7 +51,7 @@ const AdminKezeles = () => {
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
 
 
-  // single-button rendering state based on viewport width
+  // Mobilnézet detektálása az egyszerű gomb elrendezéshez
   const [isMobileViewport, setIsMobileViewport] = useState(() => {
     if (typeof window === "undefined") return false;
     return window.matchMedia("(max-width: 767px)").matches;
@@ -70,7 +70,7 @@ const AdminKezeles = () => {
   }, []);
 
 
-  // Ensure page/body background covers full viewport and stays fixed to avoid white gap on scroll
+  // Oldal háttér és magasság beállítása (görgetésnél fehér részt kerül)
   useEffect(() => {
     const prevBodyBgAttachment = document.body.style.backgroundAttachment;
     const prevBodyBgSize = document.body.style.backgroundSize;
@@ -83,11 +83,11 @@ const AdminKezeles = () => {
     document.body.style.backgroundAttachment = "fixed";
     document.body.style.backgroundSize = "cover";
     document.body.style.backgroundPosition = "center";
-    // leave background image itself to global CSS or parent layout; we only ensure sizing/attachment
+    // A háttérképet a globális CSS kezeli; itt csak a méretezést/pozíciót biztosítjuk
 
 
     return () => {
-      // restore previous values on unmount
+      // Kilépéskor visszaállítjuk a korábbi stílusértékeket
       document.body.style.backgroundAttachment = prevBodyBgAttachment;
       document.body.style.backgroundSize = prevBodyBgSize;
       document.body.style.backgroundPosition = prevBodyBgPos;
@@ -98,7 +98,7 @@ const AdminKezeles = () => {
 
 
   useEffect(() => {
-    // load categories first so we can map names/ids when fetching a room
+    // Kategóriák betöltése a szoba lekérése előtt (map-hez)
     loadCategories().then(() => {
       if (id) {
         fetchRoom();
@@ -108,6 +108,7 @@ const AdminKezeles = () => {
     });
 
 
+    // Drag & drop fájlkezelés: belépés
     const onDragEnter = (e) => {
       e.preventDefault();
       dragCounter.current += 1;
@@ -120,6 +121,7 @@ const AdminKezeles = () => {
     };
 
 
+    // Drag & drop fájlkezelés: kilépés
     const onDragLeave = (e) => {
       e.preventDefault();
       dragCounter.current -= 1;
@@ -130,9 +132,11 @@ const AdminKezeles = () => {
     };
 
 
+    // Drag & drop fájlkezelés: áthúzás megakadályozása
     const onDragOver = (e) => e.preventDefault();
 
 
+    // Drag & drop fájlkezelés: legördülés (fájlok feldolgozása)
     const onDrop = (e) => {
       e.preventDefault();
       dragCounter.current = 0;
@@ -162,7 +166,7 @@ const AdminKezeles = () => {
     try {
       const res = await api.get("/categories");
       const rows = Array.isArray(res.data) ? res.data : [];
-      // normalize to objects {id, name}
+      // Normalizálás: alakítsuk objektumokká {id, name}
       const cats = rows
         .map((c) => ({ id: c.id, name: c.name }))
         .filter(Boolean);
@@ -188,24 +192,23 @@ const AdminKezeles = () => {
       const response = await api.get(`/rooms/${id}`);
       const room = response.data;
 
-
-      // images
+      // Képek normalizálása a szerver válaszából
       const parsedImages = parseImagesFromServer(room.images);
 
 
-      // Determine category id to set into formData.type
-      // Backend may return category as number in room.category or nested relation room.category_rel
+      // Kategória id meghatározása a formData.type mezőhöz
+      // A backend különböző formátumokban adhatja vissza a kategóriát
       let categoryId = "";
       if (typeof room.category === "number") {
         categoryId = room.category;
       } else if (room?.category_rel?.id) {
         categoryId = room.category_rel.id;
       } else if (typeof room.category === "string") {
-        // if backend returns name, try to find id from loaded categories
+        // Ha a backend névként adja vissza a kategóriát, megpróbáljuk kikeresni az id-t
         const found = categories.find((c) => c.name === room.category);
         if (found) categoryId = found.id;
         else {
-          // log for debugging: backend returned category name that we couldn't map
+          // Hibakeresés: a backend névvel tért vissza, amit nem tudtunk leképezni
           console.error(
             "fetchRoom: backend returned category name that is not in loaded categories:",
             room.category
@@ -293,7 +296,7 @@ const AdminKezeles = () => {
 
   const handleInputChange = (e) => {
     const { name, type, checked, value } = e.target;
-    // enforce maxlength on client side for title and description
+    // Kliens-oldali maxlength ellenőrzés a név és leírás mezőknél
     if (name === "title") {
       if (value.length > TITLE_MAX) return;
       setFormData((prev) => ({ ...prev, [name]: value }));
@@ -481,7 +484,7 @@ const AdminKezeles = () => {
     if (e && typeof e.preventDefault === "function") e.preventDefault();
 
 
-    // client-side validation: if any required field missing, show toast bottom-right and don't call backend
+    // Kliens-oldali ellenőrzés: hiányzó kötelező mező esetén hibajelzés, backend hívás leáll
     if (
       !formData.title ||
       !formData.description ||
@@ -728,7 +731,7 @@ const AdminKezeles = () => {
   return (
     <div className="relative page-container min-h-screen">
       <style>{`
-/* Entrance animation */
+/* Belépési animáció */
 @keyframes fadeInUp {
   from { opacity: 0; transform: translateY(8px); }
   to { opacity: 1; transform: translateY(0); }
@@ -738,7 +741,7 @@ const AdminKezeles = () => {
 .fade-in-up.delay-2 { animation-delay: 160ms; }
 
 
-/* SINGLE floating button styling */
+/* Egy lebegő gomb stílusa */
 .floating-btn {
   display: inline-flex;
   align-items: center;
@@ -810,7 +813,7 @@ const AdminKezeles = () => {
 `}</style>
 
 
-      {/* Full-page fixed background to prevent white gap while scrolling */}
+      {/* Teljes háttér a görgetés közbeni fehér rések elkerüléséhez */}
       <div
         aria-hidden
         className="fixed inset-0 layerAdmin bg-no-repeat bg-center bg-cover"
@@ -818,7 +821,7 @@ const AdminKezeles = () => {
       />
 
 
-      {/* SINGLE floating button rendered once; position adjusts by JS viewport flag */}
+      {/* Egy lebegő gomb; pozíció a viewport alapján */}
       <button
         onClick={() => navigate("/admin")}
         aria-label="Vissza az adminhoz"
@@ -850,7 +853,7 @@ const AdminKezeles = () => {
       </button>
 
 
-      {/* Drag overlay */}
+      {/* Húzás fedvény (drag overlay) */}
       <div
         aria-hidden
         style={{
@@ -862,7 +865,7 @@ const AdminKezeles = () => {
       />
 
 
-      {/* Main content */}
+      {/* Fő tartalom */}
       <div
         className="w-full p-8 min-h-screen"
         style={{
@@ -872,14 +875,14 @@ const AdminKezeles = () => {
       >
         <div className="relative max-w-6xl mx-auto">
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-10 mb-8">
-            {/* Left: Room editor */}
+            {/* Bal: Szoba szerkesztő */}
             <div
               className="yellow-card bg-[#FFFECE] p-8 rounded-lg shadow-md/40 fade-in-up delay-1"
               style={{ marginBottom: "1.5rem" }}
             >
               <div className="space-y-6">
                 <div>
-                  {/* label changed to "Név" per request; maxlength enforced */}
+                  {/* Label 'Név', maxlength kliens-oldalon érvényesítve */}
                   <label className="block text-sm font-semibold text-gray-700 mb-2">
                     Név
                   </label>
@@ -927,10 +930,10 @@ const AdminKezeles = () => {
                       name="type"
                       value={formData.type || ""}
                       onChange={(e) => {
-                        // select returns string, convert to number or empty
-                        const val =
-                          e.target.value === "" ? "" : Number(e.target.value);
-                        setFormData((prev) => ({ ...prev, type: val }));
+                        // A select stringet ad vissza; konvertáljuk számmá vagy üresre
+                          const val =
+                            e.target.value === "" ? "" : Number(e.target.value);
+                          setFormData((prev) => ({ ...prev, type: val }));
                       }}
                       className="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 text-gray-900 bg-white"
                       style={{ color: "#111827" }}
@@ -938,7 +941,7 @@ const AdminKezeles = () => {
                       <option value="">Válassz kategóriát...</option>
 
 
-                      {/* If the current type is set but not in categories, try to show it as a temporary option */}
+                      {/* Ha a jelenlegi típus nincs a betöltött kategóriák között, mutassunk ideiglenes opciót */}
                       {formData.type &&
                         !categories.some((c) => c.id === formData.type) && (
                           <option key="current-type" value={formData.type}>
@@ -1109,7 +1112,7 @@ const AdminKezeles = () => {
             </div>
 
 
-            {/* Right: main image preview + extra images controls */}
+            {/* Jobb: főkép előnézet és további képek kezelése */}
             <div
               className="yellow-card bg-[#FFFECE] p-8 rounded-lg shadow-md/40 fade-in-up delay-2"
               onMouseDown={(e) => e.stopPropagation()}
@@ -1361,9 +1364,6 @@ const AdminKezeles = () => {
               </div>
             </div>
           </div>
-
-
-          {/* Removed Ratings and Reservations sections as requested */}
         </div>
       </div>
       <Toast toasts={toasts} removeToast={removeToast} />

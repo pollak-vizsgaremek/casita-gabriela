@@ -1,16 +1,23 @@
+
 import React, { useEffect, useRef, useState } from "react";
 import { useLocation } from "react-router";
 import Sidebar from "../components/Sidebar";
 import Toast, { useToast } from "../components/Toast";
 import api from "../services/api";
 
+// Felhasználói értékelések oldal: saját értékelések listázása és törlése
 export default function UserReviews() {
+	// Konstans: confirm modal animáció időzítése
 	const CONFIRM_ANIMATION_MS = 220;
 	const location = useLocation();
+
+	// Állapotok: betöltött értékelések, töltés/hiba állapot és törlés közbeni ID
 	const [reviews, setReviews] = useState([]);
 	const [loading, setLoading] = useState(true);
 	const [error, setError] = useState(null);
 	const [deleting, setDeleting] = useState(null);
+
+	// Confirm modal mount/visible státuszok és ref-ek animációhoz
 	const [confirmMounted, setConfirmMounted] = useState(false);
 	const [confirmVisible, setConfirmVisible] = useState(false);
 	const closeConfirmTimeoutRef = useRef(null);
@@ -26,40 +33,50 @@ export default function UserReviews() {
 	const [sidebarOpen, setSidebarOpen] = useState(false);
 	const { toasts, pushToast, removeToast } = useToast();
 
-	useEffect(() => { setSidebarOpen(false); }, [location.pathname]);
 
-	useEffect(() => {
-		return () => {
-			if (closeConfirmTimeoutRef.current) clearTimeout(closeConfirmTimeoutRef.current);
-			if (openConfirmRafRef.current) cancelAnimationFrame(openConfirmRafRef.current);
+		// Sidebar bezárása útvonalváltáskor (mobilon)
+		useEffect(() => { setSidebarOpen(false); }, [location.pathname]);
+
+
+		// Cleanup: töröljük a timeout/raf referenciákat unmountkor
+		useEffect(() => {
+			return () => {
+				if (closeConfirmTimeoutRef.current) clearTimeout(closeConfirmTimeoutRef.current);
+				if (openConfirmRafRef.current) cancelAnimationFrame(openConfirmRafRef.current);
+			};
+		}, []);
+
+
+		// Értékelések betöltése a szerverről komponens mountkor
+		useEffect(() => {
+			api.get("/user/reviews")
+				.then(res => {
+					setReviews(res.data);
+					setLoading(false);
+				})
+				.catch(() => {
+					setError("Nem sikerült betölteni az értékeléseket.");
+					setLoading(false);
+				});
+		}, []);
+
+
+		// Értékelés törlése: DELETE hívás és UI frissítés
+		const handleDelete = async (id) => {
+			setDeleting(id);
+			try {
+				await api.delete(`/user/reviews/${id}`);
+				setReviews(prev => prev.filter(r => r.id !== id));
+				pushToast("Értékelés törölve", "Az értékelés sikeresen törölve.", "success");
+			} catch {
+				pushToast("Hiba", "Nem sikerült törölni az értékelést.", "error");
+			}
+			setDeleting(null);
 		};
-	}, []);
 
-	useEffect(() => {
-		api.get("/user/reviews")
-			.then(res => {
-				setReviews(res.data);
-				setLoading(false);
-			})
-			.catch(() => {
-				setError("Nem sikerült betölteni az értékeléseket.");
-				setLoading(false);
-			});
-	}, []);
 
-	const handleDelete = async (id) => {
-		setDeleting(id);
-		try {
-			await api.delete(`/user/reviews/${id}`);
-			setReviews(prev => prev.filter(r => r.id !== id));
-			pushToast("Értékelés törölve", "Az értékelés sikeresen törölve.", "success");
-		} catch {
-			pushToast("Hiba", "Nem sikerült törölni az értékelést.", "error");
-		}
-		setDeleting(null);
-	};
-
-	const openConfirm = ({ title, message, confirmLabel = "Megerősítés", variant = "danger", onConfirm }) => {
+		// Megerősítő modal megnyitása: animált mount és callback beállítása
+		const openConfirm = ({ title, message, confirmLabel = "Megerősítés", variant = "danger", onConfirm }) => {
 		if (closeConfirmTimeoutRef.current) {
 			clearTimeout(closeConfirmTimeoutRef.current);
 			closeConfirmTimeoutRef.current = null;
@@ -86,11 +103,13 @@ export default function UserReviews() {
 		});
 	};
 
-	const closeConfirm = () => {
-		if (openConfirmRafRef.current) {
-			cancelAnimationFrame(openConfirmRafRef.current);
-			openConfirmRafRef.current = null;
-		}
+
+		// Megerősítő modal bezárása és unmount animáció
+		const closeConfirm = () => {
+			if (openConfirmRafRef.current) {
+				cancelAnimationFrame(openConfirmRafRef.current);
+				openConfirmRafRef.current = null;
+			}
 
 		setConfirmVisible(false);
 		closeConfirmTimeoutRef.current = setTimeout(() => {
@@ -107,21 +126,25 @@ export default function UserReviews() {
 		}, CONFIRM_ANIMATION_MS);
 	};
 
-	const handleConfirm = () => {
-		const callback = confirmDialog.onConfirm;
-		closeConfirm();
-		if (typeof callback === "function") callback();
-	};
 
-	const requestDeleteReview = (reviewId) => {
-		openConfirm({
-			title: "Értékelés törlése",
-			message: "Biztosan törölni szeretnéd ezt az értékelést?",
-			confirmLabel: "Törlés",
-			variant: "danger",
-			onConfirm: () => handleDelete(reviewId),
-		});
-	};
+		// A megerősítés gomb eseménye: bezárás után hívjuk a callbacket
+		const handleConfirm = () => {
+			const callback = confirmDialog.onConfirm;
+			closeConfirm();
+			if (typeof callback === "function") callback();
+		};
+
+
+		// Kérjük a felhasználótól a törlés megerősítését
+		const requestDeleteReview = (reviewId) => {
+			openConfirm({
+				title: "Értékelés törlése",
+				message: "Biztosan törölni szeretnéd ezt az értékelést?",
+				confirmLabel: "Törlés",
+				variant: "danger",
+				onConfirm: () => handleDelete(reviewId),
+			});
+		};
 
 	return (
 		<div className="flex min-h-screen w-dvw bg-[#f7faf7]">

@@ -42,57 +42,57 @@ import { authenticate, requireAdmin } from "./middleware.js";
 import { upload } from "./utils.js";
 
 export default function registerRoutes(app) {
-  // Auth (registration via email verification)
+  // autentikáció és regisztráció
   app.post("/register-init", registerInit); // kezdeményezi a regisztrációt és emailt küld
   app.get("/verify-registration", verifyRegistration); // a link ide mutat, itt jön létre a felhasználó véglegesen
   app.post("/login", login);
   app.post("/forgot-password", forgotPassword);
   app.post("/reset-password", resetPassword);
 
-  // Upload images
+  // képek feltöltése
   app.post("/upload-images", upload.array("images", 20), (req, res) => {
     const baseUrl = `${req.protocol}://${req.get("host")}`;
     const paths = (req.files || []).map(f => `${baseUrl}/public/${f.filename}`);
     res.json({ paths });
   });
 
-  // Rooms
+  // szobák kezelése
   app.get("/rooms", getRooms);
   app.post("/rooms", authenticate, requireAdmin, createRoom);
   app.get("/rooms/:id", getRoomById);
   app.put("/rooms/:id", authenticate, requireAdmin, updateRoom);
   app.delete("/rooms/:id", authenticate, requireAdmin, deleteRoom);
 
-  // Categories
+  // kategóriák kezelése
   app.get("/categories", getCategories);
   app.post("/categories", authenticate, requireAdmin, createCategory);
   app.put("/categories/:id", authenticate, requireAdmin, updateCategory);
   app.delete("/categories/:id", authenticate, requireAdmin, deleteCategory);
 
-  // Booking
+  // foglalások kezelése
   app.post("/booking", createBooking);
   app.get("/booking", getBookings);
   app.put("/booking/:id", updateBooking);
   app.delete("/booking/:id", deleteBooking);
 
-  // Reviews
+  // értékelések kezelése
   app.get("/room_reviews", getReviews);
   app.post("/room_reviews", authenticate, createReview);
   app.delete("/room_reviews/:id", authenticate, requireAdmin, deleteReview);
 
-  // Contact (email)
+  // kontakt űrlap
   app.post("/contact", contactForm);
 
-  // Admin user management
+  // admin felhasználókezelés
   app.get("/admin/users", authenticate, requireAdmin, getAllUsers);
   app.put("/admin/users/:id", authenticate, requireAdmin, adminUpdateUser);
   app.delete("/admin/users/:id", authenticate, requireAdmin, adminDeleteUser);
 
-  // Notification counts
+  // értesítési számok
   app.get("/admin/counts", authenticate, requireAdmin, getAdminCounts);
   app.get("/user/counts", authenticate, getUserCounts);
 
-  // User panel
+  // felhasználói adatok és foglalások
   app.get("/user/bookings", authenticate, getUserBookings);
   app.delete("/user/bookings/:id", authenticate, deleteUserBooking);
   app.get("/user/data", authenticate, getUserData);

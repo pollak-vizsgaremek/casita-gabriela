@@ -52,6 +52,65 @@ export default function UserData() {
 	const [newPassword, setNewPassword] = useState("");
 	const [newPasswordConfirm, setNewPasswordConfirm] = useState("");
 	const [passwordErrors, setPasswordErrors] = useState([]);
+	const [fieldErrors, setFieldErrors] = useState({});
+
+	const getFieldError = (name, rawValue) => {
+		const value = String(rawValue || "").trim();
+
+		if (name === "name") {
+			const nameParts = value.split(/\s+/).filter(Boolean);
+			if (nameParts.length < 2 || nameParts.some(p => p.length < 2)) {
+				return "Helyes formátum: vezetéknév + keresztnév, szóközzel elválasztva (pl. Kis Péter).";
+			}
+			return "";
+		}
+
+		if (name === "email") {
+			if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value)) {
+				return "Helyes email formátum: pelda@domain.hu.";
+			}
+			return "";
+		}
+
+		if (name === "phone_number") {
+			if (!/^(\+36\d{9}|\d{9})$/.test(value)) {
+				return "Helyes formátum: 9 számjegy (pl. 301234567) vagy +36 előtaggal (pl. +36301234567).";
+			}
+			return "";
+		}
+
+		if (name === "address") {
+			if (value.length < 10 || !/\d/.test(value) || !/\s/.test(value)) {
+				return "Helyes formátum: legalább 10 karakter, legyen benne szóköz és házszám (pl. Fő utca 12).";
+			}
+			return "";
+		}
+
+		if (name === "identity_card") {
+			const pattern1 = /^[0-9]{6}[A-Za-z]{2}$/;
+			const pattern2 = /^[A-Za-z][0-9]{6}[A-Za-z]$/;
+			if (!(pattern1.test(value) || pattern2.test(value))) {
+				return "Helyes formátum: 6 szám + 2 betű (pl. 123456AB) vagy betű + 6 szám + betű (pl. A123456B).";
+			}
+			return "";
+		}
+
+		return "";
+	};
+
+	const validateUserFields = (nextUser = user) => {
+		if (!nextUser) return true;
+		const nextErrors = {};
+		const fieldsToValidate = ["name", "email", "phone_number", "address", "identity_card"];
+
+		fieldsToValidate.forEach((fieldName) => {
+			const err = getFieldError(fieldName, nextUser[fieldName]);
+			if (err) nextErrors[fieldName] = err;
+		});
+
+		setFieldErrors(nextErrors);
+		return Object.keys(nextErrors).length === 0;
+	};
 
 	const getPasswordErrors = (pw) => {
 		const errs = [];
@@ -62,7 +121,15 @@ export default function UserData() {
 	};
 
 	const handleChange = e => {
-		setUser({ ...user, [e.target.name]: e.target.value });
+		const { name, value } = e.target;
+		const nextUser = { ...user, [name]: value };
+		setUser(nextUser);
+
+		const err = getFieldError(name, value);
+		setFieldErrors(prev => {
+			if (!err && !prev[name]) return prev;
+			return { ...prev, [name]: err };
+		});
 	};
 
 	const performSave = async () => {
@@ -101,6 +168,7 @@ export default function UserData() {
 				email: user.email,
 				phone_number: user.phone_number,
 				address: user.address,
+				identity_card: user.identity_card,
 			};
 			if (newPw) {
 				const errs = getPasswordErrors(newPw);
@@ -183,6 +251,11 @@ export default function UserData() {
 		e.preventDefault();
 		if (saving) return;
 
+		if (!validateUserFields()) {
+			pushToast("Hiba", "Kérlek, javítsd a hibás mezőket mentés előtt.", "error");
+			return;
+		}
+
 		const oldPw = oldPassword.trim();
 		const newPw = newPassword.trim();
 		const newPwConfirm = newPasswordConfirm.trim();
@@ -249,9 +322,10 @@ export default function UserData() {
 									name="name"
 									value={user.name || ""}
 									onChange={handleChange}
-									className="w-full border border-gray-300 rounded-lg px-3 py-2 text-gray-900 bg-gray-50"
+									className={`w-full border rounded-lg px-3 py-2 text-gray-900 ${fieldErrors.name ? "border-red-400 bg-red-50" : "border-gray-300 bg-gray-50"}`}
 									required
 								/>
+								{fieldErrors.name && <p className="mt-1 text-sm text-red-600">{fieldErrors.name}</p>}
 							</div>
 							<div>
 								<label className="block mb-1 font-medium text-gray-700">Email</label>
@@ -260,9 +334,10 @@ export default function UserData() {
 									name="email"
 									value={user.email || ""}
 									onChange={handleChange}
-									className="w-full border border-gray-300 rounded-lg px-3 py-2 text-gray-900 bg-gray-50"
+									className={`w-full border rounded-lg px-3 py-2 text-gray-900 ${fieldErrors.email ? "border-red-400 bg-red-50" : "border-gray-300 bg-gray-50"}`}
 									required
 								/>
+								{fieldErrors.email && <p className="mt-1 text-sm text-red-600">{fieldErrors.email}</p>}
 							</div>
 							<div>
 								<label className="block mb-1 font-medium text-gray-700">Telefonszám</label>
@@ -271,9 +346,10 @@ export default function UserData() {
 									name="phone_number"
 									value={user.phone_number || ""}
 									onChange={handleChange}
-									className="w-full border border-gray-300 rounded-lg px-3 py-2 text-gray-900 bg-gray-50"
+									className={`w-full border rounded-lg px-3 py-2 text-gray-900 ${fieldErrors.phone_number ? "border-red-400 bg-red-50" : "border-gray-300 bg-gray-50"}`}
 									required
 								/>
+								{fieldErrors.phone_number && <p className="mt-1 text-sm text-red-600">{fieldErrors.phone_number}</p>}
 							</div>
 							<div>
 								<label className="block mb-1 font-medium text-gray-700">Születési dátum</label>
@@ -291,18 +367,21 @@ export default function UserData() {
 									name="address"
 									value={user.address || ""}
 									onChange={handleChange}
-									className="w-full border border-gray-300 rounded-lg px-3 py-2 text-gray-900 bg-gray-50"
+									className={`w-full border rounded-lg px-3 py-2 text-gray-900 ${fieldErrors.address ? "border-red-400 bg-red-50" : "border-gray-300 bg-gray-50"}`}
 									required
 								/>
+								{fieldErrors.address && <p className="mt-1 text-sm text-red-600">{fieldErrors.address}</p>}
 							</div>
 							<div>
 								<label className="block mb-1 font-medium text-gray-700">Személyi igazolvány szám</label>
 								<input
 									type="text"
+									name="identity_card"
 									value={user.identity_card || ""}
-									className="w-full border border-gray-300 rounded-lg px-3 py-2 text-gray-500 bg-gray-100 cursor-not-allowed"
-									disabled
+									onChange={handleChange}
+									className={`w-full border rounded-lg px-3 py-2 text-gray-900 ${fieldErrors.identity_card ? "border-red-400 bg-red-50" : "border-gray-300 bg-gray-50"}`}
 								/>
+								{fieldErrors.identity_card && <p className="mt-1 text-sm text-red-600">{fieldErrors.identity_card}</p>}
 							</div>
 						<hr className="my-2 border-gray-200" />
 						<p className="text-sm text-gray-500">Jelszó módosításához add meg a jelenlegi jelszavad is.</p>

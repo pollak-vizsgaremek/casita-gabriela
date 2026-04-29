@@ -20,17 +20,6 @@ export const mailer = nodemailer.createTransport({
 // Admin email (fallback)
 const ADMIN_EMAIL = process.env.ADMIN_EMAIL || "casitagabriela.mailer@gmail.com";
 
-/**
- * buildEmailHtml
- * Egységes, "szép" HTML sablon minden emailhez.
- * title: főcím
- * preface: rövid bevezető (opcionális)
- * contentHtml: a levél fő tartalma (lista, részletek)
- * ctaHtml: gomb vagy link (opcionális)
- *
- * A sablon részletesebb, több kommenttel és inline stílussal, hogy a levelek
- * egységesek és könnyen testreszabhatók legyenek.
- */
 const buildEmailHtml = (title, preface = "", contentHtml = "", ctaHtml = "") => {
   return `
   <!doctype html>
@@ -86,7 +75,7 @@ const buildEmailHtml = (title, preface = "", contentHtml = "", ctaHtml = "") => 
   `;
 };
 
-/* ---------- Registration via email verification ---------- */
+// Regisztráció emaillel
 
 export const registerInit = async (req, res) => {
   try {
@@ -196,11 +185,10 @@ export const verifyRegistration = async (req, res) => {
   }
 };
 
-/* ---------- Booking-related emails (szép dizájn) ---------- */
+// foglalással kapcsolatos emailek
 
-/**
- * Foglalás leadva - visszaigazoló email a felhasználónak
- */
+//Foglalás leadva - visszaigazoló email a felhasználónak
+ 
 export const sendBookingCreatedUser = async (booking, room, user) => {
   try {
     const arrival = booking.arrival_date ? new Date(booking.arrival_date).toISOString().slice(0, 10) : "";
@@ -234,9 +222,8 @@ export const sendBookingCreatedUser = async (booking, room, user) => {
   }
 };
 
-/**
- * Foglalás leadva - értesítő email az adminnak
- */
+//Foglalás leadva - értesítő email az adminnak
+ 
 export const sendBookingCreatedAdmin = async (booking, room, user) => {
   try {
     const arrival = booking.arrival_date ? new Date(booking.arrival_date).toISOString().slice(0, 10) : "";
@@ -271,9 +258,7 @@ export const sendBookingCreatedAdmin = async (booking, room, user) => {
   }
 };
 
-/**
- * Foglalás elfogadva - értesítő a felhasználónak
- */
+//Foglalás elfogadva - értesítő a felhasználónak
 export const sendBookingApproved = async (booking, room, user) => {
   try {
     const arrival = booking.arrival_date ? new Date(booking.arrival_date).toISOString().slice(0, 10) : "";
@@ -306,9 +291,7 @@ export const sendBookingApproved = async (booking, room, user) => {
   }
 };
 
-/**
- * Foglalás elutasítva - értesítő a felhasználónak
- */
+//Foglalás elutasítva - értesítő a felhasználónak
 export const sendBookingRejected = async (booking, room, user, reason = null) => {
   try {
     const arrival = booking.arrival_date ? new Date(booking.arrival_date).toISOString().slice(0, 10) : "";
@@ -342,10 +325,8 @@ export const sendBookingRejected = async (booking, room, user, reason = null) =>
   }
 };
 
-/**
- * Foglalás törölve (felhasználó által) - értesítő az adminnak
- * A felhasználó nem kap emailt.
- */
+// Foglalás törölve (felhasználó által) - értesítő az adminnak, A felhasználó nem kap emailt.
+ 
 export const sendBookingCancelledByUser = async (booking, room, user) => {
   try {
     const arrival = booking.arrival_date ? new Date(booking.arrival_date).toISOString().slice(0, 10) : "";
@@ -379,12 +360,10 @@ export const sendBookingCancelledByUser = async (booking, room, user) => {
   }
 };
 
-/* ---------- Új: Felhasználói / admin értesítések és értékelés email ---------- */
+// Új: Felhasználói / admin értesítések és értékelés email 
 
-/**
- * Felhasználói profil módosult (saját adatlapján)
- * Részletes táblázatos megjelenítéssel, hogy minden mező látható legyen.
- */
+//Felhasználói profil módosult (saját adatlapján), Részletes táblázatos megjelenítéssel, hogy minden mező látható legyen.
+ 
 export const sendUserProfileUpdated = async (user) => {
   try {
     const preface = `Kedves ${user.name || "Felhasználó"}, az adataid sikeresen frissültek.`;
@@ -416,10 +395,8 @@ export const sendUserProfileUpdated = async (user) => {
   }
 };
 
-/**
- * Felhasználói profil módosult (admin által)
- * Tartalmazza az admin által beállított jogosultságot is.
- */
+// Felhasználói profil módosult (admin által) Tartalmazza az admin által beállított jogosultságot is.
+ 
 export const sendUserUpdatedByAdmin = async (user) => {
   try {
     const preface = `Kedves ${user.name || "Felhasználó"}, az adataidat az admin módosította.`;
@@ -450,10 +427,8 @@ export const sendUserUpdatedByAdmin = async (user) => {
   }
 };
 
-/**
- * Jelszó sikeresen megváltozott (bármilyen folyamat végén)
- * Rövid, de fontos biztonsági üzenet.
- */
+//Jelszó sikeresen megváltozott (bármilyen folyamat végén).
+ 
 export const sendPasswordChangedEmail = async (user) => {
   try {
     const preface = `Kedves ${user.name || "Felhasználó"}, a jelszavad sikeresen megváltozott.`;
@@ -477,10 +452,8 @@ export const sendPasswordChangedEmail = async (user) => {
   }
 };
 
-/**
- * Új értékelés érkezett – admin értesítése
- * Részletes információkkal, hogy az admin gyorsan át tudja tekinteni.
- */
+//Új értékelés érkezett – admin értesítése, Részletes információkkal, hogy az admin gyorsan át tudja tekinteni.
+ 
 export const sendReviewCreatedAdmin = async (review, room, user) => {
   try {
     const preface = "Új értékelés érkezett a rendszerbe.";
@@ -512,13 +485,10 @@ export const sendReviewCreatedAdmin = async (review, room, user) => {
   }
 };
 
-/* ---------- Új: Email változás értesítések ---------- */
+//Új: Email változás értesítések 
 
-/**
- * sendEmailChangedOld
- * Rövid értesítés a régi email címre: "Az email címed megváltozott".
- * params: { name, oldEmail, newEmail, byAdmin (optional boolean) }
- */
+//sendEmailChangedOld  Rövid értesítés a régi email címre: "Az email címed megváltozott".  params: { name, oldEmail, newEmail, byAdmin (optional boolean) }
+ 
 export const sendEmailChangedOld = async (params) => {
   try {
     const { name, oldEmail, newEmail, byAdmin = false } = params;
@@ -597,7 +567,7 @@ export const sendEmailChangedNew = async (user, previousEmail = null, opts = {})
   }
 };
 
-/* ---------- Password reset and contact (szép sablon) ---------- */
+//jelszó visszaállítás (szép sablon)
 
 export const forgotPassword = async (req, res) => {
   try {

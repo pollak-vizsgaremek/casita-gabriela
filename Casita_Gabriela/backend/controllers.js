@@ -33,7 +33,7 @@ const getNightCount = (arrival, departure) => {
   return diff > 0 ? diff : 0;
 };
 
-/* ---------- AUTH (login) ---------- */
+// Autentikáció és felhasználói kezelés
 
 export const login = async (req, res) => {
   const { email, password } = req.body;
@@ -77,7 +77,7 @@ export const login = async (req, res) => {
   }
 };
 
-/* ---------- ROOMS ---------- */
+// szobák kezelése
 
 export const getRooms = async (req, res) => {
   try {
@@ -124,7 +124,7 @@ export const createRoom = async (req, res) => {
 
     const createdRaw = await prisma.room.create({ data });
 
-    // fetch with relation to return category name for frontend compatibility
+   
     const created = await prisma.room.findUnique({
       where: { id: createdRaw.id },
       include: { booking: true, room_review: { include: { user: true } }, category_rel: true },
@@ -198,7 +198,7 @@ export const updateRoom = async (req, res) => {
 
     const updatedRaw = await prisma.room.update({ where: { id: Number(id) }, data: updateData });
 
-    // fetch with relation to return category name for frontend compatibility
+    
     const updated = await prisma.room.findUnique({
       where: { id: Number(id) },
       include: { booking: true, room_review: { include: { user: true } }, category_rel: true },
@@ -247,7 +247,7 @@ export const deleteRoom = async (req, res) => {
   }
 };
 
-/* ---------- BOOKING ---------- */
+// foglalások kezelése
 
 export const createBooking = async (req, res) => {
   try {
@@ -303,7 +303,7 @@ export const createBooking = async (req, res) => {
       },
     });
 
-    // --- Email értesítések: felhasználó és admin ---
+    //Email értesítések: felhasználó és admin 
     try {
       // felhasználónak visszaigazoló email
       if (user && user.email) {
@@ -319,7 +319,6 @@ export const createBooking = async (req, res) => {
 
     res.json({ message: "Foglalás sikeresen létrehozva!", booking: created });
 
-    // Mark user as no longer first-time in DB (fire-and-forget)
     if (user_id) {
       prisma.users.update({ where: { id: parseInt(user_id, 10) }, data: { isFirstTimeUser: false } }).catch(() => {});
     }
@@ -429,7 +428,7 @@ export const deleteBooking = async (req, res) => {
   }
 };
 
-/* ---------- REVIEWS ---------- */
+// Értékelések kezelése
 
 export const getReviews = async (req, res) => {
   try {
@@ -448,7 +447,7 @@ export const getReviews = async (req, res) => {
       include: { room: { include: { category_rel: true } }, user: true },
     });
 
-    // format room.category to name for compatibility
+    
     const formatted = reviews.map((r) => ({
       ...r,
       room: {
@@ -489,7 +488,6 @@ export const createReview = async (req, res) => {
 
     // Admin értesítése új értékelésről
     try {
-      // normalize room object for email
       const roomForEmail = {
         ...created.room,
         category: created.room?.category_rel?.name || null,
@@ -539,7 +537,7 @@ export const deleteReview = async (req, res) => {
   }
 };
 
-/* ---------- USER PANEL ---------- */
+// felhasználói saját foglalások és értékelések, valamint adatkezelés
 
 export const getUserBookings = async (req, res) => {
   try {
@@ -642,11 +640,12 @@ export const updateUserData = async (req, res) => {
       email,
       phone_number,
       address,
+      identity_card,
       password,
       oldPassword,
     } = req.body;
 
-    const data = { name, email, phone_number, address };
+    const data = { name, email, phone_number, address, identity_card };
     let passwordChanged = false;
 
     // lekérjük a jelenlegi usert, hogy össze tudjuk hasonlítani az emailt
@@ -767,7 +766,7 @@ export const deleteUserReview = async (req, res) => {
   }
 };
 
-/* ---------- ADMIN USER MANAGEMENT ---------- */
+// Admin felhasználókezelés
 
 export const getAllUsers = async (req, res) => {
   try {
@@ -820,7 +819,7 @@ export const adminUpdateUser = async (req, res) => {
       data.isAdmin = Boolean(isAdmin);
     }
 
-    // lekérjük a jelenlegi felhasználót, hogy ellenőrizzük az email változást
+    
     const current = await prisma.users.findUnique({ where: { id } });
 
     if (!current) {
@@ -837,7 +836,7 @@ export const adminUpdateUser = async (req, res) => {
     try {
       if (updated.email) {
         if (emailChanged) {
-          // régi emailre: csak rövid értesítés, hogy az email címed megváltozott (admin által)
+          
           try {
             await sendEmailChangedOld({ name: current.name, oldEmail, newEmail, byAdmin: true });
             console.log("EMAIL SEND OK: old email notification (admin) sent to", oldEmail);
@@ -845,7 +844,7 @@ export const adminUpdateUser = async (req, res) => {
             console.error("SEND EMAIL CHANGED OLD ERROR (ADMIN):", oldErr);
           }
 
-          // új emailre: teljes értesítés, hogy admin módosította az adatokat és az emailt
+          
           try {
             await sendEmailChangedNew(updated, oldEmail, { byAdmin: true });
             console.log("EMAIL SEND OK: new email notification (admin) sent to", updated.email);
@@ -853,7 +852,7 @@ export const adminUpdateUser = async (req, res) => {
             console.error("SEND EMAIL CHANGED NEW ERROR (ADMIN):", newErr);
           }
         } else {
-          // ha nem változott az email, csak a szokásos admin-update értesítés
+          
           await sendUserUpdatedByAdmin(updated);
           console.log("EMAIL SEND OK: admin update notification sent to", updated.email);
         }
@@ -890,7 +889,7 @@ export const adminDeleteUser = async (req, res) => {
   }
 };
 
-/* ---------- NOTIFICATION COUNTS ---------- */
+// Értesítések
 
 export const getAdminCounts = async (req, res) => {
   try {
@@ -950,7 +949,7 @@ export const getUserCounts = async (req, res) => {
   }
 };
 
-/* ---------- CATEGORIES ---------- */
+// Kategóriák kezelése
 
 export const getCategories = async (req, res) => {
   try {

@@ -1,3 +1,5 @@
+// src/components/Sidebar.jsx
+
 import React, { useEffect, useState, useCallback } from 'react'
 import { NavLink, useLocation } from 'react-router-dom'
 import api from '../services/api'
@@ -7,6 +9,7 @@ const SEEN_KEY = 'sidebar_seen_ids';
 const getSeenIds = () => {
   try { return JSON.parse(localStorage.getItem(SEEN_KEY)) || {}; } catch { return {}; }
 };
+
 const setSeenId = (key, maxId) => {
   const seen = getSeenIds();
   seen[key] = maxId;
@@ -24,6 +27,7 @@ const Sidebar = ({ isOpen, onClose, userPanel }) => {
     const params = userPanel
       ? { sinceBooking: seen.bookings || 0, sinceReview: seen.reviews || 0 }
       : { sinceBooking: seen.bookings || 0, sinceReview: seen.reviews || 0, sinceUser: seen.users || 0 };
+
     api.get(prefix, { params })
       .then(res => {
         setCounts(res.data);
@@ -74,6 +78,7 @@ const Sidebar = ({ isOpen, onClose, userPanel }) => {
       </svg>
     )},
   ];
+
   const userItems = [
     { to: '/user/bookings', label: 'Foglalásaim', countKey: 'bookings', icon: (
       <svg className="h-5 w-5" viewBox="0 0 24 24" fill="none" stroke="currentColor">
@@ -91,11 +96,23 @@ const Sidebar = ({ isOpen, onClose, userPanel }) => {
       </svg>
     )},
   ];
+
   const items = userPanel ? userItems : adminItems;
 
   const profileName = userPanel
     ? (() => { try { const u = JSON.parse(localStorage.getItem('user')); return u?.name || 'Felhasználó'; } catch { return 'Felhasználó'; } })()
     : 'Admin';
+
+  // Only show red badge for bookings and reviews.
+  const showBadgeFor = (key) => key === 'bookings' || key === 'reviews';
+
+  // Prefer explicit pending count if provided by API (e.g. counts.bookingsPending),
+  // otherwise fall back to counts.bookings or counts.reviews as available.
+  const getBadgeCount = (key) => {
+    if (!key) return 0;
+    if (key === 'bookings') return (counts.bookingsPending ?? counts.bookings ?? 0);
+    return counts[key] ?? 0;
+  };
 
   if (userPanel) {
     return (
@@ -110,6 +127,7 @@ const Sidebar = ({ isOpen, onClose, userPanel }) => {
             <div className="text-lg font-semibold text-gray-800 leading-tight">{profileName}</div>
             <div className="text-sm text-gray-500 mt-0.5">Saját fiók</div>
           </div>
+
           <nav className="px-3 pb-4 pt-2 flex flex-wrap items-center justify-center gap-2">
             {items.map((it) => (
               <NavLink
@@ -121,9 +139,10 @@ const Sidebar = ({ isOpen, onClose, userPanel }) => {
               >
                 <span className="shrink-0 text-green-700">{it.icon}</span>
                 <span>{it.label}</span>
-                {it.countKey && counts[it.countKey] > 0 && (
+
+                {it.countKey && showBadgeFor(it.countKey) && getBadgeCount(it.countKey) > 0 && (
                   <span className="bg-red-500 text-white text-[10px] font-bold rounded-full min-w-5 h-5 flex items-center justify-center px-1">
-                    {counts[it.countKey]}
+                    {getBadgeCount(it.countKey)}
                   </span>
                 )}
               </NavLink>
@@ -160,9 +179,10 @@ const Sidebar = ({ isOpen, onClose, userPanel }) => {
                 >
                   <span className="shrink-0 text-green-700">{it.icon}</span>
                   <span className="text-sm flex-1">{it.label}</span>
-                  {it.countKey && counts[it.countKey] > 0 && (
+
+                  {it.countKey && showBadgeFor(it.countKey) && getBadgeCount(it.countKey) > 0 && (
                     <span className="bg-red-500 text-white text-xs font-bold rounded-full min-w-5 h-5 flex items-center justify-center px-1">
-                      {counts[it.countKey]}
+                      {getBadgeCount(it.countKey)}
                     </span>
                   )}
                 </NavLink>
@@ -218,15 +238,16 @@ const Sidebar = ({ isOpen, onClose, userPanel }) => {
               end={it.to === '/admin'}
               className={({ isActive }) =>
                 `flex items-center gap-3 px-3 py-2 rounded-md mb-1 transition-colors
-                 ${isActive ? 'bg-[#E6F9E9] text-green-800 font-medium' : 'text-gray-700 hover:bg-gray-100'}`
+                ${isActive ? 'bg-[#E6F9E9] text-green-800 font-medium' : 'text-gray-700 hover:bg-gray-100'}`
               }
               onClick={onClose}
             >
               <span className="shrink-0 text-green-700">{it.icon}</span>
               <span className="text-sm flex-1">{it.label}</span>
-              {it.countKey && counts[it.countKey] > 0 && (
+
+              {it.countKey && showBadgeFor(it.countKey) && getBadgeCount(it.countKey) > 0 && (
                 <span className="bg-red-500 text-white text-xs font-bold rounded-full min-w-5 h-5 flex items-center justify-center px-1">
-                  {counts[it.countKey]}
+                  {getBadgeCount(it.countKey)}
                 </span>
               )}
             </NavLink>

@@ -1,6 +1,8 @@
 import React from 'react';
 import { useNavigate } from 'react-router';
 
+// Kártya komponens az admin felületen: rákattintva szerkesztő oldalra navigál
+
 const OfferAdminEdit = ({ id, name, price, image, reviews = [] }) => {
   const navigate = useNavigate();
 
@@ -16,9 +18,10 @@ const OfferAdminEdit = ({ id, name, price, image, reviews = [] }) => {
       <div className='h-3/5 w-full bg-[#edf9f2] rounded-t-xl overflow-hidden'>
         <img src={image} alt={name} className="w-full h-full object-cover rounded-t-xl" />
       </div>
-      <div className='h-2/5 w-full bg-[#a4dfb9] rounded-b-xl flex flex-col p-3 justify-between'>
+        <div className='h-2/5 w-full bg-[#a4dfb9] rounded-b-xl flex flex-col p-3 justify-between'>
         <div>
           <p className='font-bold text-lg'>{name}</p>
+          {/* Ha vannak vélemények, átlagolt csillagok és értékelés megjelenítése */}
           {reviews && reviews.length ? (
             <div className="flex items-center gap-2 mt-1">
               <div className="text-yellow-500 text-sm">

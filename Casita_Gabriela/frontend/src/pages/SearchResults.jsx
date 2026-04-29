@@ -16,7 +16,7 @@ const SearchResults = () => {
   const location = useLocation()
   const navigate = useNavigate()
 
-  // search state
+  // Keresési űrlap állapota
   const [category, setCategory] = useState('')
   const [arrival, setArrival] = useState('')
   const [departure, setDeparture] = useState('')
@@ -72,7 +72,7 @@ const SearchResults = () => {
     }
   }
 
-  // sync inputs with URL
+  // URL paramok szinkronizálása a beviteli mezőkkel
   useEffect(() => {
     const params = new URLSearchParams(location.search)
 
@@ -89,7 +89,7 @@ const SearchResults = () => {
     }
   }, [rooms, location.search])
 
-  // 🔥 trigger animation replay when results change
+  // Animáció újraindítása, ha a találatok listája változik
   useEffect(() => {
     setAnimationKey(prev => prev + 1)
   }, [filteredRooms])
@@ -149,7 +149,7 @@ const SearchResults = () => {
 
     if (!start && !end) return true
 
-    // if only one date is provided, treat it as a one-night/day occupancy probe
+    // ha csak egy dátum van megadva, akkor azt egyéjszakás/napos foglaltsági vizsgálatként kezelje
     const probeStart = start || end
     const probeEnd = end || (start ? new Date(start.getFullYear(), start.getMonth(), start.getDate() + 1) : null)
     if (!probeStart || !probeEnd) return true
@@ -231,7 +231,8 @@ const SearchResults = () => {
   return (
     <div className='flex flex-col items-center w-full min-h-screen bg-linear-to-br from-gray-50 via-white to-gray-100 relative overflow-hidden'>
 
-      {/* SEARCH BAR */}
+      {/* Kereső sáv */}
+      {/* Hero / kereső sáv: háttérkép és kereső űrlap */}
       <div className='w-full h-auto sm:h-[400px] md:h-[340px] relative flex items-center justify-center overflow-hidden py-10 sm:py-0'>
         <img
           src="/search.jpg"
@@ -305,7 +306,8 @@ const SearchResults = () => {
         </div>
       </div>
 
-      <div className='w-full h-[110px] sm:h-40 flex items-end'> 
+      {/* Találatok fejléc: vizuális elválasztó */}
+        <div className='w-full h-[110px] sm:h-40 flex items-end'> 
         <div className='w-full flex items-center justify-center gap-3 sm:gap-4 px-4 sm:px-6'> 
           <hr className='flex-1 border-t-2 border-[#4f4f4f]/70' /> 
           <h1 className='text-shadow-lg/10 font-mono text-[#4f4f4f] text-xl sm:text-3xl md:text-4xl text-center whitespace-nowrap'>KERESÉSI TALÁLATOK</h1> 
@@ -313,10 +315,12 @@ const SearchResults = () => {
         </div> 
       </div>
 
+      {/* Találatok száma */}
       <h1 className='text-2xl sm:text-3xl mt-1 sm:mt-2 text-[#4f4f4f]'>
-         {filteredRooms.length}
+        {filteredRooms.length}
       </h1>
 
+      {/* Találatok lista: animált kártyák */}
       <div className='w-full max-w-6xl px-4 sm:px-6 mt-4 sm:mt-6 mb-8 sm:mb-10 mx-auto'>
         <motion.div
           key={animationKey}
@@ -330,6 +334,7 @@ const SearchResults = () => {
           ) : filteredRooms.length === 0 ? (
             <p className='text-gray-600'>Nincs találat.</p>
           ) : (
+            // Minden találatot egy OfferAdmin komponenssel jelenítünk meg
             filteredRooms.map(room => (
               <motion.div
                 key={room.id}

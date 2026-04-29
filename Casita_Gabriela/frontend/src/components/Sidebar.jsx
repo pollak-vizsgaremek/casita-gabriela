@@ -38,7 +38,7 @@ const Sidebar = ({ isOpen, onClose, userPanel }) => {
 
   useEffect(() => { fetchCounts(); }, [fetchCounts]);
 
-  // When navigating to a section, mark it as seen and refresh counts
+  // Útvonalváltáskor a megtekintett szekciókat jelöljük és frissítjük a számlálókat
   useEffect(() => {
     const path = location.pathname;
     const sectionMap = userPanel
@@ -103,11 +103,10 @@ const Sidebar = ({ isOpen, onClose, userPanel }) => {
     ? (() => { try { const u = JSON.parse(localStorage.getItem('user')); return u?.name || 'Felhasználó'; } catch { return 'Felhasználó'; } })()
     : 'Admin';
 
-  // Only show red badge for bookings and reviews.
+  // Csak bizonyos kulcsokra (foglalás, értékelés) mutatunk piros jelzést
   const showBadgeFor = (key) => key === 'bookings' || key === 'reviews';
 
-  // Prefer explicit pending count if provided by API (e.g. counts.bookingsPending),
-  // otherwise fall back to counts.bookings or counts.reviews as available.
+  // Jelzőszám meghatározása: előnyben részesítjük a pending (várakozó) értéket
   const getBadgeCount = (key) => {
     if (!key) return 0;
     if (key === 'bookings') return (counts.bookingsPending ?? counts.bookings ?? 0);
@@ -117,7 +116,7 @@ const Sidebar = ({ isOpen, onClose, userPanel }) => {
   if (userPanel) {
     return (
       <>
-        {/* Mobile navbar under main navbar */}
+        {/* Mobil navigáció a felhasználói panelhez */}
         <div
           className="md:hidden fixed left-0 right-0 bg-white border-b border-gray-200 shadow-sm"
           style={{ top: '10dvh', zIndex: 45 }}
@@ -150,7 +149,7 @@ const Sidebar = ({ isOpen, onClose, userPanel }) => {
           </nav>
         </div>
 
-        {/* Desktop sidebar */}
+        {/* Asztali oldalsáv a felhasználói panelhez */}
         <aside
           className="hidden md:block bg-white text-black shadow-md z-40 md:shadow-none md:fixed w-64"
           style={{

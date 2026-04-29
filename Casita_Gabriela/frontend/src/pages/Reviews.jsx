@@ -4,6 +4,8 @@ import { useLocation } from "react-router";
 import api from "../services/api";
 import Toast, { useToast } from "../components/Toast";
 
+// Értékelések kezelő admin oldal: lista, szűrés és törlés
+
 const Reviews = () => {
   const CONFIRM_ANIMATION_MS = 220;
   const location = useLocation();
@@ -44,6 +46,8 @@ const Reviews = () => {
     }
   };
 
+  // Lekéri az értékeléseket; opcionálisan szoba szerint szűrve
+
   const fetchRooms = async () => {
     try {
       const res = await api.get('/rooms');
@@ -52,6 +56,8 @@ const Reviews = () => {
       console.error('Error fetching rooms for review filter', err);
     }
   };
+
+  // Lekéri a szobákat a szűrő feltöltéséhez
 
   useEffect(() => {
     fetchRooms();
@@ -96,6 +102,8 @@ const Reviews = () => {
     });
   };
 
+  // Megerősítő modal megnyitása és animált megjelenítés beállítása
+
   const closeConfirm = () => {
     if (openConfirmRafRef.current) {
       cancelAnimationFrame(openConfirmRafRef.current);
@@ -134,6 +142,8 @@ const Reviews = () => {
     }
   };
 
+  // Törli az értékelést a szerverről, majd frissíti a listát
+
   const requestDeleteReview = (id) => {
     openConfirm({
       title: 'Értékelés törlése',
@@ -144,13 +154,15 @@ const Reviews = () => {
     });
   };
 
+  // Megnyit egy törlés megerősítő dialógust
+
   return (
     <div className="flex min-h-screen w-dvw bg-[#f7faf7]">
       <Sidebar isOpen={sidebarOpen} onClose={() => setSidebarOpen(false)} />
 
       <div className="flex-1 ml-0 md:ml-64">
 
-        {/* MOBILE HEADER */}
+        {/* Mobil fejléc: menü gomb és oldal cím */}
         <header className="flex items-center justify-between px-5 py-4 border-b bg-white md:hidden">
           <button
             onClick={() => setSidebarOpen((s) => !s)}
@@ -165,9 +177,11 @@ const Reviews = () => {
           <div style={{ width: 36 }} />
         </header>
 
+        {/* Fő tartalom: szűrő és értékelések lista */}
         <main className="px-5 pt-5">
           <h1 className="text-2xl font-semibold mb-4 text-gray-900">Értékelések kezelése</h1>
 
+          {/* Szűrő: választható szoba szerinti megjelenítés */}
           <div className="mb-4 max-w-md">
             <label className="block text-sm font-medium text-gray-700 mb-1">Szűrés szoba szerint</label>
             <select
@@ -188,9 +202,11 @@ const Reviews = () => {
             <div>Betöltés...</div>
           ) : (
             <div className="space-y-4">
+              {/* Lista: minden értékelés kártyaként jelenik meg */}
               {reviews.length === 0 && <div className="text-gray-600">Nincsenek értékelések.</div>}
               {reviews.map((r) => (
                 <div key={r.id} className="bg-white p-4 rounded shadow flex flex-col gap-3 sm:flex-row sm:justify-between sm:items-start">
+                  {/* Felhasználó és pontszám */}
                   <div className="min-w-0 flex-1">
                     <div className="text-sm font-semibold text-gray-900 wrap-anywhere">
                       {r.user ? r.user.name : r.user_id ? `id:${r.user_id}` : 'Ismeretlen'}
@@ -199,6 +215,7 @@ const Reviews = () => {
                       <div className="text-yellow-500 font-bold">{"★".repeat(r.stars)}{"☆".repeat(5 - r.stars)}</div>
                       <div className="text-sm text-gray-600">{r.stars}/5</div>
                     </div>
+                    {/* Vélemény szövege */}
                     <p className="mt-2 text-gray-800 wrap-anywhere whitespace-pre-wrap">{r.comment}</p>
                     <div className="mt-2 text-xs text-gray-500">
                       <div> {r.room ? r.room.name : r.room_id}</div>
@@ -206,6 +223,7 @@ const Reviews = () => {
                     </div>
                   </div>
                   <div className="sm:ml-4 shrink-0 self-start">
+                    {/* Törlés gomb, megerősítés megnyitásával */}
                     <button onClick={() => requestDeleteReview(r.id)} className="bg-red-100 text-red-700 border border-red-200 px-3 py-1 rounded hover:bg-red-200 transition-colors">Törlés</button>
                   </div>
                 </div>

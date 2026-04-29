@@ -1,4 +1,4 @@
-// middleware.js
+// Middleware: JWT ellenőrzés és felhasználó betöltése a kérésbe
 import jwt from "jsonwebtoken";
 import { PrismaClient } from "./generated/prisma/client.js";
 
@@ -25,6 +25,7 @@ export const authenticate = async (req, res, next) => {
   }
 };
 
+// Admin jogosultság ellenőrzése: csak admin felhasználók férhetnek hozzá
 export const requireAdmin = (req, res, next) => {
   if (!req.user) return res.status(401).json({ error: "Unauthorized" });
   if (!(req.user.isAdmin === true || req.user.isAdmin === 1)) return res.status(403).json({ error: "Admin role required" });

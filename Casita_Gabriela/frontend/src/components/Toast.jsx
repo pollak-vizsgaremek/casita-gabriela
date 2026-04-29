@@ -1,5 +1,6 @@
 import React from 'react'
 
+// Rövid értesítések kezelése és megjelenítése (toast-ok)
 const Toast = ({ toasts, removeToast }) => {
   return (
     <div className="fixed right-4 bottom-4 z-50 flex flex-col gap-3 items-end">
@@ -39,7 +40,7 @@ const Toast = ({ toasts, removeToast }) => {
 
 export function useToast() {
   const [toasts, setToasts] = React.useState([])
-
+  // Hook: toast létrehozása, automatikus eltűnés és manuális eltávolítás
   const pushToast = (title, message = '', type = 'success', ttl = 4000) => {
     const id = Date.now() + Math.random()
     setToasts((s) => [...s, { id, title, message, type }])

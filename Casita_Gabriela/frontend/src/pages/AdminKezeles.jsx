@@ -3,6 +3,7 @@
 import React, { useState, useEffect, useRef } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import api from "../services/api";
+import Toast, { useToast } from "../components/Toast";
 
 
 const AdminKezeles = () => {
@@ -33,7 +34,7 @@ const AdminKezeles = () => {
   const [mainImagePreview, setMainImagePreview] = useState(null);
   const [extraImages, setExtraImages] = useState([]); // {id, file|null, preview}
   const [loading, setLoading] = useState(false);
-  const [message, setMessage] = useState("");
+  const [, setMessage] = useState("");
   const [isEditing, setIsEditing] = useState(false);
   const [initialLoad, setInitialLoad] = useState(true);
 
@@ -46,12 +47,8 @@ const AdminKezeles = () => {
   const dragCounter = useRef(0);
 
 
-  // toast for bottom-right error/info messages
-  const [toast, setToast] = useState({
-    visible: false,
-    text: "",
-    type: "info",
-  });
+  const { toasts, pushToast, removeToast } = useToast();
+  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
 
 
   // single-button rendering state based on viewport width
@@ -474,10 +471,9 @@ const AdminKezeles = () => {
 
 
   const showToast = (text, type = "info", duration = 4000) => {
-    setToast({ visible: true, text, type });
-    setTimeout(() => {
-      setToast((t) => ({ ...t, visible: false }));
-    }, duration);
+    const toastType = type === "success" ? "success" : "error";
+    const title = type === "success" ? "Sikeres" : type === "info" ? "Információ" : "Hiba";
+    pushToast(title, text, toastType, duration);
   };
 
 
@@ -677,15 +673,21 @@ const AdminKezeles = () => {
   };
 
 
-  const handleDelete = async () => {
+  const handleDelete = () => {
+    if (!isEditing || !id || loading) return;
+    setShowDeleteConfirm(true);
+  };
+
+
+  const handleDeleteConfirmed = async () => {
     if (!isEditing || !id) return;
-    if (!window.confirm("Biztosan törölni akarod ezt a szobát?")) return;
     setLoading(true);
     setMessage("");
     try {
       await api.delete(`/rooms/${id}`);
       setMessage("Sikeresen törölted a szobát!");
       showToast("Sikeresen törölted a szobát!", "success");
+      setShowDeleteConfirm(false);
       setFormData({
         title: "",
         description: "",
@@ -788,19 +790,23 @@ const AdminKezeles = () => {
 }
 
 
-/* toast styles */
-.toast-box {
-  min-width: 220px;
-  max-width: 320px;
-  padding: 10px 14px;
-  border-radius: 10px;
-  color: white;
-  font-weight: 600;
-  box-shadow: 0 8px 20px rgba(2,6,23,0.18);
+@keyframes modalOverlayFadeIn {
+  from { opacity: 0; }
+  to { opacity: 1; }
 }
-.toast-info { background: #334155; }
-.toast-success { background: #059669; }
-.toast-error { background: #dc2626; }
+
+@keyframes modalCardPopIn {
+  from { opacity: 0; transform: translateY(10px) scale(0.96); }
+  to { opacity: 1; transform: translateY(0) scale(1); }
+}
+
+.confirm-modal-overlay {
+  animation: modalOverlayFadeIn 180ms ease-out both;
+}
+
+.confirm-modal-card {
+  animation: modalCardPopIn 220ms cubic-bezier(.2,.9,.2,1) both;
+}
 `}</style>
 
 
@@ -1099,19 +1105,6 @@ const AdminKezeles = () => {
                     </button>
                   )}
                 </div>
-
-
-                {message && (
-                  <div
-                    className={`mt-4 p-3 rounded-lg text-center font-medium ${
-                      message.toLowerCase().includes("siker")
-                        ? "bg-green-100 text-green-800"
-                        : "bg-red-100 text-red-800"
-                    }`}
-                  >
-                    {message}
-                  </div>
-                )}
               </div>
             </div>
 
@@ -1373,21 +1366,33 @@ const AdminKezeles = () => {
           {/* Removed Ratings and Reservations sections as requested */}
         </div>
       </div>
+      <Toast toasts={toasts} removeToast={removeToast} />
 
-
-      {/* Toast / bottom-right small box for errors and info */}
-      {toast.visible && (
-        <div style={{ position: "fixed", right: 16, bottom: 16, zIndex: 1200 }}>
-          <div
-            className={`toast-box ${
-              toast.type === "error"
-                ? "toast-error"
-                : toast.type === "success"
-                ? "toast-success"
-                : "toast-info"
-            }`}
-          >
-            {toast.text}
+      {showDeleteConfirm && (
+        <div className="confirm-modal-overlay fixed inset-0 z-1300 flex items-center justify-center bg-black/40 px-4">
+          <div className="confirm-modal-card w-full max-w-md rounded-xl border border-gray-200 bg-white p-5 shadow-xl">
+            <h3 className="text-lg font-semibold text-gray-900">Szoba törlése</h3>
+            <p className="mt-2 text-sm text-gray-700">
+              Biztosan törölni szeretnéd ezt a szobát? Ez a művelet nem vonható vissza.
+            </p>
+            <div className="mt-5 flex justify-end gap-2">
+              <button
+                type="button"
+                onClick={() => setShowDeleteConfirm(false)}
+                disabled={loading}
+                className="px-3 py-2 rounded-md bg-gray-100 text-gray-700 hover:bg-gray-200 disabled:opacity-60"
+              >
+                Mégse
+              </button>
+              <button
+                type="button"
+                onClick={handleDeleteConfirmed}
+                disabled={loading}
+                className="px-3 py-2 rounded-md border border-red-200 bg-red-50 text-red-700 hover:bg-red-100 disabled:opacity-60"
+              >
+                {loading ? "Törlés..." : "Törlés"}
+              </button>
+            </div>
           </div>
         </div>
       )}

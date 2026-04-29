@@ -1,23 +1,33 @@
+
 import React, { useEffect, useRef, useState } from "react";
 import { useLocation } from "react-router";
 import Sidebar from "../components/Sidebar";
 import Toast, { useToast } from "../components/Toast";
 import api from "../services/api";
 
+// Felhasználói panel - Foglalások oldala: listázás, lemondás és elutasított foglalások kezelése
 export default function UserBooking() {
+	// UI animáció/timeout konstansok
 	const CONFIRM_ANIMATION_MS = 220;
 	const DAY_MS = 24 * 60 * 60 * 1000;
+	// LocalStorage kulcs az elutasított, törölt foglalások archiválására
 	const REJECTED_TRASH_KEY = "userPanelRejectedBookingTrash";
+
+	// Segédfüggvény a pénznem formázásához megjelenítéskor
 	const formatCurrency = (value) => {
 		const amount = Number(value);
 		if (!Number.isFinite(amount)) return "-";
 		return `${amount.toLocaleString("hu-HU")} Ft`;
 	};
+
+	// Router / state inicializálás
 	const location = useLocation();
 	const [bookings, setBookings] = useState([]);
 	const [loading, setLoading] = useState(true);
 	const [error, setError] = useState(null);
 	const [canceling, setCanceling] = useState(null);
+
+	// Elutasított foglalások helyi tárolása (archív lista)
 	const [trashedRejectedBookings, setTrashedRejectedBookings] = useState(() => {
 		try {
 			const raw = localStorage.getItem(REJECTED_TRASH_KEY);
@@ -28,6 +38,8 @@ export default function UserBooking() {
 			return [];
 		}
 	});
+
+	// Confirm modal állapotok és ref-ek az animált megjelenítéshez
 	const [confirmMounted, setConfirmMounted] = useState(false);
 	const [confirmVisible, setConfirmVisible] = useState(false);
 	const closeConfirmTimeoutRef = useRef(null);
@@ -48,6 +60,7 @@ export default function UserBooking() {
 	useEffect(() => { setSidebarOpen(false); }, [location.pathname]);
 
 	useEffect(() => {
+		// Cleanup: töröljük az esetleg futó timeout/raf referenciákat unmountkor
 		return () => {
 			if (closeConfirmTimeoutRef.current) clearTimeout(closeConfirmTimeoutRef.current);
 			if (openConfirmRafRef.current) cancelAnimationFrame(openConfirmRafRef.current);
@@ -66,14 +79,18 @@ export default function UserBooking() {
 			});
 	}, []);
 
+	// Foglalások betöltése a szerverről (komponens mountkor)
+
 	useEffect(() => {
+		// Persistáljuk az elutasított, törölt foglalások listáját localStorage-be
 		try {
 			localStorage.setItem(REJECTED_TRASH_KEY, JSON.stringify(trashedRejectedBookings));
 		} catch {
-			// ignore storage errors
+			// tárolási hiba eldobása: nem kritikus a működéshez
 		}
 	}, [trashedRejectedBookings]);
 
+	// Foglalás törlése/felhasználói lemondás: DELETE hívás és állapotfrissítés
 	const handleCancel = async (id) => {
 		setCanceling(id);
 		try {
@@ -86,6 +103,7 @@ export default function UserBooking() {
 		setCanceling(null);
 	};
 
+	// Megerősítő modal megnyitása: animált mount és callback beállítása
 	const openConfirm = ({ title, message, confirmLabel = "Megerősítés", cancelLabel = "Mégse", showCancel = true, variant = "danger", onConfirm }) => {
 		if (closeConfirmTimeoutRef.current) {
 			clearTimeout(closeConfirmTimeoutRef.current);
@@ -115,6 +133,7 @@ export default function UserBooking() {
 		});
 	};
 
+	// Megerősítő modal bezárása és unmount animáció
 	const closeConfirm = () => {
 		if (openConfirmRafRef.current) {
 			cancelAnimationFrame(openConfirmRafRef.current);
@@ -138,14 +157,17 @@ export default function UserBooking() {
 		}, CONFIRM_ANIMATION_MS);
 	};
 
+	// Megnyomott megerősítés kezelése: bezárás után hívjuk a callbacket
 	const handleConfirm = () => {
 		const callback = confirmDialog.onConfirm;
 		closeConfirm();
 		if (typeof callback === "function") callback();
 	};
 
+	// Dátumsegéd: dátumot a nap elejére normalizál
 	const toStartOfDay = (d) => new Date(d.getFullYear(), d.getMonth(), d.getDate());
 
+	// Dátum parse: ISO, string vagy Date objektumokból normalizált nap kezdő időpontot ad vissza
 	const parseBookingDate = (value) => {
 		if (!value) return null;
 		if (value instanceof Date && !Number.isNaN(value.getTime())) return toStartOfDay(value);
@@ -159,6 +181,7 @@ export default function UserBooking() {
 		return toStartOfDay(parsed);
 	};
 
+	// Foglalás státusz segédfüggvények: elutasított/jóváhagyott/függő ellenőrzések
 	const isRejectedStatus = (status) => {
 		const normalized = (status || "").toString().toLowerCase();
 		return normalized.includes("rejected") || normalized.includes("elutas");
@@ -174,6 +197,7 @@ export default function UserBooking() {
 		return normalized.includes("pend") || normalized.includes("függ");
 	};
 
+	// Státusz magyar címkéje: egyszerű normalizált leképezés a UI-hoz
 	const getStatusLabelHu = (status) => {
 		const normalized = (status || "").toString().toLowerCase();
 		if (normalized.includes("pend") || normalized.includes("függ")) return "Függőben";
@@ -277,6 +301,7 @@ export default function UserBooking() {
 		return "bg-white border-gray-200";
 	};
 
+	// Foglalás-kártya komponens: megjeleníti a foglalás részleteit és a művelet gombokat
 	const renderBookingCard = (b, { canCancel, canDeleteRejected = true }) => (
 		<div key={b.id} className={`${getCardClass(b)} border rounded-xl shadow-sm p-4 sm:p-5 flex flex-col gap-3 md:flex-row md:items-center md:justify-between`}>
 			<div className="text-gray-800 grid grid-cols-1 sm:grid-cols-2 gap-x-6 gap-y-1 flex-1">
@@ -327,6 +352,7 @@ export default function UserBooking() {
 					) : (
 						<div className="space-y-8">
 							<section>
+								{/* Jövőbeli foglalások: még lemondható, időben rendezve */}
 								<h3 className="text-lg font-semibold text-gray-900 mb-3">Jövőbeli foglalások</h3>
 								{futureBookings.length === 0 ? (
 									<div className="text-gray-600">Nincs jövőbeli foglalás.</div>
@@ -338,6 +364,7 @@ export default function UserBooking() {
 							</section>
 
 							<section>
+								{/* Aktív foglalások: jelenleg tartózkodás alatt álló foglalások */}
 								<h3 className="text-lg font-semibold text-gray-900 mb-3">Aktív foglalások</h3>
 								{activeBookings.length === 0 ? (
 									<div className="text-gray-600">Nincs aktív foglalás.</div>
@@ -349,6 +376,7 @@ export default function UserBooking() {
 							</section>
 
 							<section>
+								{/* Elutasított + törölt foglalások: archivált elemek */}
 								<h3 className="text-lg font-semibold text-gray-900 mb-3">Törölt elutasított foglalások</h3>
 								{trashedRejectedList.length === 0 ? (
 									<div className="text-gray-600">Nincs törölt elutasított foglalás.</div>
@@ -360,6 +388,7 @@ export default function UserBooking() {
 							</section>
 
 							<section>
+								{/* Korábbi foglalások: történelem, nem módosítható */}
 								<h3 className="text-lg font-semibold text-gray-900 mb-3">Korábbi foglalások</h3>
 								{pastBookings.length === 0 ? (
 									<div className="text-gray-600">Nincs korábbi foglalás.</div>

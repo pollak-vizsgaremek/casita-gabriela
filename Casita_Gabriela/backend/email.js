@@ -41,7 +41,7 @@ const buildEmailHtml = (title, preface = "", contentHtml = "", ctaHtml = "") => 
                   <tr>
                     <td style="vertical-align:middle;padding-bottom:8px;">
                       <div style="display:flex;align-items:center;gap:12px;">
-                        <div style="width:48px;height:48px;border-radius:10px;background:linear-gradient(135deg,#6FD98C,#2EB872);"></div>
+                        <div style="width:48px;height:48px;border-radius:10px;background:linear-gradient(135deg,#6FD98C,#2EB872);margin-right:10px;"></div>
                         <div>
                           <h1 style="margin:0;font-size:20px;color:#222;font-weight:700;">${title}</h1>
                           ${preface ? `<p style="margin:6px 0 0;color:#666;font-size:13px;">${preface}</p>` : ""}

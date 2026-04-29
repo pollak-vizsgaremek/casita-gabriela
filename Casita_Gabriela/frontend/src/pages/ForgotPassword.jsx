@@ -1,14 +1,17 @@
+// Elfelejtett jelszó oldal: jelszó-visszaállító email küldése
 import React, { useState } from 'react';
 import { Link } from 'react-router';
 import axios from 'axios';
 import Footer from "../components/Footer";
 
 const ForgotPassword = () => {
+  // Űrlap állapotok: email, visszajelzés és betöltés jelző
   const [email, setEmail] = useState("");
   const [message, setMessage] = useState("");
   const [success, setSuccess] = useState(false);
   const [loading, setLoading] = useState(false);
 
+  // Email küldése a szervernek: jelszó-visszaállító link kezdeményezése
   const handleSubmit = async (e) => {
     e.preventDefault();
     setMessage("");

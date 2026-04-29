@@ -5,8 +5,10 @@ import Toast, { useToast } from "../components/Toast";
 import { useLocation } from "react-router";
 
 const AdminCategories = () => {
+  // Animációs időzítések dialógusokhoz és űrlappanelhez
   const CONFIRM_ANIMATION_MS = 220;
   const FORM_ANIMATION_MS = 220;
+  const NAME_MAX = 30; // kategória név maximális hossz
   const location = useLocation();
   const [categories, setCategories] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -33,6 +35,7 @@ const AdminCategories = () => {
   const closeFormTimeoutRef = useRef(null);
   const { toasts, pushToast, removeToast } = useToast();
 
+  // Kategóriák kezdeti betöltése az oldal megnyitásakor
   useEffect(() => {
     fetchCategories();
   }, []);
@@ -74,6 +77,7 @@ const AdminCategories = () => {
     }, FORM_ANIMATION_MS);
   };
 
+  // Kategóriák lekérése a backend-ről
   const fetchCategories = async () => {
     try {
       setLoading(true);
@@ -87,6 +91,7 @@ const AdminCategories = () => {
     }
   };
 
+  // Kategória kép feltöltése a szerverre (multipart)
   const handleImageUpload = async (e) => {
     const files = e.target.files;
     if (!files || files.length === 0) return;
@@ -122,6 +127,7 @@ const AdminCategories = () => {
     }
   };
 
+  // Új kategória létrehozása vagy szerkesztés mentése
   const handleSubmit = async (e) => {
     e.preventDefault();
 
@@ -160,6 +166,7 @@ const AdminCategories = () => {
     }
   };
 
+  // Szerkesztés kezdeményezése: űrlap feltöltése meglévő adatokkal
   const handleEdit = (category) => {
     setFormData({ name: category.name, image: category.image });
     setSelectedImageName(category.image ? category.image.split("/").pop() : "");
@@ -167,6 +174,7 @@ const AdminCategories = () => {
     openFormPanel();
   };
 
+  // Megerősítő dialógus megnyitása (törléshez stb.)
   const openConfirm = ({
     title,
     message,
@@ -200,6 +208,7 @@ const AdminCategories = () => {
     });
   };
 
+  // Megerősítő dialógus bezárása animációval
   const closeConfirm = () => {
     if (openConfirmRafRef.current) {
       cancelAnimationFrame(openConfirmRafRef.current);
@@ -227,6 +236,7 @@ const AdminCategories = () => {
     if (typeof callback === "function") callback();
   };
 
+  // Kategória törlése a backend-en keresztül
   const handleDelete = async (id) => {
     try {
       await api.delete(`/categories/${id}`);
@@ -243,6 +253,7 @@ const AdminCategories = () => {
     }
   };
 
+  // Törlés megerősítésének kérése
   const requestDeleteCategory = (id) => {
     openConfirm({
       title: "Kategória törlése",
@@ -266,7 +277,7 @@ const AdminCategories = () => {
       <Sidebar isOpen={sidebarOpen} onClose={() => setSidebarOpen(false)} />
 
       <div className="flex-1 ml-0 md:ml-64">
-        {/* MOBILE HEADER */}
+        {/* MOBIL FEJLÉC */}
         <header className="flex items-center justify-between px-5 py-4 border-b bg-white md:hidden">
           <button
             onClick={() => setSidebarOpen((s) => !s)}
@@ -291,13 +302,13 @@ const AdminCategories = () => {
           <div style={{ width: 36 }} />
         </header>
 
-        {/* MAIN */}
+        {/* FŐ TARTALOM */}
         <main className="px-5 pt-5">
           <h2 className="text-2xl font-semibold mb-4 text-gray-900">
             Kategóriák
           </h2>
 
-          {/* FORM */}
+          {/* ŰRLAP */}
           {showForm && (
             <div
               className={`bg-white p-6 rounded-xl shadow-md mb-6 text-gray-900 ${
@@ -317,9 +328,12 @@ const AdminCategories = () => {
                   <input
                     type="text"
                     value={formData.name}
-                    onChange={(e) =>
-                      setFormData({ ...formData, name: e.target.value })
-                    }
+                    maxLength={NAME_MAX}
+                    onChange={(e) => {
+                      const v = e.target.value;
+                      if (v.length > NAME_MAX) return;
+                      setFormData({ ...formData, name: v });
+                    }}
                     className="w-full p-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-green-500 bg-white text-gray-900"
                     placeholder="pl. Deluxe szoba"
                   />

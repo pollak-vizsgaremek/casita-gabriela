@@ -5,6 +5,7 @@ import Toast, { useToast } from "../components/Toast";
 import api from "../services/api";
 
 export default function UserData() {
+// Felhasználói adatok szerkesztő oldal: profiladatok és jelszó módosítás
 	const CONFIRM_ANIMATION_MS = 220;
 	const location = useLocation();
 	const [user, setUser] = useState(null);
@@ -29,6 +30,7 @@ export default function UserData() {
 
 	useEffect(() => { setSidebarOpen(false); }, [location.pathname]);
 
+	// Betöltjük a felhasználó adatait a szerverről
 	useEffect(() => {
 		api.get("/user/data")
 			.then(res => {
@@ -120,6 +122,8 @@ export default function UserData() {
 		return errs;
 	};
 
+	// Jelszó validációs szabályok (kliens oldali gyors ellenőrzés)
+
 	const handleChange = e => {
 		const { name, value } = e.target;
 		const nextUser = { ...user, [name]: value };
@@ -131,6 +135,8 @@ export default function UserData() {
 			return { ...prev, [name]: err };
 		});
 	};
+
+	// Űrlapmezők változáskezelője: frissíti a user objektumot és validál
 
 	const performSave = async () => {
 		setSaving(true);
@@ -193,6 +199,8 @@ export default function UserData() {
 		setSaving(false);
 	};
 
+	// Mentés művelet: szerverhívás a profiladatok frissítéséhez (jelszóval is)
+
 	const openConfirm = ({ title, message, confirmLabel = "Megerősítés", variant = "primary", onConfirm }) => {
 		if (closeConfirmTimeoutRef.current) {
 			clearTimeout(closeConfirmTimeoutRef.current);
@@ -219,6 +227,8 @@ export default function UserData() {
 			openConfirmRafRef.current = null;
 		});
 	};
+
+	// Megerősítő dialógus megnyitása animált módon
 
 	const closeConfirm = () => {
 		if (openConfirmRafRef.current) {
@@ -300,6 +310,8 @@ export default function UserData() {
 			onConfirm: () => performSave(),
 		});
 	};
+
+	// Űrlap beküldés: előellenőrzés, jelszólogika és mentés megerősítése
 
 	return (
 		<div className="flex min-h-screen w-dvw bg-[#f7faf7]">

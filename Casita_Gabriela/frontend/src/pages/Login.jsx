@@ -1,3 +1,4 @@
+// Bejelentkezés oldal: autentikáció és token mentés
 import React, { useState } from 'react';
 import { Link, useNavigate, useLocation } from 'react-router';
 import axios from 'axios';
@@ -14,11 +15,10 @@ const Login = () => {
   };
 
   const emitAuthChange = (user, token) => {
-    // persist to localStorage so other tabs receive storage event
+    // Token és user mentése a localStorage-be és esemény kibocsátása
     localStorage.setItem("token", token);
     localStorage.setItem("user", JSON.stringify(user));
     localStorage.setItem("user_id", user.id);
-    // dispatch custom event for same-tab listeners
     window.dispatchEvent(new CustomEvent('authChanged', { detail: { user, token } }));
   };
 
@@ -36,12 +36,12 @@ const Login = () => {
       const user = res.data.user;
       const token = res.data.token;
 
-      // persist and notify other components
+      // Mentés és értesítés a többi komponens felé
       emitAuthChange(user, token);
 
       setMessage(res.data.message || 'Sikeres bejelentkezés.');
 
-      // redirect back to original page if provided, otherwise admin or home
+      // Visszairányítás: ha volt eredeti cél, oda; különben admin vagy főoldal
       const from = location.state?.from || (Number(user.isAdmin) === 1 ? '/admin' : '/');
       navigate(from, { replace: true });
     } catch (err) {

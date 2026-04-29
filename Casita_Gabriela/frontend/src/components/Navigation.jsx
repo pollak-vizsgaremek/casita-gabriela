@@ -5,7 +5,7 @@ const Navigation = () => {
   const location = useLocation();
   const [sidebarOpen, setSidebarOpen] = useState(false);
 
-  // user in state so UI updates immediately after login/logout
+  // Felhasználó állapot: helyi tárolóból töltjük be, UI frissítéshez
   const [user, setUser] = useState(() => {
     try {
       const raw = localStorage.getItem('user');
@@ -16,12 +16,12 @@ const Navigation = () => {
   });
 
   useEffect(() => {
-    // close sidebar on route change
+    // Útvonalváltáskor bezárjuk az oldalsávot
     setSidebarOpen(false);
   }, [location.pathname]);
 
   useEffect(() => {
-    // listen for auth changes from Login component (same-tab) and storage events (other tabs)
+    // Eseménykezelők az azonnali UI frissítéshez (login/logout más tabokban)
     const onAuthChanged = (e) => {
       const detail = e?.detail;
       if (!detail) {
@@ -31,6 +31,7 @@ const Navigation = () => {
       setUser(detail.user || null);
     };
 
+    // Storage esemény: ha másik tab módosítja a sessiont, frissítjük
     const onStorage = (e) => {
       if (e.key === 'user' || e.key === 'token' || e.key === 'user_id') {
         try {
@@ -50,23 +51,23 @@ const Navigation = () => {
     };
   }, []);
 
+  // Session törlése és értesítés a komponenseknek
   const clearSession = () => {
     localStorage.removeItem('user');
     localStorage.removeItem('token');
     localStorage.removeItem('user_id');
-    // notify other components immediately
     window.dispatchEvent(new CustomEvent('authChanged', { detail: null }));
     setUser(null);
   };
 
+  // Kijelentkezés: session törlése és átirányítás
   const handleLogout = () => {
     clearSession();
-    // redirect to login after logout
     window.location.href = '/login';
   };
 
+  // Belépés gombra kattintás: előző session eltávolítása
   const handleLoginClick = () => {
-    // clear any stale session before navigating to login
     clearSession();
   };
 
@@ -83,16 +84,16 @@ const Navigation = () => {
         className="bg-[#C0FF95] w-dvw h-[10dvh] flex items-center px-4 sm:px-8 shadow-md border-b-2 border-gray-200 fixed top-0 left-0 right-0"
         style={{ zIndex: 200 }}
       >
-        <Link to="/" className="h-full flex items-center">
-          <img src="/C.png" alt="Home" className="h-10 sm:h-12 md:h-14 w-auto" />
+        <Link to="/" className="h-full flex items-center flex-shrink-0">
+          <img src="/C.png" alt="Home" className="site-logo h-10 sm:h-12 md:h-14 w-auto object-contain" />
         </Link>
 
-        <div className="ml-auto hidden sm:flex gap-6 items-center pr-4">
+        <div className="ml-auto hidden sm:flex items-center pr-4 gap-4 sm:gap-4 md:gap-6 lg:gap-8 nav-links">
           {routes.slice(1, 3).map((r) => (
             <Link
               to={r.route}
               key={r.route}
-              className="text-[#1F1F1F] px-3 py-1 font-bold hover:text-[#515151] hover:-translate-y-px transition-all duration-200"
+              className="text-[#1F1F1F] px-3 py-1 font-bold hover:text-[#515151] hover:-translate-y-px transition-all duration-200 flex-shrink-0"
             >
               {r.name}
             </Link>

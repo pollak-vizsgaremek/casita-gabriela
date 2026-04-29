@@ -262,8 +262,10 @@ export const createBooking = async (req, res) => {
       departure_date,
     } = req.body;
 
-    const local = new Date(booking_date);
-    const corrected = new Date(local.getTime() - local.getTimezoneOffset() * 60000);
+    // Expect `booking_date` to be an ISO timestamp (UTC) sent by the client.
+    // Store it directly as a Date object (or use server time if not provided).
+    // Avoid manual timezone arithmetic here; Prisma/DB store UTC timestamps.
+    const corrected = booking_date ? new Date(booking_date) : new Date();
 
     const peopleCount =
       people !== undefined && people !== null

@@ -33,14 +33,12 @@ const formatDateOnly = (iso) => {
   }
 };
 
-// teljes dátum + idő, de a megjelenítéshez 2 órát levonunk
+// teljes dátum + idő — jelenítse meg a helyi időzóna szerint
 const formatDateTime = (iso) => {
   if (!iso) return "-";
   try {
     const d = new Date(iso);
-    // levonunk 2 órát a megjelenítéshez
-    const adjusted = new Date(d.getTime() - 2 * 60 * 60 * 1000);
-    return adjusted.toLocaleString();
+    return d.toLocaleString();
   } catch (err) {
     console.debug("formatDateTime parse error", err);
     return iso;

@@ -1,10 +1,11 @@
 import axios from 'axios';
 
+// Axios kliens a backend hívásokhoz, alapértelmezett baseURL
 const api = axios.create({
   baseURL: 'http://localhost:6969',
 });
 
-// Attach latest token before each request
+// Kérés előtt: csatoljuk a legfrissebb tokent (ha van)
 api.interceptors.request.use((config) => {
   const token = localStorage.getItem('token');
   if (token) {
@@ -16,7 +17,7 @@ api.interceptors.request.use((config) => {
   return config;
 });
 
-// Global 401 handler: clear auth and redirect to login
+// Válasz interceptor: globális 401 kezelés (auth törlése és átirányítás)
 api.interceptors.response.use(
   (res) => res,
   (err) => {
@@ -26,7 +27,7 @@ api.interceptors.response.use(
         localStorage.removeItem('user');
         localStorage.removeItem('user_id');
         window.dispatchEvent(new CustomEvent('authChanged', { detail: { user: null, token: null } }));
-        // Navigate to login page
+        // Átirányítás bejelentkezésre
         if (typeof window !== 'undefined') window.location.href = '/login';
       } catch (e) {
         console.debug('Error handling 401', e);

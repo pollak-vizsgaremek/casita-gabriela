@@ -92,7 +92,7 @@ const MonthCalendar = ({ monthDate, bookings = [], onDayClick, selectedRange, di
   const start = startOfMonth(monthDate);
   const last = endOfMonth(monthDate);
   const daysInMonth = last.getDate();
-  const startWeekday = (start.getDay() + 6) % 7; // hétfő kezdés
+  const startWeekday = (start.getDay() + 6) % 7;
   const cells = [];
   for (let i = 0; i < startWeekday; i++) cells.push(null);
   for (let d = 1; d <= daysInMonth; d++) {
@@ -199,7 +199,7 @@ const Room = () => {
   const [activeThumbIndex, setActiveThumbIndex] = useState(0);
   const imageContainerRef = useRef(null);
 
-  // Lightbox state (simple, no scaling)
+  // Lightbox állapot: nagyított kép megjelenítés vezérlése
   const [lightboxOpen, setLightboxOpen] = useState(false);
   const [lbBottomIndex, setLbBottomIndex] = useState(0);
   const [lbTopIndex, setLbTopIndex] = useState(null);
@@ -464,6 +464,9 @@ const Room = () => {
     };
   }, [loadedMap]);
 
+  // Képváltás és lightbox segédfüggvények következnek
+  // (changeImage, onTopLoaded, lightboxChange, open/close, stb.)
+
   const changeImage = (newIndex) => {
     if (!room) return;
     setActiveThumbIndex(newIndex);
@@ -542,7 +545,7 @@ const Room = () => {
     return () => window.removeEventListener("keydown", onKey);
   }, [lightboxOpen, lbBottomIndex, room, lightboxChange]);
 
-  // Build calendarMap (half-day coloring)
+  // Naptár térkép összeállítása (fél-napos színezéshez)
   const calendarMap = useMemo(() => {
     const map = {};
     bookings.forEach((b) => {
@@ -608,6 +611,8 @@ const Room = () => {
     return diffDays > 0 ? diffDays : 0;
   }, [checkIn, checkOut]);
 
+  // Árak és kedvezmények kiszámítása az űrlap adatai alapján
+
   const totalPrice = useMemo(() => {
     if (!nights || !guests || !room) return 0;
     return nights * guests * room.price;
@@ -634,7 +639,7 @@ const Room = () => {
         if (Number(uid) !== Number(currentUserId)) return false;
         const status = (b.status || '').toString().toLowerCase();
         if (status.includes('approved') || status.includes('complete') || status.includes('completed')) return true;
-        // allow if booking has already finished (past departure)
+        // Elfogadottnak számít, ha a foglalás már lejárt (távozás múlt)
         if (b.departure_date) {
           const dep = parseISOToLocalDate(b.departure_date);
           if (dep && dateToDayNumber(dep) <= dateToDayNumber(today)) return true;
@@ -760,7 +765,7 @@ const Room = () => {
       try {
         const url = `${BACKEND_BASE}${ep}`;
             const res = await axios.post(url, payload, { headers: { "Content-Type": "application/json" } });
-            // After any successful booking, mark user as no longer first-time
+            // Sikeres foglalás után a felhasználó már nem számít első alkalmasnak, így a kedvezmény nem érvényes
             try {
               if (currentUser) {
                 const updated = { ...currentUser, isFirstTimeUser: false };
@@ -772,7 +777,8 @@ const Room = () => {
               console.debug('Updating local first-time flag failed', e);
             }
         localStorage.removeItem(bookingDraftKey);
-        navigate('/booking-success');
+        // A létrehozott foglalást továbbadjuk a sikeroldalnak (id és összeg megjelenítésére)
+        navigate('/booking-success', { state: { bookingData: res?.data?.booking ?? res?.data } });
         return;
       } catch (err) {
         lastError = { err, endpoint: ep, code: ERR_POST };
@@ -934,6 +940,8 @@ const Room = () => {
     }
   };
 
+  // Vélemény beküldés logika: POST kérés, helyi állapot frissítése és toast
+
   if (loading || !initialImageLoaded) {
     return (
       <div className="flex items-center justify-center min-h-screen w-dvw bg-[#0b1f13] text-[#F1FBF4]">
@@ -961,7 +969,7 @@ const Room = () => {
     ? Math.round((allReviews.reduce((sum, review) => sum + Number(review?.stars || 0), 0) / allReviews.length) * 10) / 10
     : 0;
 
-  // New: booking enabled only when dates selected and both checkboxes accepted
+  // Foglalás csak akkor engedélyezett, ha dátumok ki vannak választva és a checkboxok elfogadva
   const canBook = !!(checkIn && checkOut && acceptedAszf && acceptedAdat);
   const bookingButtonEnabled = !bookingSubmitting && (isLoggedIn ? canBook : true);
   const bookingButtonLabel = bookingSubmitting
@@ -996,6 +1004,7 @@ const Room = () => {
                   <div className="text-sm text-gray-500">Nincsenek vélemények</div>
                 )}
               </div>
+              {/* Képgaléria: nagy kép és overlay gombok */}
               <div className={`w-full bg-[#FFFECE] rounded-2xl border border-[#efe9b6] overflow-hidden shadow-lg/20 relative transform transition-all duration-600 ${pageLoaded ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-3'}`}>
                 <div
                   ref={imageContainerRef}
@@ -1370,6 +1379,7 @@ const Room = () => {
                 )}
               </div>
             </div>
+            {/* Jobb oldali panel: foglalási kártya és kapcsolódó vezérlők */}
             <div className="flex flex-col gap-5 sm:gap-6 lg:sticky lg:top-24 lg:self-start">
               {/* Booking card */}
               <div className={`bg-[#FFFECE] text-black rounded-2xl border border-[#efe9b6] px-3 sm:px-4 py-1 shadow-lg/20 transform transition-all duration-500 ${pageLoaded ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-2'}`} style={{ transitionDelay: pageLoaded ? '220ms' : '0ms' }}>
@@ -1496,6 +1506,7 @@ const Room = () => {
                 )}
               </div>
 
+              {/* Vélemények – mobil nézet */}
               <div className={`lg:hidden bg-[#FFFECE] text-black rounded-2xl border border-[#efe9b6] p-4 shadow-lg/20 flex flex-col gap-4 transform transition-all duration-500 ${pageLoaded ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-2'}`} style={{ transitionDelay: pageLoaded ? '240ms' : '0ms' }}>
                 <div className="flex flex-col gap-3">
                   <div className="flex items-center justify-between gap-3 flex-wrap">
@@ -1740,7 +1751,7 @@ const Room = () => {
         <Footer />
       </div>
 
-      {/* Replaced lightbox: full-screen modal copied from the first code (simple full-screen overlay with centered image) */}
+      {/* Lightbox: teljes képernyős modál - egyszerű teljes képernyős átfedés középre igazított képpel */}
       {lightboxOpen && (
         <>
           <div className="fixed inset-0 z-900 bg-black/70" onClick={closeLightbox} aria-hidden="true" />

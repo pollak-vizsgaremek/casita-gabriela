@@ -3,7 +3,7 @@ import multer from "multer";
 import path from "path";
 import fs from "fs";
 
-// ---------- IMAGE NORMALIZERS ----------
+// IMAGE NORMALIZERS 
 export const normalizeImagesFromDb = (imagesField) => {
   if (!imagesField) return [];
   try {
@@ -33,7 +33,7 @@ export const parseId = (idParam) => {
   return n;
 };
 
-// ---------- MULTER (fájl feltöltés) ----------
+//  MULTER (fájl feltöltés) 
 const PUBLIC_DIR = path.join(process.cwd(), "public");
 if (!fs.existsSync(PUBLIC_DIR)) fs.mkdirSync(PUBLIC_DIR, { recursive: true });
 
